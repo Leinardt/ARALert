@@ -153,17 +153,9 @@ export const Landing: React.FC = () => {
                 ARALert
               </h1>
 
-              {/* High-contrast, clear subtitle */}
-              <p className="max-w-2xl mx-auto lg:mx-0 text-lg sm:text-xl md:text-[1.25rem] leading-[1.7] tracking-[-0.01em] text-slate-800 dark:text-slate-100 font-medium mb-9 sm:mb-10">
-                <span>A Student Performance Monitoring and </span>
-                <span className="text-slate-950 dark:text-white font-bold">
-                  Early Academic Risk Detection
-                </span>{' '}
-                <span>System for the ARAL Program of </span>
-                <span className="font-bold text-[#0052B7] dark:text-blue-400">
-                  Palanas National Agriculture High School
-                </span>
-                <span>.</span>
+              {/* Uniform, simplified subtitle */}
+              <p className="max-w-2xl mx-auto lg:mx-0 text-lg sm:text-xl md:text-[1.25rem] leading-[1.7] tracking-[-0.01em] text-slate-600 dark:text-slate-300 font-medium mb-9 sm:mb-10">
+                A Student Performance Monitoring and Early Academic Risk Detection System for the ARAL Program of Palanas National Agriculture High School.
               </p>
 
               {/* Primary actions */}
@@ -174,7 +166,7 @@ export const Landing: React.FC = () => {
                   onClick={() => {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="group inline-flex items-center justify-center gap-2.5 h-12 px-7 rounded-xl bg-slate-950 hover:bg-[#0052B7] dark:bg-white dark:hover:bg-blue-400 text-white dark:text-slate-950 font-semibold text-sm sm:text-[15px] whitespace-nowrap cursor-pointer select-none transition-all duration-200 shadow-[0_8px_24px_-6px_rgba(15,23,42,0.22)] hover:shadow-[0_12px_28px_-6px_rgba(0,82,183,0.38)] hover:-translate-y-0.5 active:translate-y-0"
+                  className="group inline-flex items-center justify-center gap-2.5 h-12 px-7 rounded-xl bg-[#0052B7] hover:bg-[#003982] dark:bg-[#0052B7] dark:hover:bg-[#2563EB] text-white font-semibold text-sm sm:text-[15px] whitespace-nowrap cursor-pointer select-none transition-all duration-200 shadow-[0_8px_24px_-6px_rgba(0,82,183,0.42)] hover:shadow-[0_14px_30px_-6px_rgba(0,57,130,0.58)] hover:-translate-y-0.5 active:translate-y-0"
                 >
                   <span>
                     {isAuthenticated ? 'Go to Dashboard' : 'Access System Portal'}
@@ -189,7 +181,7 @@ export const Landing: React.FC = () => {
                     e.preventDefault();
                     document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="group inline-flex items-center justify-center h-12 px-7 rounded-xl bg-white/85 dark:bg-white/[0.06] backdrop-blur-md border border-slate-300/90 dark:border-white/15 text-slate-800 dark:text-slate-100 hover:border-[#0052B7] dark:hover:border-blue-400 hover:text-[#0052B7] dark:hover:text-blue-400 font-semibold text-sm sm:text-[15px] whitespace-nowrap cursor-pointer select-none transition-all duration-200 shadow-[0_2px_10px_rgba(15,23,42,0.04)]"
+                  className="group inline-flex items-center justify-center h-12 px-7 rounded-xl bg-white/85 dark:bg-white/[0.06] backdrop-blur-md border border-slate-200/90 dark:border-white/15 text-slate-900 dark:text-white hover:border-[#0052B7] dark:hover:border-blue-400 hover:text-[#0052B7] dark:hover:text-blue-400 font-semibold text-sm sm:text-[15px] whitespace-nowrap cursor-pointer select-none transition-all duration-200 shadow-[0_2px_10px_rgba(15,23,42,0.04)]"
                 >
                   <span>FAQ</span>
                 </a>
@@ -215,7 +207,7 @@ export const Landing: React.FC = () => {
             <h2 className="text-2xl sm:text-3xl lg:text-[2.5rem] font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.15] mb-4">
               Bridging learning gaps through purposeful academic monitoring.
             </h2>
-            <p className="text-sm sm:text-base lg:text-[17px] text-slate-700 dark:text-slate-300 leading-relaxed">
+            <p className="text-sm sm:text-base lg:text-[17px] text-slate-600 dark:text-slate-300 leading-relaxed">
               Designed for Palanas National Agriculture High School, ARALert provides educators, tutors, and administrators with clear real-time visibility into student performance and attendance.
             </p>
           </div>
@@ -226,7 +218,7 @@ export const Landing: React.FC = () => {
               <h3 className="text-lg sm:text-[19px] font-bold text-slate-900 dark:text-white tracking-tight mb-2.5">
                 Targeted Interventions
               </h3>
-              <p className="text-sm sm:text-[15px] text-slate-700 dark:text-slate-300 leading-relaxed">
+              <p className="text-sm sm:text-[15px] text-slate-600 dark:text-slate-300 leading-relaxed">
                 Focuses on essential foundational competencies in English, Science, and Mathematics through structured, tutor-led remedial sessions tailored to learner needs.
               </p>
             </div>
@@ -235,7 +227,7 @@ export const Landing: React.FC = () => {
               <h3 className="text-lg sm:text-[19px] font-bold text-slate-900 dark:text-white tracking-tight mb-2.5">
                 Early Risk Detection
               </h3>
-              <p className="text-sm sm:text-[15px] text-slate-700 dark:text-slate-300 leading-relaxed">
+              <p className="text-sm sm:text-[15px] text-slate-600 dark:text-slate-300 leading-relaxed">
                 Eliminates end-of-term surprises by tracking assessments and attendance in real time, alerting teachers early to adapt learning interventions.
               </p>
             </div>
@@ -244,14 +236,14 @@ export const Landing: React.FC = () => {
               <h3 className="text-lg sm:text-[19px] font-bold text-slate-900 dark:text-white tracking-tight mb-2.5">
                 Unified Community
               </h3>
-              <p className="text-sm sm:text-[15px] text-slate-700 dark:text-slate-300 leading-relaxed">
+              <p className="text-sm sm:text-[15px] text-slate-600 dark:text-slate-300 leading-relaxed">
                 Connects school heads, subject teachers, volunteer tutors, and students on a single transparent platform with role-based access and shared accountability.
               </p>
             </div>
           </div>
 
-          <p className="mt-8 text-xs sm:text-[13px] text-slate-600 dark:text-slate-400 text-left landing-reveal">
-            Aligned with <strong className="text-slate-900 dark:text-slate-200 font-semibold">Republic Act No. 12028</strong> (Academic Recovery and Accessible Learning Program Act) to advance learning equity.
+          <p className="mt-8 text-xs sm:text-[13px] text-slate-600 dark:text-slate-300 text-left landing-reveal">
+            Aligned with Republic Act No. 12028 (Academic Recovery and Accessible Learning Program Act) to advance learning equity.
           </p>
         </div>
       </section>
@@ -273,7 +265,7 @@ export const Landing: React.FC = () => {
               <h2 className="text-2xl sm:text-3xl lg:text-[2.5rem] font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.15] mb-4">
                 Practical tools built for modern classroom workflows.
               </h2>
-              <p className="text-sm sm:text-base lg:text-[17px] text-slate-700 dark:text-slate-300 leading-relaxed">
+              <p className="text-sm sm:text-base lg:text-[17px] text-slate-600 dark:text-slate-300 leading-relaxed">
                 Purpose-built modules that eliminate paperwork, keeping educator attention focused on student guidance and measurable recovery.
               </p>
             </div>
@@ -284,7 +276,7 @@ export const Landing: React.FC = () => {
                 <h3 className="text-lg sm:text-[19px] font-bold text-slate-900 dark:text-white tracking-tight mb-2">
                   Automated Grade Tracking
                 </h3>
-                <p className="text-sm sm:text-[15px] text-slate-700 dark:text-slate-300 leading-relaxed">
+                <p className="text-sm sm:text-[15px] text-slate-600 dark:text-slate-300 leading-relaxed">
                   Consolidates formative assessments, periodic quizzes, and task scores with automated weighted computations and clear visual trajectories.
                 </p>
               </div>
@@ -293,7 +285,7 @@ export const Landing: React.FC = () => {
                 <h3 className="text-lg sm:text-[19px] font-bold text-slate-900 dark:text-white tracking-tight mb-2">
                   Proactive Risk Alerts
                 </h3>
-                <p className="text-sm sm:text-[15px] text-slate-700 dark:text-slate-300 leading-relaxed">
+                <p className="text-sm sm:text-[15px] text-slate-600 dark:text-slate-300 leading-relaxed">
                   Instantly categorizes learners into Low, Moderate, or High Risk cohorts when scores dip below passing benchmarks or absences mount.
                 </p>
               </div>
@@ -302,7 +294,7 @@ export const Landing: React.FC = () => {
                 <h3 className="text-lg sm:text-[19px] font-bold text-slate-900 dark:text-white tracking-tight mb-2">
                   Dynamic QR Attendance
                 </h3>
-                <p className="text-sm sm:text-[15px] text-slate-700 dark:text-slate-300 leading-relaxed">
+                <p className="text-sm sm:text-[15px] text-slate-600 dark:text-slate-300 leading-relaxed">
                   Rapid session check-in via time-sensitive QR codes prevents proxy attendance and instantly syncs verified timestamps to student records.
                 </p>
               </div>
@@ -328,7 +320,7 @@ export const Landing: React.FC = () => {
               <h2 className="text-2xl sm:text-3xl lg:text-[2.5rem] font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.15] mb-4">
                 Everything you need to know.
               </h2>
-              <p className="text-sm sm:text-base lg:text-[17px] text-slate-700 dark:text-slate-300 leading-relaxed">
+              <p className="text-sm sm:text-base lg:text-[17px] text-slate-600 dark:text-slate-300 leading-relaxed">
                 Find clear answers regarding ARALert workflows, early risk detection, and attendance verification.
               </p>
             </div>
@@ -389,7 +381,7 @@ export const Landing: React.FC = () => {
                       }`}
                     >
                       <div className="overflow-hidden">
-                        <p className="px-6 sm:px-8 pb-6 text-sm sm:text-[15px] text-slate-700 dark:text-slate-300 leading-relaxed">
+                        <p className="px-6 sm:px-8 pb-6 text-sm sm:text-[15px] text-slate-600 dark:text-slate-300 leading-relaxed">
                           {faq.answer}
                         </p>
                       </div>

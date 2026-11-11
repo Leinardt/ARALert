@@ -234,12 +234,7 @@ export const Login: React.FC = () => {
 
   return (
     <div className="w-full min-h-[100dvh] flex flex-col items-center justify-center px-3.5 sm:px-6 py-12 sm:py-16 box-border bg-white dark:bg-black text-slate-900 dark:text-white transition-colors">
-      <div
-        className="w-full transition-all duration-300 ease-out mx-auto"
-        style={{
-          maxWidth: loginType === 'select' ? '540px' : '440px',
-        }}
-      >
+      <div className="w-full max-w-[480px] mx-auto animate-view-fade-in">
         {/* Session expired alert */}
         {isSessionExpired && (
           <div className="mb-4 p-3.5 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs sm:text-sm flex items-center gap-2.5">
@@ -256,13 +251,13 @@ export const Login: React.FC = () => {
           </div>
         )}
 
-        {/* ── Card ── */}
-        <div className="bg-white dark:bg-neutral-950 rounded-2xl border border-slate-200/90 dark:border-neutral-800 shadow-sm overflow-hidden relative">
-          {/* Card Header */}
-          <div className="p-6 sm:p-8 sm:pb-0 text-center flex flex-col items-center relative">
-            {/* Back to Options button on upper left with generous bottom spacing */}
+        {/* ── Sign In Content (No outer card container) ── */}
+        <div key={loginType} className="w-full animate-view-fade-in">
+          {/* Header */}
+          <div className="text-center flex flex-col items-center">
+            {/* Back to Options button on upper left */}
             {loginType !== 'select' && (
-              <div className="w-full flex items-center justify-start mb-6 sm:mb-7 animate-view-fade-in">
+              <div className="w-full flex items-center justify-start mb-6 sm:mb-7">
                 <button
                   onClick={handleBack}
                   type="button"
@@ -283,23 +278,28 @@ export const Login: React.FC = () => {
               />
             </div>
 
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">
+            <h1
+              className={`text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight ${
+                loginType === 'student' ? 'mb-5 sm:mb-6' : 'mb-2'
+              }`}
+            >
               {loginType === 'select' && 'Sign In Options'}
               {loginType === 'staff' && 'PNAHS Personnel Login'}
               {loginType === 'student' && 'Student Login'}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-5 sm:mb-6 leading-relaxed text-center w-full px-1 sm:px-2">
-              {loginType === 'select' && 'Select your portal to access ARALert.'}
-              {loginType === 'staff' && 'Sign in using your pre-registered Google account.'}
-              {loginType === 'student' && 'Enter your 12-digit Learner Reference Number.'}
-            </p>
+            {loginType !== 'student' && (
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-5 sm:mb-6 leading-relaxed text-center w-full px-1 sm:px-2">
+                {loginType === 'select' && 'Select your portal to access ARALert.'}
+                {loginType === 'staff' && 'Sign in using your pre-registered Google account.'}
+              </p>
+            )}
           </div>
 
-          {/* Card Body */}
-          <div className="p-4 sm:p-8 pt-0 sm:pt-0">
-            {/* ── Option Cards (Solid Visible Cards with Chevron and High-Contrast Hover) ── */}
+          {/* Body */}
+          <div className="w-full">
+            {/* ── Option Cards (Clean, No Grey Background Fill) ── */}
             {loginType === 'select' && (
-              <div className="flex flex-col gap-3 sm:gap-3.5 animate-view-fade-in">
+              <div className="flex flex-col gap-3 sm:gap-3.5">
                 {/* PNAHS Personnel Google Login Option */}
                 <button
                   type="button"
@@ -307,7 +307,7 @@ export const Login: React.FC = () => {
                     setLoginType('staff');
                     setServerError(null);
                   }}
-                  className="group flex items-center justify-between p-3.5 sm:p-5 rounded-xl text-left w-full cursor-pointer select-none transition-all duration-200 bg-slate-50 hover:bg-blue-50/70 dark:bg-neutral-900 dark:hover:bg-neutral-800/90 border border-slate-300 hover:border-[#0052B7] dark:border-neutral-700 dark:hover:border-blue-500 shadow-xs hover:shadow-md hover:-translate-y-0.5"
+                  className="group flex items-center justify-between p-4 sm:p-5 rounded-xl text-left w-full cursor-pointer select-none transition-all duration-200 bg-transparent hover:bg-[#0052B7]/[0.03] dark:hover:bg-blue-400/[0.05] border border-slate-200/90 hover:border-[#0052B7] dark:border-neutral-800 dark:hover:border-blue-400 hover:shadow-[0_8px_24px_-6px_rgba(0,82,183,0.12)] hover:-translate-y-0.5"
                 >
                   <div className="min-w-0 pr-2.5 sm:pr-3">
                     <div className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400 mb-0.5 sm:mb-1 transition-colors duration-200">
@@ -317,7 +317,7 @@ export const Login: React.FC = () => {
                       Sign in using your pre-registered Google account.
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors shrink-0" />
+                  <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-[#0052B7] dark:group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all duration-200 shrink-0" />
                 </button>
 
                 {/* Student Login Option */}
@@ -327,7 +327,7 @@ export const Login: React.FC = () => {
                     setLoginType('student');
                     setServerError(null);
                   }}
-                  className="group flex items-center justify-between p-3.5 sm:p-5 rounded-xl text-left w-full cursor-pointer select-none transition-all duration-200 bg-slate-50 hover:bg-blue-50/70 dark:bg-neutral-900 dark:hover:bg-neutral-800/90 border border-slate-300 hover:border-[#0052B7] dark:border-neutral-700 dark:hover:border-blue-500 shadow-xs hover:shadow-md hover:-translate-y-0.5"
+                  className="group flex items-center justify-between p-4 sm:p-5 rounded-xl text-left w-full cursor-pointer select-none transition-all duration-200 bg-transparent hover:bg-[#0052B7]/[0.03] dark:hover:bg-blue-400/[0.05] border border-slate-200/90 hover:border-[#0052B7] dark:border-neutral-800 dark:hover:border-blue-400 hover:shadow-[0_8px_24px_-6px_rgba(0,82,183,0.12)] hover:-translate-y-0.5"
                 >
                   <div className="min-w-0 pr-2.5 sm:pr-3">
                     <div className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400 mb-0.5 sm:mb-1 transition-colors duration-200">
@@ -337,14 +337,14 @@ export const Login: React.FC = () => {
                       Sign in using your 12-digit Learner Reference Number.
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors shrink-0" />
+                  <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-[#0052B7] dark:group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all duration-200 shrink-0" />
                 </button>
               </div>
             )}
 
             {/* ── Staff Google Login (Solid High-Contrast Button) ── */}
             {loginType === 'staff' && (
-              <div className="flex flex-col items-center gap-4 animate-view-fade-in">
+              <div className="flex flex-col items-center gap-4">
                 <div className="relative w-full max-w-[340px] h-[44px] mx-auto">
                   <button
                     type="button"
@@ -388,7 +388,7 @@ export const Login: React.FC = () => {
             {loginType === 'student' && (
               <form
                 onSubmit={studentForm.handleSubmit(onStudentSubmit)}
-                className="flex flex-col gap-4 animate-view-fade-in"
+                className="flex flex-col gap-4"
               >
                 <div>
                   <label

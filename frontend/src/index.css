@@ -152,7 +152,7 @@ html, body, #root {
 @keyframes viewFadeIn {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -161,7 +161,7 @@ html, body, #root {
 }
 
 .animate-view-fade-in {
-  animation: viewFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: viewFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .glass-btn {
