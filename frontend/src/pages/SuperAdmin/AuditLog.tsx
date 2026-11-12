@@ -665,24 +665,24 @@ export const AuditLog: React.FC = () => {
             {/* ── Mobile View (< 768px): Sticky Event & Timestamp with Horizontal Scrolling Details ── */}
           <div className="md:hidden overflow-x-auto table-scroll-container mobile-scroll-table w-full">
             <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
-              <thead className="bg-gray-50 dark:bg-[#111111] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
+              <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400 shadow-xs">
                 <tr>
-                  <th className="sticky left-0 z-10 bg-gray-50 dark:bg-[#111111] w-[135px] min-w-[135px] max-w-[135px] px-3 py-2 text-left whitespace-nowrap shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] border-r border-gray-100 dark:border-[#1A1A1A]">
+                  <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#111111] w-[135px] min-w-[135px] max-w-[135px] px-3 py-2 text-left whitespace-nowrap shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                     EVENT & TIME
                   </th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap min-w-[120px]">
+                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-3 py-2 text-left whitespace-nowrap min-w-[120px]">
                     TARGET
                   </th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap min-w-[120px]">
+                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-3 py-2 text-left whitespace-nowrap min-w-[120px]">
                     ACTOR
                   </th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap min-w-[80px]">
+                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-3 py-2 text-center whitespace-nowrap min-w-[80px]">
                     ROLE
                   </th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap min-w-[140px]">
+                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-3 py-2 text-left whitespace-nowrap min-w-[140px]">
                     EMAIL
                   </th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap min-w-[110px]">
+                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-3 py-2 text-center whitespace-nowrap min-w-[110px]">
                     LRN
                   </th>
                 </tr>
@@ -750,27 +750,27 @@ export const AuditLog: React.FC = () => {
           {/* ── Desktop View (>= 768px): Original Full-Width Table ── */}
           <div className="hidden md:block overflow-x-auto mobile-scroll-table">
             <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] shadow-xs">
                 <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                     TIMESTAMP
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                     EVENT
                   </th>
-                  <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap max-w-[150px]">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap max-w-[150px]">
                     TARGET
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                     NAME
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                     ROLE
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                     EMAIL
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                     LRN
                   </th>
                 </tr>

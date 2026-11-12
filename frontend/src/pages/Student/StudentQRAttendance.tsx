@@ -467,18 +467,18 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
               <EntrySessionSeparator label={session.label} time={session.time} />
               <div className="overflow-x-auto mobile-scroll-table sm:-mx-2 sm:px-2">
                 <table className="w-full sm:min-w-[680px] divide-y divide-gray-100 dark:divide-[#1A1A1A] text-xs sm:text-sm">
-                  <thead>
+                  <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] shadow-xs">
                     <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
-                      <th className="w-[30%] sm:w-[35%] px-1.5 sm:px-3 py-2 sm:py-2.5 text-left text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] w-[30%] sm:w-[35%] px-1.5 sm:px-3 py-2 sm:py-2.5 text-left text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         <SortableHeader label="STUDENT" sortKey="student" />
                       </th>
-                      <th className="w-[30%] sm:w-[30%] px-1.5 sm:px-3 py-2 sm:py-2.5 text-left text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] w-[30%] sm:w-[30%] px-1.5 sm:px-3 py-2 sm:py-2.5 text-left text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         <SortableHeader label="DATE" sortKey="date" />
                       </th>
-                      <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-3 py-2 sm:py-2.5 text-left text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] w-[18%] sm:w-[20%] px-1.5 sm:px-3 py-2 sm:py-2.5 text-left text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         <SortableHeader label="TIME" sortKey="time" />
                       </th>
-                      <th className="w-[22%] sm:w-[15%] px-1.5 sm:px-3 py-2 sm:py-2.5 text-left text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] w-[22%] sm:w-[15%] px-1.5 sm:px-3 py-2 sm:py-2.5 text-left text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         <SortableHeader label="STATUS" sortKey="status" />
                       </th>
                     </tr>

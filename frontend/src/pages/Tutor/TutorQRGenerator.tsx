@@ -546,13 +546,13 @@ const AttendanceTable: React.FC<{
       {/* ── Desktop View (>= 768px): Exact original table ── */}
       <div className="hidden md:block overflow-x-auto mobile-scroll-table -mx-2 px-2">
         <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] shadow-xs">
             <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
-              <th className="w-[35%] px-3 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"><SortableHeader label="STUDENT" sortKey="student" /></th>
-              <th className="w-[25%] px-3 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"><SortableHeader label="DATE" sortKey="date" /></th>
-              <th className="w-[20%] px-3 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"><SortableHeader label="TIME" sortKey="time" /></th>
-              <th className="w-[12%] px-3 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"><SortableHeader label="STATUS" sortKey="status" /></th>
-              <th className="w-[8%] px-3 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">ACTIONS</th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[35%] px-3 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-[#222222]"><SortableHeader label="STUDENT" sortKey="student" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[25%] px-3 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-[#222222]"><SortableHeader label="DATE" sortKey="date" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[20%] px-3 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-[#222222]"><SortableHeader label="TIME" sortKey="time" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[12%] px-3 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-[#222222]"><SortableHeader label="STATUS" sortKey="status" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[8%] px-3 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-[#222222]">ACTIONS</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white dark:divide-[#1A1A1A] dark:bg-[#111111]">
@@ -680,21 +680,21 @@ const AttendanceTable: React.FC<{
       {/* ── Mobile View (< 768px): Mobile-optimized table with sealed sticky student column ── */}
       <div className="md:hidden overflow-x-auto mobile-scroll-table rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111]">
         <table className="min-w-[480px] w-full border-separate border-spacing-0 text-xs">
-          <thead>
+          <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515]">
             <tr className="bg-gray-50 dark:bg-[#151515]">
-              <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[35%] min-w-[130px] px-2.5 py-2 text-left text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+              <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#151515] w-[35%] min-w-[130px] px-2.5 py-2 text-left text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
                 <SortableHeader label="STUDENT" sortKey="student" />
               </th>
-              <th className="w-[26%] min-w-[105px] px-2 py-2 text-left text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[26%] min-w-[105px] px-2 py-2 text-left text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableHeader label="DATE" sortKey="date" />
               </th>
-              <th className="w-[18%] min-w-[75px] px-2 py-2 text-left text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[18%] min-w-[75px] px-2 py-2 text-left text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableHeader label="TIME" sortKey="time" />
               </th>
-              <th className="w-[13%] min-w-[85px] px-2 py-2 text-left text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[13%] min-w-[85px] px-2 py-2 text-left text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableHeader label="STATUS" sortKey="status" />
               </th>
-              <th className="w-[8%] min-w-[60px] px-2 py-2 text-center text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
+              <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[8%] min-w-[60px] px-2 py-2 text-center text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                 ACTIONS
               </th>
             </tr>
@@ -2883,11 +2883,11 @@ export const TutorQRGenerator: React.FC = () => {
                 <div className="mobile-scroll-table sm:min-h-0 sm:flex-1 sm:overflow-auto">
                   {/* Desktop Table View (>= 640px) */}
                   <table className="hidden sm:table min-w-full divide-y divide-gray-100 dark:divide-slate-800 text-sm">
-                    <thead className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10">
+                    <thead className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-xs">
                       <tr className="divide-x divide-gray-100 dark:divide-slate-800">
                         <th
                           aria-sort={manualSortField === 'student' ? (manualSortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
-                          className="px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"
+                          className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"
                         >
                           <button
                             type="button"
@@ -2909,7 +2909,7 @@ export const TutorQRGenerator: React.FC = () => {
                         </th>
                         <th
                           aria-sort={manualSortField === 'lrn' ? (manualSortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
-                          className="px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 w-40"
+                          className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 w-40"
                         >
                           <button
                             type="button"
@@ -2929,10 +2929,10 @@ export const TutorQRGenerator: React.FC = () => {
                             )}
                           </button>
                         </th>
-                        <th className="px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 w-44">
+                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 w-44">
                           TIME
                         </th>
-                        <th className="px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 w-56">
+                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 w-56">
                           ATTENDANCE STATUS
                         </th>
                       </tr>
@@ -3018,9 +3018,9 @@ export const TutorQRGenerator: React.FC = () => {
                   {/* Mobile Responsive Attendance Table (< 640px) with sealed sticky student column */}
                   <div className="sm:hidden overflow-x-auto mobile-scroll-table rounded-md border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111111]">
                     <table className="min-w-[430px] w-full border-separate border-spacing-0 text-xs">
-                      <thead>
+                      <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515]">
                         <tr className="bg-gray-50 dark:bg-[#151515]">
-                          <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[36%] min-w-[125px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                          <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#151515] w-[36%] min-w-[125px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
                             <button
                               type="button"
                               onClick={() => handleManualSort('student')}
@@ -3039,7 +3039,7 @@ export const TutorQRGenerator: React.FC = () => {
                               )}
                             </button>
                           </th>
-                          <th className="w-[20%] min-w-[85px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                          <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[20%] min-w-[85px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                             <button
                               type="button"
                               onClick={() => handleManualSort('lrn')}
@@ -3058,10 +3058,10 @@ export const TutorQRGenerator: React.FC = () => {
                               )}
                             </button>
                           </th>
-                          <th className="w-[18%] min-w-[75px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                          <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[18%] min-w-[75px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                             TIME
                           </th>
-                          <th className="w-[26%] min-w-[130px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
+                          <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[26%] min-w-[130px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                             STATUS
                           </th>
                         </tr>

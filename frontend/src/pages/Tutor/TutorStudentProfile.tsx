@@ -992,11 +992,11 @@ export const TutorStudentProfile: React.FC = () => {
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-xs sm:text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                  <thead className="bg-gray-50 dark:bg-[#151515]">
+                  <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] shadow-xs">
                     <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
-                      <th className="px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">AVERAGE ATTENDANCE RATE</th>
-                      <th className="px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">AVERAGE SCORE RATE</th>
-                      <th className="px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">COMPOSITE RATING</th>
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">AVERAGE ATTENDANCE RATE</th>
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">AVERAGE SCORE RATE</th>
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">COMPOSITE RATING</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
@@ -2169,21 +2169,21 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
   const renderTable = (records: Grade[]) => (
     <div className="overflow-x-auto rounded-md border border-gray-200 dark:border-[#1A1A1A]">
       <table className="min-w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-xs sm:text-sm">
-        <thead>
+        <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] shadow-xs">
           <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
+            <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="SCORE" sortKey="score" />
             </th>
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
+            <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="REMARKS" sortKey="remarks" />
             </th>
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
+            <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="STATUS" sortKey="status" />
             </th>
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
+            <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="DATE" sortKey="date" />
             </th>
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
+            <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="TIME" sortKey="time" />
             </th>
           </tr>
@@ -2614,15 +2614,15 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
   const renderTable = (records: Attendance[]) => (
     <div className="overflow-x-auto rounded-md border border-gray-200 dark:border-[#1A1A1A]">
       <table className="min-w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-xs sm:text-sm">
-        <thead>
+        <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] shadow-xs">
           <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
+            <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="DATE" sortKey="date" />
             </th>
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
+            <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="TIME" sortKey="time" />
             </th>
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
+            <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="STATUS" sortKey="status" />
             </th>
           </tr>

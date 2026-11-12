@@ -228,12 +228,12 @@ const AuditLogTab: React.FC = () => {
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table" style={{ minWidth: '700px' }}>
-              <thead>
+              <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-slate-700">
                 <tr>
-                  <th>Timestamp</th>
-                  <th>Action</th>
-                  <th>Username</th>
-                  <th style={{ textAlign: 'center' }}>Details</th>
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-slate-700">Timestamp</th>
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-slate-700">Action</th>
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-slate-700">Username</th>
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-slate-700" style={{ textAlign: 'center' }}>Details</th>
                 </tr>
               </thead>
               <tbody>

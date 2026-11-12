@@ -2125,7 +2125,7 @@ export const TutorAnalytics: React.FC = () => {
   const SortHeader: React.FC<{ field: string; children: React.ReactNode; align?: string; className?: string; activeField?: string | null; ascending?: boolean; onSort?: (field: string) => void }> = ({ field, children, align = 'left', className = '', activeField = sortField, ascending = sortAsc, onSort = (value) => handleSort(value as OverallSortField) }) => (
     <th
       onClick={() => onSort(field)}
-      className={`px-4 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors select-none text-${align} ${className}`.trim()}
+      className={`sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors select-none text-${align} ${className}`.trim()}
     >
       <span className="inline-flex items-center gap-1">
         {children}
@@ -2455,11 +2455,11 @@ export const TutorAnalytics: React.FC = () => {
                       {/* Mobile View (< 768px): Mobile-optimized table with sealed sticky student column */}
                       <div className="md:hidden overflow-x-auto mobile-scroll-table rounded-b-md bg-white dark:bg-[#111111]">
                         <table className="min-w-[680px] w-full border-separate border-spacing-0 text-xs" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                          <thead>
+                          <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515]">
                             <tr className="bg-gray-50 dark:bg-[#151515]">
                               <th
                                 onClick={() => handleSort('student')}
-                                className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[26%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] cursor-pointer select-none"
+                                className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#151515] w-[26%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] cursor-pointer select-none"
                               >
                                 <span className="inline-flex items-center gap-1">
                                   STUDENT
@@ -2473,7 +2473,7 @@ export const TutorAnalytics: React.FC = () => {
                               {hasMultipleOverallAralLevels ? (
                                 <th
                                   onClick={() => handleSort('aralLevel')}
-                                  className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                                  className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                                 >
                                   <span className="inline-flex items-center gap-1 justify-center">
                                     ARAL LEVEL
@@ -2485,13 +2485,13 @@ export const TutorAnalytics: React.FC = () => {
                                   </span>
                                 </th>
                               ) : (
-                                <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] select-none">
+                                <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] select-none">
                                   ARAL LEVEL
                                 </th>
                               )}
                               <th
                                 onClick={() => handleSort('riskTier')}
-                                className="min-w-[85px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                                className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                               >
                                 <span className="inline-flex items-center gap-1 justify-center">
                                   RISK LEVEL
@@ -2504,7 +2504,7 @@ export const TutorAnalytics: React.FC = () => {
                               </th>
                               <th
                                 onClick={() => handleSort('compositeScore')}
-                                className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                                className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                               >
                                 <span className="inline-flex items-center gap-1 justify-center">
                                   COMPOSITE
@@ -2517,7 +2517,7 @@ export const TutorAnalytics: React.FC = () => {
                               </th>
                               <th
                                 onClick={() => handleSort('attendanceRate')}
-                                className="min-w-[85px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                                className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                               >
                                 <span className="inline-flex items-center gap-1 justify-center">
                                   ATTENDANCE
@@ -2530,7 +2530,7 @@ export const TutorAnalytics: React.FC = () => {
                               </th>
                               <th
                                 onClick={() => handleSort('scoreAvg')}
-                                className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                                className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                               >
                                 <span className="inline-flex items-center gap-1 justify-center">
                                   SCORE AVG
@@ -2541,7 +2541,7 @@ export const TutorAnalytics: React.FC = () => {
                                   )}
                                 </span>
                               </th>
-                              <th className="min-w-[190px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
+                              <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[190px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                                 REMARKS
                               </th>
                             </tr>
@@ -2634,19 +2634,19 @@ export const TutorAnalytics: React.FC = () => {
                       {/* Desktop View (>= 768px): Original full table */}
                       <div className="hidden md:block overflow-x-auto mobile-scroll-table -mx-1 sm:mx-0 px-1 sm:px-0">
                         <table className="min-w-[900px] divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal w-full" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                        <thead>
+                        <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] shadow-xs">
                           <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
                             <SortHeader field="student" className="w-[24%] min-w-[220px]">Student</SortHeader>
                             {hasMultipleOverallAralLevels ? (
                               <SortHeader field="aralLevel">ARAL Level</SortHeader>
                             ) : (
-                              <th className="px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 select-none">ARAL Level</th>
+                              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 select-none">ARAL Level</th>
                             )}
                             <SortHeader field="attendanceRate">Average Attendance Rate</SortHeader>
                             <SortHeader field="scoreAvg">Average Score Rate</SortHeader>
                             <SortHeader field="compositeScore">COMPOSITE RATING</SortHeader>
                             <SortHeader field="riskTier">Risk Level</SortHeader>
-                            <th className="px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">RISK LEVEL REMARKS</th>
+                            <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">RISK LEVEL REMARKS</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
@@ -2858,11 +2858,11 @@ export const TutorAnalytics: React.FC = () => {
                   {/* Mobile View (< 768px): Mobile-optimized table with sealed sticky student column */}
                   <div className="md:hidden overflow-x-auto mobile-scroll-table rounded-b-md bg-white dark:bg-[#111111]">
                     <table className="min-w-[460px] w-full border-separate border-spacing-0 text-xs" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                      <thead>
+                      <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515]">
                         <tr className="bg-gray-50 dark:bg-[#151515]">
                           <th
                             onClick={() => handleDetailSort('student' as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}
-                            className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[30%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] cursor-pointer select-none"
+                            className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#151515] w-[30%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1">
                               STUDENT
@@ -2876,7 +2876,7 @@ export const TutorAnalytics: React.FC = () => {
                           {hasMultipleAttendanceAralLevels ? (
                             <th
                               onClick={() => handleDetailSort('aralLevel' as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}
-                              className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                              className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                             >
                               <span className="inline-flex items-center gap-1 justify-center">
                                 ARAL LEVEL
@@ -2888,13 +2888,13 @@ export const TutorAnalytics: React.FC = () => {
                               </span>
                             </th>
                           ) : (
-                            <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] select-none">
+                            <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] select-none">
                               ARAL LEVEL
                             </th>
                           )}
                           <th
                             onClick={() => handleDetailSort('present' as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}
-                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[65px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1 justify-center">
                               PRESENT
@@ -2907,7 +2907,7 @@ export const TutorAnalytics: React.FC = () => {
                           </th>
                           <th
                             onClick={() => handleDetailSort('absent' as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}
-                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[65px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1 justify-center">
                               ABSENT
@@ -2920,7 +2920,7 @@ export const TutorAnalytics: React.FC = () => {
                           </th>
                           <th
                             onClick={() => handleDetailSort('attendanceAverage' as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}
-                            className="min-w-[90px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[90px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1 justify-center">
                               AVG RATE
@@ -2972,13 +2972,13 @@ export const TutorAnalytics: React.FC = () => {
                   {/* Desktop View (>= 768px): Original full table */}
                   <div className="hidden md:block overflow-x-auto mobile-scroll-table -mx-1 sm:mx-0 px-1 sm:px-0">
                     <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                      <thead>
+                      <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] shadow-xs">
                         <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
                           <SortHeader field="student" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Student</SortHeader>
                           {hasMultipleAttendanceAralLevels ? (
                             <SortHeader field="aralLevel" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>ARAL Level</SortHeader>
                           ) : (
-                            <th className="px-4 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 select-none text-left">ARAL Level</th>
+                            <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 select-none text-left">ARAL Level</th>
                           )}
                           <SortHeader field="present" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Present</SortHeader>
                           <SortHeader field="absent" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Absent</SortHeader>
@@ -3138,11 +3138,11 @@ export const TutorAnalytics: React.FC = () => {
                   {/* Mobile View (< 768px): Mobile-optimized table with sealed sticky student column */}
                   <div className="md:hidden overflow-x-auto mobile-scroll-table rounded-b-md bg-white dark:bg-[#111111]">
                     <table className="min-w-[560px] w-full border-separate border-spacing-0 text-xs" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                      <thead>
+                      <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515]">
                         <tr className="bg-gray-50 dark:bg-[#151515]">
                           <th
                             onClick={() => handleDetailSort('student' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
-                            className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[30%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] cursor-pointer select-none"
+                            className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#151515] w-[30%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1">
                               STUDENT
@@ -3156,7 +3156,7 @@ export const TutorAnalytics: React.FC = () => {
                           {hasMultipleScoreAralLevels ? (
                             <th
                               onClick={() => handleDetailSort('aralLevel' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
-                              className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                              className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                             >
                               <span className="inline-flex items-center gap-1 justify-center">
                                 ARAL LEVEL
@@ -3168,13 +3168,13 @@ export const TutorAnalytics: React.FC = () => {
                               </span>
                             </th>
                           ) : (
-                            <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] select-none">
+                            <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] select-none">
                               ARAL LEVEL
                             </th>
                           )}
                           <th
                             onClick={() => handleDetailSort('description' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
-                            className="min-w-[110px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[110px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1">
                               DESCRIPTION
@@ -3187,7 +3187,7 @@ export const TutorAnalytics: React.FC = () => {
                           </th>
                           <th
                             onClick={() => handleDetailSort('passed' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
-                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[65px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1 justify-center">
                               PASSED
@@ -3200,7 +3200,7 @@ export const TutorAnalytics: React.FC = () => {
                           </th>
                           <th
                             onClick={() => handleDetailSort('failed' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
-                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[65px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1 justify-center">
                               FAILED
@@ -3213,7 +3213,7 @@ export const TutorAnalytics: React.FC = () => {
                           </th>
                           <th
                             onClick={() => handleDetailSort('scoreAverage' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
-                            className="min-w-[90px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[90px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1 justify-center">
                               SCORE AVG
@@ -3270,13 +3270,13 @@ export const TutorAnalytics: React.FC = () => {
                   {/* Desktop View (>= 768px): Original full table */}
                   <div className="hidden md:block overflow-x-auto mobile-scroll-table -mx-1 sm:mx-0 px-1 sm:px-0">
                     <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                      <thead>
+                      <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] shadow-xs">
                         <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
                           <SortHeader field="student" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Student</SortHeader>
                           {hasMultipleScoreAralLevels ? (
                             <SortHeader field="aralLevel" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>ARAL Level</SortHeader>
                           ) : (
-                            <th className="px-4 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 select-none text-left">ARAL Level</th>
+                            <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 select-none text-left">ARAL Level</th>
                           )}
                           <SortHeader field="description" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>DESCRIPTION</SortHeader>
                           <SortHeader field="passed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Passed</SortHeader>

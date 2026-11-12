@@ -1225,27 +1225,27 @@ export const TutorArchive: React.FC = () => {
                             {/* Mobile View (< 768px): Sticky Student Column */}
                             <div className="md:hidden overflow-x-auto mobile-scroll-table bg-white dark:bg-[#111111] rounded-md border border-gray-200 dark:border-[#1A1A1A]">
                               <table className="min-w-[620px] w-full border-separate border-spacing-0 text-xs text-gray-700 dark:text-slate-300" style={{ fontFamily: 'var(--font-body)' }}>
-                                <thead>
+                                <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515]">
                                   <tr className="bg-gray-50 dark:bg-[#151515]">
-                                    <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[38%] min-w-[140px] px-3 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#1A1A1A] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                                    <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#151515] w-[38%] min-w-[140px] px-3 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#1A1A1A] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
                                       <SortableHeader label="STUDENT" field="studentName" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
                                     </th>
-                                    <th className="min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                                       <SortableHeader label="DESCRIPTION" field="activityTitle" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
                                     </th>
-                                    <th className="min-w-[90px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[90px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                                       <SortableHeader label="SCORE" field="score" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} align="center" />
                                     </th>
-                                    <th className="min-w-[85px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                                       <SortableHeader label="REMARK" field="remarks" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} align="center" />
                                     </th>
-                                    <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                                       <SortableHeader label="STATUS" field="status" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} align="center" />
                                     </th>
-                                    <th className="min-w-[160px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[160px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                                       <SortableHeader label="DATE" field="date" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
                                     </th>
-                                    <th className="min-w-[75px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
+                                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                                       <SortableHeader label="TIME" field="time" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} align="center" />
                                     </th>
                                   </tr>
@@ -1305,27 +1305,27 @@ export const TutorArchive: React.FC = () => {
                             {/* Desktop View (>= 768px): Exact Mirror of Score Entry History Columns */}
                             <div className="hidden md:block overflow-x-auto rounded-md border border-gray-200 dark:border-[#1A1A1A]">
                               <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-xs font-normal">
-                                <thead>
+                                <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] shadow-xs">
                                   <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
-                                    <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                                       <SortableHeader label="STUDENT" field="studentName" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
                                     </th>
-                                    <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                                       <SortableHeader label="DESCRIPTION" field="activityTitle" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
                                     </th>
-                                    <th className="px-3 py-2.5 text-center whitespace-nowrap">
+                                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-3 py-2.5 text-center whitespace-nowrap">
                                       <SortableHeader label="SCORE" field="score" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} align="center" />
                                     </th>
-                                    <th className="px-3 py-2.5 text-center whitespace-nowrap">
+                                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-3 py-2.5 text-center whitespace-nowrap">
                                       <SortableHeader label="REMARK" field="remarks" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} align="center" />
                                     </th>
-                                    <th className="px-3 py-2.5 text-center whitespace-nowrap">
+                                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-3 py-2.5 text-center whitespace-nowrap">
                                       <SortableHeader label="STATUS" field="status" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} align="center" />
                                     </th>
-                                    <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                                       <SortableHeader label="DATE" field="date" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
                                     </th>
-                                    <th className="px-3 py-2.5 text-center whitespace-nowrap">
+                                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-3 py-2.5 text-center whitespace-nowrap">
                                       <SortableHeader label="TIME" field="time" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} align="center" />
                                     </th>
                                   </tr>
@@ -1508,18 +1508,18 @@ export const TutorArchive: React.FC = () => {
                             {/* Mobile View (< 768px): Sticky Student Column */}
                             <div className="md:hidden overflow-x-auto mobile-scroll-table bg-white dark:bg-[#111111] rounded-md border border-gray-200 dark:border-[#1A1A1A]">
                               <table className="min-w-[540px] w-full border-separate border-spacing-0 text-xs text-gray-700 dark:text-slate-300" style={{ fontFamily: 'var(--font-body)' }}>
-                                <thead>
+                                <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515]">
                                   <tr className="bg-gray-50 dark:bg-[#151515]">
-                                    <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[42%] min-w-[140px] px-3 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#1A1A1A] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                                    <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#151515] w-[42%] min-w-[140px] px-3 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#1A1A1A] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
                                       <SortableHeader label="STUDENT" field="studentName" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
                                     </th>
-                                    <th className="min-w-[160px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[160px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                                       <SortableHeader label="DATE" field="date" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
                                     </th>
-                                    <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                                       <SortableHeader label="TIME" field="time" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} align="center" />
                                     </th>
-                                    <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
+                                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                                       <SortableHeader label="STATUS" field="status" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} align="center" />
                                     </th>
                                   </tr>
@@ -1560,18 +1560,18 @@ export const TutorArchive: React.FC = () => {
                             {/* Desktop View (>= 768px): Exact Mirror of QR Attendance History Columns */}
                             <div className="hidden md:block overflow-x-auto rounded-md border border-gray-200 dark:border-[#1A1A1A]">
                               <table className="min-w-[720px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-xs font-normal">
-                                <thead>
+                                <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] shadow-xs">
                                   <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
-                                    <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                                    <th className="sticky top-0 z-10 px-4 py-2.5 text-left whitespace-nowrap bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222]">
                                       <SortableHeader label="STUDENT" field="studentName" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
                                     </th>
-                                    <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                                    <th className="sticky top-0 z-10 px-4 py-2.5 text-left whitespace-nowrap bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222]">
                                       <SortableHeader label="DATE" field="date" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
                                     </th>
-                                    <th className="px-3 py-2.5 text-center whitespace-nowrap">
+                                    <th className="sticky top-0 z-10 px-3 py-2.5 text-center whitespace-nowrap bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222]">
                                       <SortableHeader label="TIME" field="time" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} align="center" />
                                     </th>
-                                    <th className="px-3 py-2.5 text-center whitespace-nowrap">
+                                    <th className="sticky top-0 z-10 px-3 py-2.5 text-center whitespace-nowrap bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222]">
                                       <SortableHeader label="STATUS" field="status" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} align="center" />
                                     </th>
                                   </tr>

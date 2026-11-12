@@ -500,24 +500,24 @@ const aralLevelRank: Record<string, number> = {
                 {/* ── Mobile View (< 768px): Mobile-optimized table with sealed sticky student column ── */}
                 <div className="md:hidden overflow-x-auto mobile-scroll-table -mx-3 px-0 border border-gray-200 dark:border-[#1A1A1A] rounded-md bg-white dark:bg-[#111111]">
                   <table className="min-w-[620px] w-full border-separate border-spacing-0 text-xs" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                    <thead>
+                    <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515]">
                       <tr className="bg-gray-50 dark:bg-[#151515]">
-                        <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[34%] min-w-[145px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                        <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#151515] w-[34%] min-w-[145px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
                           <SortableHeader label="STUDENT" field="name" />
                         </th>
-                        <th className="min-w-[95px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                        <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[95px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                           <SortableHeader label="LRN" field="lrn" className="justify-center" />
                         </th>
-                        <th className="min-w-[85px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                        <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                           <SortableHeader label="ARAL LEVEL" field="level" className="justify-center" />
                         </th>
-                        <th className="min-w-[130px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                        <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[130px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                           <SortableHeader label="PARENT / GUARDIAN" field="parent_guardian" />
                         </th>
-                        <th className="min-w-[105px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                        <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[105px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                           <SortableHeader label="CONTACT NO." field="contact" className="justify-center" />
                         </th>
-                        <th className="w-14 min-w-[55px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
+                        <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-14 min-w-[55px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                           ACTION
                         </th>
                       </tr>
@@ -572,27 +572,27 @@ const aralLevelRank: Record<string, number> = {
                 {/* ── Desktop View (>= 768px): Original full table ── */}
                 <div className="hidden md:block overflow-x-auto mobile-scroll-table -mx-3 sm:mx-0 px-3 sm:px-0">
                   <table className="min-w-[720px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                    <thead>
+                    <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] shadow-xs">
                       <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
-                        <th className="w-12 px-2.5 sm:px-3 py-2 sm:py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] w-12 px-2.5 sm:px-3 py-2 sm:py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
                           #
                         </th>
-                        <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
                           <SortableHeader label="STUDENT" field="name" />
                         </th>
-                        <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
                           <SortableHeader label="LRN" field="lrn" />
                         </th>
-                        <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
                           <SortableHeader label="PARENT / GUARDIAN" field="parent_guardian" />
                         </th>
-                        <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
                           <SortableHeader label="CONTACT NO." field="contact" />
                         </th>
-                        <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
                           <SortableHeader label="ARAL LEVEL" field="level" />
                         </th>
-                        <th className="w-16 px-3 sm:px-4 py-2 sm:py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] w-16 px-3 sm:px-4 py-2 sm:py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
                           ACTION
                         </th>
                       </tr>

@@ -1457,10 +1457,10 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
         {/* ── Mobile View (< 768px): Pinned Sticky Name Column Table ── */}
         <div className="md:hidden overflow-x-auto table-scroll-container mobile-scroll-table w-full">
           <table className={`${activeTab === 'student' ? 'min-w-[860px]' : activeTab === 'tutor' ? 'min-w-[700px]' : 'min-w-[460px]'} w-full border-separate border-spacing-0 text-xs text-left font-normal`}>
-            <thead>
+            <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515]">
               <tr className="bg-gray-50 dark:bg-[#151515]">
                 {/* Sticky User Name Column */}
-                <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[155px] max-w-[170px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#151515] min-w-[155px] max-w-[170px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
                   {activeTab === 'student' ? (
                     <div className="flex items-center gap-1.5">
                       <button
@@ -1492,70 +1492,70 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
                 {activeTab === 'student' ? (
                   <>
-                    <th className="min-w-[95px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[95px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="LRN" field="lrn" align="center" />
                     </th>
-                    <th className="min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="ARAL LEVEL" field="aral_level" align="center" />
                     </th>
-                    <th className="min-w-[125px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[125px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="ASSIGNED TUTOR" field="assigned_tutor" />
                     </th>
-                    <th className="min-w-[90px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[90px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="SUBJECT" field="subject" align="center" />
                     </th>
-                    <th className="min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="GRADE" field="grade_level" align="center" />
                     </th>
-                    <th className="min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="SECTION" field="section" align="center" />
                     </th>
-                    <th className="min-w-[125px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[125px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="PARENT / GUARDIAN" field="parent_guardian_name" />
                     </th>
-                    <th className="min-w-[105px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[105px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="CONTACT NO." field="contact_number" align="center" />
                     </th>
-                    <th className="min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="STATUS" field="status" align="center" />
                     </th>
-                    <th className="w-16 min-w-[70px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-16 min-w-[70px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
                       ACTION
                     </th>
                   </>
                 ) : activeTab === 'tutor' ? (
                   <>
-                    <th className="min-w-[130px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[130px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="EMAIL" field="email" />
                     </th>
-                    <th className="min-w-[105px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[105px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="ARAL SUBJECT" field="subject" align="center" />
                     </th>
-                    <th className="min-w-[95px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[95px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="ARAL LEVEL" field="aral_level" align="center" />
                     </th>
-                    <th className="min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="GRADE LEVEL" field="grade_level" align="center" />
                     </th>
-                    <th className="min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="SECTION" field="section" align="center" />
                     </th>
-                    <th className="min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="STATUS" field="status" align="center" />
                     </th>
-                    <th className="w-16 min-w-[70px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-16 min-w-[70px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
                       ACTION
                     </th>
                   </>
                 ) : (
                   <>
-                    <th className="min-w-[140px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[140px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="EMAIL" field="email" />
                     </th>
-                    <th className="min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="STATUS" field="status" align="center" />
                     </th>
-                    <th className="w-16 min-w-[70px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-16 min-w-[70px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
                       ACTION
                     </th>
                   </>
@@ -1914,12 +1914,12 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
         {/* ── Desktop View (>= 768px): Original Full Table ── */}
         <div className="hidden md:block overflow-x-auto table-scroll-container mobile-scroll-table w-full">
-<table className={`${activeTab === 'student' ? 'min-w-[1100px]' : activeTab === 'tutor' ? 'min-w-[920px]' : 'min-w-[760px]'} w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal`}>
-            <thead>
-                <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
+          <table className={`${activeTab === 'student' ? 'min-w-[1100px]' : activeTab === 'tutor' ? 'min-w-[920px]' : 'min-w-[760px]'} w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal`}>
+            <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] shadow-xs">
+              <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
                   {/* Select All Checkbox (Students) */}
                   {activeTab === 'student' && (
-                    <th className="w-10 px-3 py-2.5 text-center whitespace-nowrap">
+                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] w-10 px-3 py-2.5 text-center whitespace-nowrap">
                       <button
                         type="button"
                         onClick={toggleSelectAll}
@@ -1935,11 +1935,11 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                     </th>
                   )}
 
-                  <th className="w-12 px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] w-12 px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                     #
                   </th>
 
-                  <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                     <SortableHeader
                       label={
                         activeTab === 'student' ? 'STUDENT' :
@@ -1954,70 +1954,70 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
                   {activeTab === 'student' ? (
                     <>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="LRN" field="lrn" />
                       </th>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="ARAL LEVEL" field="aral_level" />
                       </th>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="ASSIGNED TUTOR" field="assigned_tutor" />
                       </th>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="SUBJECT" field="subject" />
                       </th>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="GRADE LEVEL" field="grade_level" />
                       </th>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="SECTION" field="section" />
                       </th>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="PARENT / GUARDIAN" field="parent_guardian_name" />
                       </th>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="CONTACT NO." field="contact_number" />
                       </th>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="STATUS" field="status" />
                       </th>
-                      <th className="w-20 px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] w-20 px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         ACTION
                       </th>
                     </>
                   ) : activeTab === 'tutor' ? (
                     <>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="EMAIL" field="email" />
                       </th>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="ARAL SUBJECT" field="subject" />
                       </th>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="ARAL LEVEL" field="aral_level" />
                       </th>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="GRADE LEVEL" field="grade_level" />
                       </th>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="SECTION" field="section" />
                       </th>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="STATUS" field="status" />
                       </th>
-                      <th className="w-20 px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] w-20 px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         ACTION
                       </th>
                     </>
                   ) : (
                     <>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="EMAIL" field="email" />
                       </th>
-                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="STATUS" field="status" />
                       </th>
-                      <th className="w-20 px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] w-20 px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         ACTION
                       </th>
                     </>

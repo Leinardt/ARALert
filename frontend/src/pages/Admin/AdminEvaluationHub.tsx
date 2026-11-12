@@ -219,31 +219,31 @@ const TutorClassSectionTable = React.memo<TutorClassSectionTableProps>(({
           {/* Mobile View (< 768px): Pinned Sticky Student Name Column */}
           <div className="md:hidden overflow-x-auto table-scroll-container mobile-scroll-table rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A]">
             <table className="min-w-[640px] w-full text-left text-xs border-separate border-spacing-0">
-              <thead>
+              <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111]">
                 <tr className="bg-gray-50 dark:bg-[#111111]">
-                  <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#111111] min-w-[140px] max-w-[155px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                  <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#111111] min-w-[140px] max-w-[155px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
                     <SortableSubHeader label="STUDENT NAME" field="name" align="left" />
                   </th>
-                  <th className="min-w-[90px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] min-w-[90px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                     <SortableSubHeader label="LRN" field="lrn" align="center" />
                   </th>
-                  <th className="min-w-[85px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] min-w-[85px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                     <SortableSubHeader label="ATTENDANCE" field="attendanceRate" align="center" />
                   </th>
-                  <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                     <SortableSubHeader label="SCORE" field="avgScore" align="center" />
                   </th>
-                  <th className="min-w-[85px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] min-w-[85px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                     <SortableSubHeader label="COMPOSITE" field="compositeScore" align="center" />
                   </th>
-                  <th className="min-w-[95px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] min-w-[95px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                     <SortableSubHeader
                       label={activeTab === 'mosy' ? 'MOSY' : activeTab === 'eosy' ? 'EOSY' : 'SUMMER'}
                       field="assessmentScore"
                       align="center"
                     />
                   </th>
-                  <th className="min-w-[85px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] min-w-[85px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 border-b border-gray-100 dark:border-[#1A1A1A]">
                     <SortableSubHeader label="STATUS" field="status" align="center" />
                   </th>
                 </tr>
@@ -305,32 +305,32 @@ const TutorClassSectionTable = React.memo<TutorClassSectionTableProps>(({
           {/* Desktop View (>= 768px): Original Full Sub-Table */}
           <div className="hidden md:block table-scroll-container rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A]">
             <table className="min-w-[1050px] w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
-              <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
+              <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400 shadow-xs">
                 <tr>
-                  <th className="w-10 px-3 py-2 text-center whitespace-nowrap">#</th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] w-10 px-3 py-2 text-center whitespace-nowrap">#</th>
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-3 py-2 text-left whitespace-nowrap">
                     <SortableSubHeader label="STUDENT NAME" field="name" align="left" />
                   </th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-3 py-2 text-left whitespace-nowrap">
                     <SortableSubHeader label="LRN" field="lrn" align="left" />
                   </th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-3 py-2 text-center whitespace-nowrap">
                     <SortableSubHeader label="FINAL AVG ATTENDANCE RATE" field="attendanceRate" align="center" />
                   </th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-3 py-2 text-center whitespace-nowrap">
                     <SortableSubHeader label="FINAL AVG SCORE RATE" field="avgScore" align="center" />
                   </th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-3 py-2 text-center whitespace-nowrap">
                     <SortableSubHeader label="FINAL AVG COMPOSITE RATING" field="compositeScore" align="center" />
                   </th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-3 py-2 text-center whitespace-nowrap">
                     <SortableSubHeader
                       label={activeTab === 'mosy' ? 'MOSY ASSESSMENT' : activeTab === 'eosy' ? 'EOSY ASSESSMENT' : 'SUMMER ASSESSMENT'}
                       field="assessmentScore"
                       align="center"
                     />
                   </th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-3 py-2 text-center whitespace-nowrap">
                     <SortableSubHeader label="STATUS" field="status" align="center" />
                   </th>
                 </tr>
@@ -1302,15 +1302,15 @@ export const AdminEvaluationHub: React.FC = () => {
                 </div>
               ) : (
                 <table className="w-full md:min-w-[760px] divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
-                  <thead>
+                  <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] shadow-xs">
                     <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-                      <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-left w-[46%] sm:w-auto">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-2 sm:px-4 py-2 sm:py-2.5 text-left w-[46%] sm:w-auto">
                         <SortableHeader label="TUTOR NAME" field="tutorName" />
                       </th>
-                      <th className="px-1.5 sm:px-4 py-2 sm:py-2.5 text-center w-[27%] sm:w-auto">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-1.5 sm:px-4 py-2 sm:py-2.5 text-center w-[27%] sm:w-auto">
                         <SortableHeader label="TOTAL STUDENTS" shortLabel="STUDENTS" field="assignedCount" align="center" />
                       </th>
-                      <th className="px-1.5 sm:px-4 py-2 sm:py-2.5 text-center w-[27%] sm:w-auto">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-1.5 sm:px-4 py-2 sm:py-2.5 text-center w-[27%] sm:w-auto">
                         <SortableHeader label="STATUS" field="status" align="center" />
                       </th>
                     </tr>

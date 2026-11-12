@@ -554,16 +554,16 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
       {/* Desktop Table View (>= 768px) */}
       <div className="hidden md:block overflow-x-auto mobile-scroll-table">
         <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-slate-700 text-sm">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 shadow-xs">
             <tr className="divide-x divide-gray-100 dark:divide-slate-700 bg-gray-50 dark:bg-slate-900">
-              <th className="w-[22%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap"><SortableScoreHeader label="STUDENT" sortKey="student" /></th>
-              <th className="w-[18%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap"><SortableScoreHeader label="DESCRIPTION" sortKey="description" /></th>
-              <th className="w-[10%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap"><SortableScoreHeader label="SCORE" sortKey="score" /></th>
-              <th className="w-[12%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap"><SortableScoreHeader label="REMARK" sortKey="remark" /></th>
-              <th className="w-[10%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap"><SortableScoreHeader label="STATUS" sortKey="status" /></th>
-              <th className="w-[14%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap"><SortableScoreHeader label="DATE" sortKey="date" /></th>
-              <th className="w-[8%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap"><SortableScoreHeader label="TIME" sortKey="time" /></th>
-              <th className="w-[6%] px-4 py-3 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">ACTIONS</th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[22%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800"><SortableScoreHeader label="STUDENT" sortKey="student" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[18%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800"><SortableScoreHeader label="DESCRIPTION" sortKey="description" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[10%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800"><SortableScoreHeader label="SCORE" sortKey="score" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[12%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800"><SortableScoreHeader label="REMARK" sortKey="remark" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[10%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800"><SortableScoreHeader label="STATUS" sortKey="status" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[14%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800"><SortableScoreHeader label="DATE" sortKey="date" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[8%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800"><SortableScoreHeader label="TIME" sortKey="time" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[6%] px-4 py-3 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800">ACTIONS</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white dark:divide-slate-700 dark:bg-slate-900">
@@ -789,30 +789,30 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
       {/* ── Mobile View (< 768px): Mobile-optimized table with sealed sticky student column ── */}
       <div className="md:hidden overflow-x-auto mobile-scroll-table rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111]">
         <table className="min-w-[700px] w-full border-separate border-spacing-0 text-xs">
-          <thead>
+          <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515]">
             <tr className="bg-gray-50 dark:bg-[#151515]">
-              <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[26%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+              <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#151515] w-[26%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
                 <SortableScoreHeader label="STUDENT" sortKey="student" />
               </th>
-              <th className="w-[18%] min-w-[110px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[18%] min-w-[110px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableScoreHeader label="DESCRIPTION" sortKey="description" />
               </th>
-              <th className="w-[12%] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[12%] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableScoreHeader label="SCORE" sortKey="score" />
               </th>
-              <th className="w-[12%] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[12%] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableScoreHeader label="REMARK" sortKey="remark" />
               </th>
-              <th className="w-[12%] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[12%] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableScoreHeader label="STATUS" sortKey="status" />
               </th>
-              <th className="w-[14%] min-w-[95px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[14%] min-w-[95px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableScoreHeader label="DATE" sortKey="date" />
               </th>
-              <th className="w-[10%] min-w-[70px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[10%] min-w-[70px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableScoreHeader label="TIME" sortKey="time" />
               </th>
-              <th className="w-[8%] min-w-[60px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
+              <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[8%] min-w-[60px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                 ACTIONS
               </th>
             </tr>
@@ -2557,9 +2557,9 @@ export const TutorScores: React.FC = () => {
                 <div className="mobile-scroll-table sm:min-h-0 sm:flex-1 sm:overflow-auto">
                   {/* Desktop Table View (>= 640px) */}
                   <table className="hidden sm:table min-w-[680px] w-full divide-y divide-gray-100 dark:divide-slate-800 text-sm">
-                    <thead className="bg-gray-50 dark:bg-slate-900">
+                    <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 shadow-xs">
                       <tr className="divide-x divide-gray-100 dark:divide-slate-800">
-                        <th aria-sort={studentSortActive ? (studentSortDirection === 'asc' ? 'ascending' : 'descending') : undefined} className="w-[38%] px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
+                        <th aria-sort={studentSortActive ? (studentSortDirection === 'asc' ? 'ascending' : 'descending') : undefined} className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[38%] px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-slate-800">
                           <button
                             type="button"
                             onClick={() => {
@@ -2577,9 +2577,9 @@ export const TutorScores: React.FC = () => {
                               : <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />}
                           </button>
                         </th>
-                        <th className="w-[22%] px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">SCORE (OUT OF {totalScore || 0})</th>
-                        <th className="w-[16%] px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">PREVIEW %</th>
-                        <th className="w-[24%] px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">STATUS</th>
+                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[22%] px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-slate-800">SCORE (OUT OF {totalScore || 0})</th>
+                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[16%] px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-slate-800">PREVIEW %</th>
+                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[24%] px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-slate-800">STATUS</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
@@ -2685,9 +2685,9 @@ export const TutorScores: React.FC = () => {
                   {/* Mobile Responsive Score Table (< 640px) with sealed sticky student column */}
                   <div className="sm:hidden overflow-x-auto mobile-scroll-table rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111]">
                     <table className="min-w-[430px] w-full border-separate border-spacing-0 text-xs">
-                      <thead>
+                      <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515]">
                         <tr className="bg-gray-50 dark:bg-[#151515]">
-                          <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[40%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                          <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#151515] w-[40%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
                             <button
                               type="button"
                               onClick={() => {
@@ -2704,13 +2704,13 @@ export const TutorScores: React.FC = () => {
                                 : <ArrowUpDown className="h-3 w-3 opacity-50" />}
                             </button>
                           </th>
-                          <th className="w-[22%] min-w-[80px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                          <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[22%] min-w-[80px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                             SCORE ({totalScore || 0})
                           </th>
-                          <th className="w-[14%] min-w-[55px] px-1 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                          <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[14%] min-w-[55px] px-1 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                             PREVIEW
                           </th>
-                          <th className="w-[24%] min-w-[130px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
+                          <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-[24%] min-w-[130px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                             STATUS
                           </th>
                         </tr>
