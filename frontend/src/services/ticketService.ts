@@ -54,7 +54,7 @@ export const ticketService = {
 
   updateTicketAction: async (
     ticketId: string,
-    action: 'claim' | 'resolve' | 'dismiss',
+    action: 'claim' | 'resolve' | 'dismiss' | 'reopen',
     reply?: string
   ): Promise<{ message: string; ticket: SupportTicketItem }> => {
     const response = await api.post<{ message: string; ticket: SupportTicketItem }>(

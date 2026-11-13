@@ -22,6 +22,9 @@ def parse_mosy_grade_status(grade: ApiGrade | None) -> tuple[str, str, float | N
     if not grade:
         return 'pending', 'pending', None
 
+    if (grade.remarks or '').strip().lower() == 'not taken':
+        return 'pending', 'not_taken', None
+
     try:
         ts = float(grade.total_score) if grade.total_score is not None else 40.0
     except (ValueError, TypeError):
@@ -80,11 +83,13 @@ def get_mosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
 
     tutors = User.objects.filter(role='tutor', is_active=True, is_superuser=False).prefetch_related('assigned_students')
 
-    # Bulk preload latest MOSY grade for all students in 1 query
-    mosy_grades = ApiGrade.objects.filter(subject__icontains='MOSY').order_by('student_id', '-date_logged')
+    # Bulk preload latest MOSY grade for all students in 1 query (preferring taken grades over Not Taken)
+    mosy_grades = ApiGrade.objects.filter(subject__icontains='MOSY').order_by('student_id', '-date_logged', '-id')
     mosy_grade_by_student = {}
     for g in mosy_grades:
-        if g.student_id not in mosy_grade_by_student:
+        existing = mosy_grade_by_student.get(g.student_id)
+        is_not_taken = (g.remarks or '').strip().lower() == 'not taken'
+        if not existing or ((existing.remarks or '').strip().lower() == 'not taken' and not is_not_taken):
             mosy_grade_by_student[g.student_id] = g
 
     completed_tutors_count = 0
@@ -215,11 +220,13 @@ def process_mosy_completion(admin_user: User | None = None) -> dict:
     basic_retained_count = 0
     today = timezone.localdate()
 
-    # 1. Preload latest MOSY grade for all students in 1 query
-    mosy_grades = ApiGrade.objects.filter(subject__icontains='MOSY').order_by('student_id', '-date_logged')
+    # 1. Preload latest MOSY grade for all students in 1 query (preferring taken grades over Not Taken)
+    mosy_grades = ApiGrade.objects.filter(subject__icontains='MOSY').order_by('student_id', '-date_logged', '-id')
     mosy_grade_by_student = {}
     for g in mosy_grades:
-        if g.student_id not in mosy_grade_by_student:
+        existing = mosy_grade_by_student.get(g.student_id)
+        is_not_taken = (g.remarks or '').strip().lower() == 'not taken'
+        if not existing or ((existing.remarks or '').strip().lower() == 'not taken' and not is_not_taken):
             mosy_grade_by_student[g.student_id] = g
 
     # 2. Preload enrollments for active school year in 1 query

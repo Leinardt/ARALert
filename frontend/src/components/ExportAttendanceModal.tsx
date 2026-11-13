@@ -20,6 +20,7 @@ import {
   groupAttendanceBySession,
 } from '../utils/sessionDescriptionHelpers';
 import { trashbinService } from '../utils/trashbinService';
+import { SCHOOL_METADATA_DEFAULTS } from '../config/academicConfig';
 
 export interface ExportAttendanceModalProps {
   isOpen: boolean;
@@ -369,10 +370,10 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
   selectedAralLevel = '',
   selectedSubject = '',
 }) => {
-  const [division, setDivision] = useState('DIVISION OF MASBATE');
-  const [district, setDistrict] = useState('PALANAS NORTH DISTRICT');
-  const [schoolName, setSchoolName] = useState('PALANAS NATIONAL AGRICULTURE HIGH SCHOOL');
-  const [schoolAddress, setSchoolAddress] = useState('Sta. Cruz, Palanas, Masbate');
+  const [division, setDivision] = useState<string>(SCHOOL_METADATA_DEFAULTS.division);
+  const [district, setDistrict] = useState<string>(SCHOOL_METADATA_DEFAULTS.district);
+  const [schoolName, setSchoolName] = useState<string>(SCHOOL_METADATA_DEFAULTS.schoolName);
+  const [schoolAddress, setSchoolAddress] = useState<string>(SCHOOL_METADATA_DEFAULTS.schoolAddress);
 
   const [subjectTitle, setSubjectTitle] = useState(() => {
     if (selectedSubject) {

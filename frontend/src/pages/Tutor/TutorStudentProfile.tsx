@@ -886,11 +886,11 @@ export const TutorStudentProfile: React.FC = () => {
                 </p>
               </div>
 
-              <div className={`rounded-md border p-3.5 sm:p-5 flex flex-col justify-center col-span-1 md:col-span-2 shadow-sm ${effectiveRiskTier === 'High'
-                ? 'risk-card-high'
+              <div className={`rounded-md border p-3.5 sm:p-5 flex flex-col justify-center col-span-1 md:col-span-2 shadow-sm bg-white dark:bg-[#111111] transition-colors ${effectiveRiskTier === 'High'
+                ? 'border-rose-500 dark:border-rose-500 hover:border-rose-600 dark:hover:border-rose-400'
                 : effectiveRiskTier === 'Moderate'
-                  ? 'risk-card-moderate'
-                  : 'risk-card-low'
+                  ? 'border-amber-500 dark:border-amber-500 hover:border-amber-600 dark:hover:border-amber-400'
+                  : 'border-emerald-500 dark:border-emerald-500 hover:border-emerald-600 dark:hover:border-emerald-400'
                 }`}>
                 <p className={`text-[10.5px] font-bold uppercase tracking-wider truncate ${effectiveRiskTier === 'High'
                   ? 'text-risk-high'

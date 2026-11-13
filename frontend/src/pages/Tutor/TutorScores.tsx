@@ -1,9 +1,18 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
-import type { Grade, User } from '../../types';
+import type { Grade, SchoolYear, User } from '../../types';
+import {
+  PASSING_SCORE_RATIO,
+  PASSING_SCORE_PERCENTAGE,
+  generateSchoolYearWeeks,
+  getSchoolYearWeekNumberForDate,
+  isNotTakenGrade,
+  computeAssessmentRemark,
+} from '../../config/academicConfig';
 import { ExportScoreModal } from '../../components/ExportScoreModal';
 import { TutorCohortFilter } from '../../components/TutorCohortFilter';
 import {
@@ -553,20 +562,20 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
     <>
       {/* Desktop Table View (>= 768px) */}
       <div className="hidden md:block overflow-x-auto mobile-scroll-table">
-        <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-slate-700 text-sm">
-          <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 shadow-xs">
-            <tr className="divide-x divide-gray-100 dark:divide-slate-700 bg-gray-50 dark:bg-slate-900">
-              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[22%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800"><SortableScoreHeader label="STUDENT" sortKey="student" /></th>
-              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[18%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800"><SortableScoreHeader label="DESCRIPTION" sortKey="description" /></th>
-              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[10%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800"><SortableScoreHeader label="SCORE" sortKey="score" /></th>
-              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[12%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800"><SortableScoreHeader label="REMARK" sortKey="remark" /></th>
-              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[10%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800"><SortableScoreHeader label="STATUS" sortKey="status" /></th>
-              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[14%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800"><SortableScoreHeader label="DATE" sortKey="date" /></th>
-              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[8%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800"><SortableScoreHeader label="TIME" sortKey="time" /></th>
-              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[6%] px-4 py-3 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-slate-800">ACTIONS</th>
+        <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
+          <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] shadow-xs">
+            <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[22%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-[#222222]"><SortableScoreHeader label="STUDENT" sortKey="student" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[18%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-[#222222]"><SortableScoreHeader label="DESCRIPTION" sortKey="description" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[10%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-[#222222]"><SortableScoreHeader label="SCORE" sortKey="score" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[12%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-[#222222]"><SortableScoreHeader label="REMARK" sortKey="remark" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[10%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-[#222222]"><SortableScoreHeader label="STATUS" sortKey="status" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[14%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-[#222222]"><SortableScoreHeader label="DATE" sortKey="date" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[8%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-[#222222]"><SortableScoreHeader label="TIME" sortKey="time" /></th>
+              <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[6%] px-4 py-3 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap border-b border-gray-200 dark:border-[#222222]">ACTIONS</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 bg-white dark:divide-slate-700 dark:bg-slate-900">
+          <tbody className="divide-y divide-gray-100 bg-white dark:divide-[#1A1A1A] dark:bg-[#111111]">
             {sortedRows.map((grade) => {
               const isEditing = editingGradeId === grade.id;
               const isLastSaved = grade.batch_id === lastSavedBatchId;
@@ -581,7 +590,7 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                 <tr
                   key={grade.id}
                   ref={isLastSaved ? lastRowRef : undefined}
-                  className={`group divide-x divide-gray-100 dark:divide-slate-700 border-t border-gray-100 dark:border-slate-700 text-left transition-colors ${isLastSaved ? 'bg-[var(--brand-light)] hover:bg-[var(--brand-light)]' : 'hover:bg-gray-50/80 dark:hover:bg-slate-800'}`}
+                  className={`group divide-x divide-gray-100 dark:divide-[#1A1A1A] border-t border-gray-100 dark:border-[#1A1A1A] text-left transition-colors ${isLastSaved ? 'bg-[var(--brand-light)] hover:bg-[var(--brand-light)]' : 'hover:bg-gray-50/80 dark:hover:bg-[#151515]'}`}
                 >
                   <td className="px-4 py-3 font-bold text-gray-900 dark:text-slate-100 whitespace-nowrap text-xs sm:text-[13px] tracking-tight">
                     {grade.student_name || 'Unknown student'}
@@ -596,12 +605,14 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                       <input
                         type="text"
                         inputMode="numeric"
-                        value={editScore}
+                        value={editStatus === 'Not' ? '-' : editScore}
                         disabled={editStatus === 'Not'}
                         onKeyDown={blockSymbolKeys}
                         onChange={(event) => setEditScore(sanitizeScoreInput(event.target.value, Number(grade.total_score)))}
-                        className={`w-20 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-bold outline-none focus:border-[var(--brand)] ${editStatus === 'Not' ? 'bg-gray-100 dark:bg-slate-800/60 cursor-not-allowed opacity-60' : ''}`}
+                        className={`w-20 rounded-lg border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] px-2 py-1 text-xs font-bold outline-none focus:border-[var(--brand)] ${editStatus === 'Not' ? 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-slate-500 cursor-not-allowed opacity-75 text-center' : ''}`}
                       />
+                    ) : isNotTaken ? (
+                      <span className="font-mono font-bold text-gray-400 dark:text-slate-500">-</span>
                     ) : (
                       <span className="inline-flex items-center gap-1 font-mono">
                         <span className="font-bold text-gray-900 dark:text-slate-100">{grade.score}</span>
@@ -852,14 +863,16 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                       <input
                         type="text"
                         inputMode="numeric"
-                        value={editScore}
+                        value={editStatus === 'Not' ? '-' : editScore}
                         disabled={editStatus === 'Not'}
                         onKeyDown={blockSymbolKeys}
                         onChange={(event) => setEditScore(sanitizeScoreInput(event.target.value, Number(grade.total_score)))}
-                        className={`w-16 h-7.5 rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-1 text-center text-xs font-bold text-gray-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] ${
-                          editStatus === 'Not' ? 'bg-gray-100 dark:bg-slate-800/60 opacity-60' : ''
+                        className={`w-16 h-7.5 rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] px-1 text-center text-xs font-bold text-gray-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] ${
+                          editStatus === 'Not' ? 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-slate-500 opacity-75' : ''
                         }`}
                       />
+                    ) : isNotTaken ? (
+                      <span className="font-mono font-bold text-xs text-gray-400 dark:text-slate-500">-</span>
                     ) : (
                       <div className="flex flex-col items-center justify-center font-mono">
                         <span className="font-bold text-xs text-gray-900 dark:text-slate-100 whitespace-nowrap">
@@ -867,7 +880,7 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                           <span className="font-normal text-gray-400 dark:text-slate-500">/ {grade.total_score}</span>
                         </span>
                         <span className={`text-[10px] font-extrabold ${scoreColor(scorePercentage)}`}>
-                          {isNotTaken ? '0%' : `${smartPct(scorePercentage)}%`}
+                          {`${smartPct(scorePercentage)}%`}
                         </span>
                       </div>
                     )}
@@ -1087,18 +1100,8 @@ const getWeekdaysForMonday = (mondayStr: string, extraDates: string[] = []): str
   return dates.sort();
 };
 
-const computeWeekOfMonth = (dateObj: Date): number => {
-  const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
-  const day = d.getDay();
-  const wedDiff = day === 0 ? 3 : 3 - day;
-  const wednesday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + wedDiff);
-  const firstDay = new Date(wednesday.getFullYear(), wednesday.getMonth(), 1).getDay();
-  return Math.ceil((wednesday.getDate() + (firstDay === 0 ? 6 : firstDay - 1)) / 7);
-};
-
-const getWeekTitle = (mondayStr: string) => {
-  const d = new Date(`${mondayStr}T00:00:00`);
-  const weekNum = computeWeekOfMonth(d);
+const getWeekTitle = (mondayStr: string, schoolYear?: Partial<SchoolYear> | null, recordedDateKeys?: string[]) => {
+  const weekNum = getSchoolYearWeekNumberForDate(mondayStr, schoolYear, recordedDateKeys);
   return `WEEK ${weekNum}`;
 };
 
@@ -1150,6 +1153,8 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
     if (!selectedDate) return false;
     return groupDates.includes(selectedDate);
   }, [groupDates, selectedDate]);
+
+  const effectiveIsOpen = isOpen || tableGroup.rows.length === 0;
 
   const displayRows = useMemo(() => {
     if (!selectedDate || !isOpen) return tableGroup.rows;
@@ -1261,7 +1266,7 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
             })}
           </div>
         </div>
-        {isOpen && (
+        {effectiveIsOpen && (
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-medium text-gray-400 dark:text-slate-400">
               <span className="font-bold text-gray-700 dark:text-slate-200">{displayRows.length}</span> Record{displayRows.length !== 1 ? 's' : ''}
@@ -1269,7 +1274,7 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
           </div>
         )}
       </div>
-      {isOpen && (
+      {effectiveIsOpen && (
         <div className="space-y-2.5">
           {/* While in trashbin: show counter banner on the top part */}
           {isCurrentDateTrashed && (
@@ -1310,7 +1315,17 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
 
           {/* The table entry: deactivated gray color if in trashbin */}
           <div className={isCurrentDateTrashed ? 'grayscale opacity-60 pointer-events-none select-none transition-all duration-200' : ''}>
-            {scoreSessions.length === 0 ? (
+            {tableGroup.rows.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-1.5 py-10 text-center rounded-md border border-dashed border-gray-200 dark:border-[#1E1E1E] bg-gray-50/50 dark:bg-[#141414]">
+                <CalendarDays className="w-7 h-7 text-gray-300 dark:text-gray-600" />
+                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">
+                  No score records for {tableGroup.title}
+                </p>
+                <p className="text-[11px] text-gray-400 dark:text-slate-500">
+                  Select another week from the dropdown or record scores under Score Entry.
+                </p>
+              </div>
+            ) : scoreSessions.length === 0 ? (
               <ScoreEntryTable
                 rows={[]}
                 {...tableProps}
@@ -1334,8 +1349,15 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
 };
 
 /* ─── Component ────────────────────────────────────────────────── */
-export const TutorScores: React.FC = () => {
+export interface TutorScoresProps {
+  pageMode?: 'entry' | 'history';
+}
+
+export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
   const { user } = useAuth();
+  const location = useLocation();
+  const activePageMode: 'entry' | 'history' =
+    pageMode ?? (location.pathname.includes('/history') ? 'history' : 'entry');
 
   // Cohort top filter state (ARAL Level, Subject, Grade - Section) synced across tutor dashboard
   const {
@@ -1731,7 +1753,7 @@ export const TutorScores: React.FC = () => {
         if (!hasScore) return;
 
         const numScore = isNotTaken ? 0 : Number(entryScores[student.id] || 0);
-        const remarks = isNotTaken ? 'Not Taken' : (numScore / activeTotal >= 0.7 ? 'Passed' : 'Failed');
+        const remarks = computeAssessmentRemark(numScore, activeTotal, isNotTaken);
         const currentSubject = currentCohortSubject;
         const subject = entryKind === 'daily' ? `${currentSubject} Intervention Activity` : levelEntry.subject;
 
@@ -1842,7 +1864,7 @@ export const TutorScores: React.FC = () => {
       setLastSavedBatchId(batchId);
       const titleName = entryKind === 'daily' ? `${currentCohortSubject} Intervention Activity` : `${assignedPeriod} ${currentCohortSubject}`;
       setSuccessModalTitle('Scores Saved Successfully');
-      setSaveSuccessMsg(`${titleName} scores saved and highlighted below.`);
+      setSaveSuccessMsg(`${titleName} scores saved successfully.`);
       setShowSuccessModal(true);
       window.dispatchEvent(new CustomEvent('aralert:refresh-risk-alerts'));
       setTimeout(() => {
@@ -1967,7 +1989,7 @@ export const TutorScores: React.FC = () => {
       const finalScore = editStatus === 'Not' ? 0 : Number(editScore);
       const gradeObj = grades.find((grade) => grade.id === editingGradeId);
       const totalScoreVal = Number(gradeObj?.total_score) || 100;
-      const finalRemarks = editStatus === 'Not' ? 'Not Taken' : (finalScore / totalScoreVal >= 0.7 ? 'Passed' : 'Failed');
+      const finalRemarks = computeAssessmentRemark(finalScore, totalScoreVal, editStatus === 'Not');
 
       const payload: Partial<Grade> = {
         score: finalScore,
@@ -2077,11 +2099,15 @@ export const TutorScores: React.FC = () => {
     }
   }, [user?.id, entryScores, entryStatus, totalScore, entryKind, logDate, showAddEntry, draftsByKind]);
 
+  const [currentSchoolYear, setCurrentSchoolYear] = useState<SchoolYear | null>(null);
   const [activeSystemSem, setActiveSystemSem] = useState<SemesterType>(() => getActiveSystemSemester());
   const [isWindowOpen, setIsWindowOpen] = useState<boolean>(() => isAssessmentWindowOpen(getActiveSystemSemester()));
 
   useEffect(() => {
     academicService.getCurrentSchoolYear().then((sy) => {
+      if (sy) {
+        setCurrentSchoolYear(sy);
+      }
       if (sy && sy.current_semester) {
         const sem = sy.current_semester as any;
         setActiveSystemSemester(sem);
@@ -2152,9 +2178,10 @@ export const TutorScores: React.FC = () => {
   const dailyGrades = useMemo(() => safeGrades.filter((grade) => grade.component_type === 'assessment'), [safeGrades]);
   const studentsWithEntries = useMemo(() => new Set(dailyGrades.map((g) => g.student)).size, [dailyGrades]);
   const avgScoreAll = useMemo(() => {
-    if (dailyGrades.length === 0) return 0;
-    const sum = dailyGrades.reduce((acc, g) => acc + (Number(g.score) / (Number(g.total_score) || 100)) * 100, 0);
-    return Math.round((sum / dailyGrades.length) * 10) / 10;
+    const takenGrades = dailyGrades.filter((g) => !isNotTakenGrade(g));
+    if (takenGrades.length === 0) return 0;
+    const sum = takenGrades.reduce((acc, g) => acc + (Number(g.score) / (Number(g.total_score) || 100)) * 100, 0);
+    return Math.round((sum / takenGrades.length) * 10) / 10;
   }, [dailyGrades]);
 
   // Live evaluation progress tracking for milestone periods (MOSY / EOSY / Summer)
@@ -2298,30 +2325,102 @@ export const TutorScores: React.FC = () => {
     return visibleScoreRows[0].date_logged.slice(0, 10);
   }, [visibleScoreRows]);
 
+  const loggedScoreDates = useMemo(() => new Set(batchRows.map((batch) => batch.dateStr)), [batchRows]);
+
+  const recordedScoreDateKeys = useMemo(() => Array.from(loggedScoreDates), [loggedScoreDates]);
+
+  const schoolYearWeeks = useMemo(
+    () => generateSchoolYearWeeks(currentSchoolYear, recordedScoreDateKeys),
+    [currentSchoolYear, recordedScoreDateKeys]
+  );
+
+  const [selectedWeekMonday, setSelectedWeekMonday] = useState<string>('');
+  const [showWeekDropdown, setShowWeekDropdown] = useState(false);
+  const weekDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (weekDropdownRef.current && !weekDropdownRef.current.contains(e.target as Node)) {
+        setShowWeekDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (schoolYearWeeks.length === 0) return;
+    setSelectedWeekMonday((prev) => {
+      if (prev && schoolYearWeeks.some((w) => w.weekKey === prev)) {
+        return prev;
+      }
+      if (mostRecentDateWithEntry) {
+        const recentMon = getWeekKey(mostRecentDateWithEntry);
+        if (schoolYearWeeks.some((w) => w.weekKey === recentMon)) {
+          return recentMon;
+        }
+      }
+      const todayMon = getWeekKey(new Date().toLocaleDateString('en-CA'));
+      if (schoolYearWeeks.some((w) => w.weekKey === todayMon)) {
+        return todayMon;
+      }
+      return schoolYearWeeks[schoolYearWeeks.length - 1].weekKey;
+    });
+  }, [schoolYearWeeks, mostRecentDateWithEntry]);
+
+  const selectedWeekOption = useMemo(
+    () => schoolYearWeeks.find((w) => w.weekKey === selectedWeekMonday) || schoolYearWeeks[schoolYearWeeks.length - 1] || null,
+    [schoolYearWeeks, selectedWeekMonday]
+  );
+
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
     if (jumpDate) {
       setSelectedDate(jumpDate);
+    } else if (viewMode === 'week' && selectedWeekOption) {
+      const firstMatchInWeek = visibleScoreRows.find(
+        (g) => getWeekKey(g.date_logged.slice(0, 10)) === selectedWeekOption.weekKey
+      );
+      setSelectedDate(firstMatchInWeek ? firstMatchInWeek.date_logged.slice(0, 10) : selectedWeekOption.weekKey);
     } else if (mostRecentDateWithEntry) {
       setSelectedDate(mostRecentDateWithEntry);
     } else {
       setSelectedDate(null);
     }
-  }, [jumpDate, mostRecentDateWithEntry, viewMode, scoreStudentSearch]);
+  }, [jumpDate, mostRecentDateWithEntry, viewMode, scoreStudentSearch, selectedWeekOption, visibleScoreRows]);
 
   useEffect(() => {
     setHasAttemptedSave(false);
   }, [selectedDate]);
 
+  const displayedScoreRows = useMemo(() => {
+    if (viewMode === 'week' && !jumpDate && selectedWeekOption) {
+      return visibleScoreRows.filter(
+        (grade) => getWeekKey(grade.date_logged.slice(0, 10)) === selectedWeekOption.weekKey
+      );
+    }
+    return visibleScoreRows;
+  }, [viewMode, jumpDate, selectedWeekOption, visibleScoreRows]);
+
   const scoreTableGroups = useMemo((): ScoreTableGroup[] => {
     if (jumpDate) {
       return [{
         key: jumpDate,
-        title: viewMode === 'week' ? getWeekTitle(getWeekKey(jumpDate)) : getMonthTitle(getMonthKey(jumpDate)),
+        title: viewMode === 'week' ? getWeekTitle(getWeekKey(jumpDate), currentSchoolYear, recordedScoreDateKeys) : getMonthTitle(getMonthKey(jumpDate)),
         weekMonday: getWeekKey(jumpDate),
         isMonthGroup: viewMode === 'month',
         rows: visibleScoreRows,
+      }];
+    }
+
+    if (viewMode === 'week' && selectedWeekOption) {
+      return [{
+        key: selectedWeekOption.weekKey,
+        title: selectedWeekOption.label.toUpperCase(),
+        weekMonday: selectedWeekOption.weekKey,
+        isMonthGroup: false,
+        rows: displayedScoreRows,
       }];
     }
 
@@ -2336,13 +2435,12 @@ export const TutorScores: React.FC = () => {
       .sort(([a], [b]) => (b > a ? 1 : -1))
       .map(([key, rows]) => ({
         key,
-        title: viewMode === 'week' ? getWeekTitle(key) : getMonthTitle(key),
+        title: viewMode === 'week' ? getWeekTitle(key, currentSchoolYear, recordedScoreDateKeys) : getMonthTitle(key),
         weekMonday: viewMode === 'week' ? key : undefined,
         isMonthGroup: viewMode === 'month',
         rows,
       }));
-  }, [jumpDate, viewMode, visibleScoreRows]);
-  const loggedScoreDates = useMemo(() => new Set(batchRows.map((batch) => batch.dateStr)), [batchRows]);
+  }, [jumpDate, viewMode, visibleScoreRows, displayedScoreRows, selectedWeekOption, currentSchoolYear, recordedScoreDateKeys]);
   const sortedStudents = useMemo(
     () => [...cohortStudents]
       .filter((student) => matchesSearch(studentSearch, student.full_name, student.first_name, student.last_name, student.middle_name, student.lrn))
@@ -2398,13 +2496,41 @@ export const TutorScores: React.FC = () => {
         onSelectClass={(level, subject, cohort) =>
           setSelectedCohortFilter({ aral_level: level, subject, cohort })
         }
-        title="CURRENT CLASS FOR SCORE ENTRY"
+        title={activePageMode === 'entry' ? 'CURRENT CLASS FOR SCORE ENTRY' : 'CURRENT CLASS FOR SCORE HISTORY'}
       />
 
+      {/* ── Submodule Navigation Switcher (Score Entry / View Student Score History) ── */}
+      <div className="flex w-full rounded-md bg-gray-100 p-0.5 gap-0.5 dark:bg-[#111111]" role="tablist" aria-label="Score module view">
+        <Link
+          to="/tutor/scores/entry"
+          role="tab"
+          aria-selected={activePageMode === 'entry'}
+          className={`flex-1 h-8 rounded-sm px-4 flex items-center justify-center text-xs font-bold uppercase tracking-wider transition-all ${
+            activePageMode === 'entry'
+              ? 'bg-[var(--brand)] text-white font-extrabold shadow-sm'
+              : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-white/5'
+          }`}
+        >
+          Score Entry
+        </Link>
+        <Link
+          to="/tutor/scores/history"
+          role="tab"
+          aria-selected={activePageMode === 'history'}
+          className={`flex-1 h-8 rounded-sm px-4 flex items-center justify-center text-xs font-bold uppercase tracking-wider transition-all ${
+            activePageMode === 'history'
+              ? 'bg-[var(--brand)] text-white font-extrabold shadow-sm'
+              : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-white/5'
+          }`}
+        >
+          View Student Score History
+        </Link>
+      </div>
+
       {/* ── Score Entry Form ───────────────────────────────────────── */}
-      {showAddEntry && (
+      {activePageMode === 'entry' && (
         <div className="order-1 flex flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm w-full min-w-0 max-w-full sm:h-[600px] sm:min-h-[500px] sm:overflow-hidden">
-          <div className="flex shrink-0 flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-5 py-3.5 border-b border-gray-100 dark:border-slate-800">
+          <div className="flex shrink-0 flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div className="flex flex-wrap items-center gap-3">
               <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm uppercase">
                 {entryKind === 'daily' ? 'Add Intervention Activity Scores' : levelEntry.title}
@@ -2534,8 +2660,8 @@ export const TutorScores: React.FC = () => {
                 <p className="text-center py-6 text-xs text-gray-400">No assigned students found.</p>
               )
             ) : (
-              <div className="flex flex-col rounded-md border border-gray-200 dark:border-slate-800 sm:min-h-0 sm:flex-1 sm:overflow-hidden">
-                <div className="flex shrink-0 flex-col gap-3 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 sm:py-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] sm:min-h-0 sm:flex-1 sm:overflow-hidden">
+                <div className="flex shrink-0 flex-col gap-3 border-b border-gray-100 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-4 py-3 sm:py-2.5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">Student Score List</h3>
                     <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">
@@ -2549,17 +2675,17 @@ export const TutorScores: React.FC = () => {
                       placeholder="Search Student Name"
                       value={studentSearch}
                       onChange={(event) => setStudentSearch(event.target.value)}
-                      className="min-h-[44px] sm:min-h-0 sm:h-8 w-full rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 pl-10 pr-3 text-xs font-medium text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-[var(--brand)]"
+                      className="min-h-[44px] sm:min-h-0 sm:h-8 w-full rounded-md border border-gray-200 dark:border-[#222222] bg-gray-50 dark:bg-[#161616] pl-10 pr-3 text-xs font-medium text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111] focus:ring-1 focus:ring-[var(--brand)]"
                       aria-label="Search student name"
                     />
                   </label>
                 </div>
                 <div className="mobile-scroll-table sm:min-h-0 sm:flex-1 sm:overflow-auto">
                   {/* Desktop Table View (>= 640px) */}
-                  <table className="hidden sm:table min-w-[680px] w-full divide-y divide-gray-100 dark:divide-slate-800 text-sm">
-                    <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 shadow-xs">
-                      <tr className="divide-x divide-gray-100 dark:divide-slate-800">
-                        <th aria-sort={studentSortActive ? (studentSortDirection === 'asc' ? 'ascending' : 'descending') : undefined} className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[38%] px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-slate-800">
+                  <table className="hidden sm:table min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
+                    <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] shadow-xs">
+                      <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A]">
+                        <th aria-sort={studentSortActive ? (studentSortDirection === 'asc' ? 'ascending' : 'descending') : undefined} className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[38%] px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-[#222222]">
                           <button
                             type="button"
                             onClick={() => {
@@ -2577,12 +2703,12 @@ export const TutorScores: React.FC = () => {
                               : <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />}
                           </button>
                         </th>
-                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[22%] px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-slate-800">SCORE (OUT OF {totalScore || 0})</th>
-                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[16%] px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-slate-800">PREVIEW %</th>
-                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 w-[24%] px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-slate-800">STATUS</th>
+                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[22%] px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-[#222222]">SCORE (OUT OF {totalScore || 0})</th>
+                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[16%] px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-[#222222]">PREVIEW %</th>
+                        <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] w-[24%] px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-200 dark:border-[#222222]">STATUS</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                    <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
                       {sortedStudents.map((student) => {
                         const status = entryStatus[student.id] || 'Taken';
                         const isNotTaken = status === 'Not';
@@ -2592,14 +2718,14 @@ export const TutorScores: React.FC = () => {
                         const activeTotal = Number(totalScore) || 0;
                         const hasValidScore = rawScore !== '' && rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore));
                         const pct = isNotTaken
-                          ? 0
+                          ? null
                           : (hasValidScore && activeTotal > 0
                             ? Math.round((Number(rawScore) / activeTotal) * 100 * 10) / 10
                             : null);
-                        const isPassingMilestone = entryKind !== 'daily' && pct !== null && !isNaN(pct) && pct >= 70;
+                        const isPassingMilestone = entryKind !== 'daily' && !isNotTaken && pct !== null && !isNaN(pct) && pct >= PASSING_SCORE_PERCENTAGE;
 
                         return (
-                          <tr key={student.id} className="divide-x divide-gray-100 dark:divide-slate-800 transition-colors hover:bg-gray-50/80 dark:hover:bg-slate-800/60">
+                          <tr key={student.id} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
                             <td className="px-4 py-2.5">
                               <div className="min-w-0">
                                 <p className="truncate text-xs sm:text-[13px] font-bold text-gray-900 dark:text-slate-100 tracking-tight">{student.full_name}</p>
@@ -2609,7 +2735,7 @@ export const TutorScores: React.FC = () => {
                               <input
                                 type="text"
                                 inputMode="numeric"
-                                value={isNotTaken ? 0 : (entryScores[student.id] ?? '')}
+                                value={isNotTaken ? '-' : (entryScores[student.id] ?? '')}
                                 onKeyDown={blockSymbolKeys}
                                 onChange={(e) => {
                                   const sanitized = sanitizeScoreInput(e.target.value, activeTotal);
@@ -2617,9 +2743,9 @@ export const TutorScores: React.FC = () => {
                                 }}
                                 placeholder={`0–${activeTotal}`}
                                 disabled={isNotTaken}
-                                className={`w-full max-w-[110px] rounded-md border bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60 ${hasNoScore && hasAttemptedSave
+                                className={`w-full max-w-[110px] rounded-md border bg-white dark:bg-[#161616] px-2.5 py-1.5 text-xs font-bold text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 disabled:bg-gray-100 dark:disabled:bg-[#1A1A1A] disabled:text-gray-400 dark:disabled:text-slate-500 disabled:opacity-75 ${hasNoScore && hasAttemptedSave
                                     ? 'border-amber-400 dark:border-amber-500/80 bg-amber-50/20 dark:bg-amber-950/20 focus:border-amber-500 focus:ring-amber-500'
-                                    : 'border-gray-200 dark:border-slate-700 focus:border-[var(--brand)] focus:ring-[var(--brand)]'
+                                    : 'border-gray-200 dark:border-[#222222] focus:border-[var(--brand)] focus:ring-[var(--brand)]'
                                   }`}
                               />
                               {hasNoScore && hasAttemptedSave && (
@@ -2630,7 +2756,11 @@ export const TutorScores: React.FC = () => {
                               )}
                             </td>
                             <td className="px-4 py-2.5 text-center">
-                              {pct !== null && !isNaN(pct) ? (
+                              {isNotTaken ? (
+                                <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-300 whitespace-nowrap">
+                                  Not Taken
+                                </span>
+                              ) : pct !== null && !isNaN(pct) ? (
                                 <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
                                   <span className={`text-xs font-extrabold ${scoreColor(pct)}`}>{pct}%</span>
                                   {entryKind !== 'daily' && (
@@ -2640,7 +2770,7 @@ export const TutorScores: React.FC = () => {
                                   )}
                                 </div>
                               ) : (
-                                <span className="text-xs text-gray-300 dark:text-slate-600">0%</span>
+                                <span className="text-xs font-semibold text-gray-300 dark:text-slate-600">-</span>
                               )}
                             </td>
                             <td className="px-4 py-2 text-center">
@@ -2732,11 +2862,11 @@ export const TutorScores: React.FC = () => {
                             const activeTotal = Number(totalScore) || 0;
                             const hasValidScore = rawScore !== '' && rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore));
                             const pct = isNotTaken
-                              ? 0
+                              ? null
                               : (hasValidScore && activeTotal > 0
                                 ? Math.round((Number(rawScore) / activeTotal) * 100 * 10) / 10
                                 : null);
-                            const isPassingMilestone = entryKind !== 'daily' && pct !== null && !isNaN(pct) && pct >= 70;
+                            const isPassingMilestone = entryKind !== 'daily' && !isNotTaken && pct !== null && !isNaN(pct) && pct >= PASSING_SCORE_PERCENTAGE;
 
                             return (
                               <tr key={`mobile-entry-${student.id}`} className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
@@ -2755,7 +2885,7 @@ export const TutorScores: React.FC = () => {
                                   <input
                                     type="text"
                                     inputMode="numeric"
-                                    value={isNotTaken ? 0 : (entryScores[student.id] ?? '')}
+                                    value={isNotTaken ? '-' : (entryScores[student.id] ?? '')}
                                     onKeyDown={blockSymbolKeys}
                                     onChange={(e) => {
                                       const sanitized = sanitizeScoreInput(e.target.value, activeTotal);
@@ -2763,14 +2893,18 @@ export const TutorScores: React.FC = () => {
                                     }}
                                     placeholder={`0–${activeTotal}`}
                                     disabled={isNotTaken}
-                                    className={`w-full max-w-[64px] h-8 rounded-md border bg-white dark:bg-slate-800 px-1 text-center text-xs font-bold text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60 ${hasNoScore && hasAttemptedSave
+                                    className={`w-full max-w-[64px] h-8 rounded-md border bg-white dark:bg-[#161616] px-1 text-center text-xs font-bold text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 disabled:bg-gray-100 dark:disabled:bg-[#1A1A1A] disabled:text-gray-400 dark:disabled:text-slate-500 disabled:opacity-75 ${hasNoScore && hasAttemptedSave
                                         ? 'border-amber-400 dark:border-amber-500/80 bg-amber-50/20 dark:bg-amber-950/20 focus:border-amber-500 focus:ring-amber-500'
-                                        : 'border-gray-200 dark:border-slate-700 focus:border-[var(--brand)] focus:ring-[var(--brand)]'
+                                        : 'border-gray-200 dark:border-[#222222] focus:border-[var(--brand)] focus:ring-[var(--brand)]'
                                       }`}
                                   />
                                 </td>
                                 <td className="px-1 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
-                                  {pct !== null && !isNaN(pct) ? (
+                                  {isNotTaken ? (
+                                    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-300 whitespace-nowrap">
+                                      Not Taken
+                                    </span>
+                                  ) : pct !== null && !isNaN(pct) ? (
                                     <div className="flex flex-col items-center justify-center">
                                       <span className={`text-xs font-extrabold ${scoreColor(pct)}`}>{pct}%</span>
                                       {entryKind !== 'daily' && (
@@ -2780,7 +2914,7 @@ export const TutorScores: React.FC = () => {
                                       )}
                                     </div>
                                   ) : (
-                                    <span className="text-xs text-gray-300 dark:text-slate-600 font-semibold">0%</span>
+                                    <span className="text-xs text-gray-300 dark:text-slate-600 font-semibold">-</span>
                                   )}
                                 </td>
                                 <td className="px-1.5 py-2 text-center border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -2832,6 +2966,7 @@ export const TutorScores: React.FC = () => {
       )}
 
       {/* ── DTR-style Score Records Table ─────────────────────────── */}
+      {activePageMode === 'history' && (
       <div ref={tableContainerRef} className="order-4 mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm overflow-visible">
 
         {/* Table header */}
@@ -2840,8 +2975,8 @@ export const TutorScores: React.FC = () => {
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base uppercase tracking-tight">STUDENTS SCORES HISTORY</h3>
             <p className="mt-0.5 text-[11px] sm:text-xs font-normal text-gray-500 dark:text-slate-400">
               <span className="font-bold text-gray-800 dark:text-slate-200">
-                <AnimatedCounter value={visibleScoreRows.length} />
-              </span> Record{visibleScoreRows.length !== 1 ? 's' : ''}
+                <AnimatedCounter value={displayedScoreRows.length} />
+              </span> Record{displayedScoreRows.length !== 1 ? 's' : ''}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
@@ -2868,6 +3003,59 @@ export const TutorScores: React.FC = () => {
                 </button>
               ))}
             </div>
+            {viewMode === 'week' && schoolYearWeeks.length > 0 && (
+              <div ref={weekDropdownRef} className="relative z-30">
+                <button
+                  type="button"
+                  onClick={() => setShowWeekDropdown((prev) => !prev)}
+                  aria-label="Select school year week"
+                  aria-expanded={showWeekDropdown}
+                  className="inline-flex h-8 items-center justify-between gap-2 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-3 text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-gray-100 dark:hover:bg-[#222222] focus:border-[var(--brand)] cursor-pointer whitespace-nowrap"
+                >
+                  <span>{selectedWeekOption ? selectedWeekOption.label : 'Week 1'}</span>
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 shrink-0 opacity-75 transition-transform duration-150 ${
+                      showWeekDropdown ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                {showWeekDropdown && (
+                  <div className="absolute right-0 top-full mt-1.5 z-50 w-56 max-h-72 overflow-y-auto flex flex-col gap-0.5 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-1.5 shadow-xl">
+                    {schoolYearWeeks.map((week) => {
+                      const isSelected = !jumpDate && selectedWeekOption?.weekKey === week.weekKey;
+                      const weekHasRecords = recordedScoreDateKeys.some(
+                        (d) => getWeekKey(d) === week.weekKey
+                      );
+                      return (
+                        <button
+                          key={week.weekKey}
+                          type="button"
+                          onClick={() => {
+                            setSelectedWeekMonday(week.weekKey);
+                            setJumpDate(null);
+                            setViewMode('week');
+                            setShowWeekDropdown(false);
+                          }}
+                          className={`flex items-center justify-between w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                            isSelected
+                              ? 'bg-[var(--brand-light)] text-[var(--brand)] font-bold dark:bg-blue-950/50 dark:text-blue-300'
+                              : 'text-gray-700 dark:text-slate-200 font-medium hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                          }`}
+                        >
+                          <span className="truncate">{week.label}</span>
+                          {weekHasRecords && (
+                            <span
+                              className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] shrink-0 ml-2"
+                              title="Has recorded scores"
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="relative inline-flex items-center z-30">
               <button
                 type="button"
@@ -2898,7 +3086,11 @@ export const TutorScores: React.FC = () => {
                   const monthStr = new Date().toLocaleDateString('en-CA').slice(0, 7);
                   setExportModalConfig({ isOpen: true, mode: 'monthly', targetKey: monthStr });
                 } else {
-                  setExportModalConfig({ isOpen: true, mode: 'weekly', targetKey: '' });
+                  setExportModalConfig({
+                    isOpen: true,
+                    mode: 'weekly',
+                    targetKey: selectedWeekOption?.weekKey || '',
+                  });
                 }
               }}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--brand)] px-3.5 py-2 sm:py-1.5 text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] active:scale-[0.98] cursor-pointer"
@@ -2928,7 +3120,7 @@ export const TutorScores: React.FC = () => {
                 <div key={i} className="h-10 bg-gray-100 rounded-md animate-pulse" />
               ))}
             </div>
-          ) : visibleScoreRows.length === 0 ? (
+          ) : (displayedScoreRows.length === 0 && !(viewMode === 'week' && !jumpDate && scoreTableGroups.length > 0)) ? (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
               <BookOpen className="w-8 h-8 text-gray-200" />
               <p className="text-xs font-semibold text-gray-500">
@@ -2995,6 +3187,7 @@ export const TutorScores: React.FC = () => {
           )}
         </div>
       </div>
+      )}
 
       <ExportScoreModal
         isOpen={exportModalConfig.isOpen}

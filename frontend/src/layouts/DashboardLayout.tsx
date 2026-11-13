@@ -232,6 +232,55 @@ const AuditLogNavIcon: React.FC<{ active?: boolean; theme?: 'light' | 'dark'; si
   );
 };
 
+const TicketsNavIcon: React.FC<{ active?: boolean; theme?: 'light' | 'dark'; size?: number }> = ({
+  active = false,
+  theme = 'light',
+  size = 18,
+}) => {
+  if (!active) {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="sidebar-icon"
+        style={{ width: size, height: size, flexShrink: 0 }}
+      >
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M7.5 10l1.5 1.5L11.5 9" />
+        <line x1="13.5" y1="10" x2="17.5" y2="10" />
+        <path d="M7.5 15l1.5 1.5L11.5 14" />
+        <line x1="13.5" y1="15" x2="17.5" y2="15" />
+      </svg>
+    );
+  }
+
+  const isDark = theme === 'dark';
+  const fillColor = isDark ? '#FFFFFF' : '#0052B7';
+  const detailColor = isDark ? '#000000' : '#FFFFFF';
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      className="sidebar-icon active"
+      style={{ width: size, height: size, flexShrink: 0 }}
+    >
+      <rect x="3" y="4" width="18" height="16" rx="2" fill={fillColor} stroke={fillColor} strokeWidth="0.8" />
+      <path d="M7.5 10l1.5 1.5L11.5 9" fill="none" stroke={detailColor} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="13.5" y1="10" x2="17.5" y2="10" stroke={detailColor} strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M7.5 15l1.5 1.5L11.5 14" fill="none" stroke={detailColor} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="13.5" y1="15" x2="17.5" y2="15" stroke={detailColor} strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+};
+
 const AssetSidebarIcon: React.FC<{
   darkSrc: string;
   darkActiveSrc?: string;
@@ -386,6 +435,7 @@ export const DashboardLayout: React.FC = () => {
 
   const getPageTitle = () => {
     const p = location.pathname;
+    if (p.includes('/tickets')) return 'Tickets';
     if (p.includes('/audit-logs')) return 'Audit Log';
     if (p.includes('/archive')) return 'Archive';
     if (p.includes('/evaluations')) return 'Assessment';
@@ -404,7 +454,8 @@ export const DashboardLayout: React.FC = () => {
     if (p.includes('/profile')) return user?.role === 'tutor' ? 'Tutor Profile' : 'Profile';
     if (p.includes('/settings')) return 'System Settings';
     if (p.includes('/analytics')) return 'Data Analytics';
-    if (p.includes('/academic-records') || p.includes('/scores')) return user?.role === 'student' ? 'Academic Records' : 'Score Entry';
+    if (p.includes('/tutor/scores')) return 'Score';
+    if (p.includes('/academic-records') || p.includes('/scores')) return user?.role === 'student' ? 'Academic Records' : 'Score';
     return 'Dashboard';
   };
 
@@ -1177,6 +1228,14 @@ export const DashboardLayout: React.FC = () => {
   }, [user, location.pathname, fetchTickets, fetchAnnouncements]);
 
   useEffect(() => {
+    const handleRefreshTickets = () => {
+      fetchTickets();
+    };
+    window.addEventListener('aralert:refresh-tickets', handleRefreshTickets);
+    return () => window.removeEventListener('aralert:refresh-tickets', handleRefreshTickets);
+  }, [fetchTickets]);
+
+  useEffect(() => {
     if (showTutorNotifications || showStudentEditRequests || showEditRequestsModal) {
       fetchEditRequests();
       fetchTickets();
@@ -1282,6 +1341,24 @@ export const DashboardLayout: React.FC = () => {
               <AuditLogNavIcon active={isActivePrefix('/superadmin/audit-logs')} theme={theme} />
               {!collapsed && <span className="truncate">Audit Log</span>}
             </Link>
+            <Link
+              to="/superadmin/tickets"
+              onClick={onItemClick}
+              className={navLinkClass(isActivePrefix('/superadmin/tickets'), collapsed)}
+              title="Tickets"
+            >
+              <TicketsNavIcon active={isActivePrefix('/superadmin/tickets')} theme={theme} />
+              {!collapsed && (
+                <span className="flex-1 flex items-center justify-between gap-2 min-w-0">
+                  <span className="truncate">Tickets</span>
+                  {pendingTicketsCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold leading-none bg-amber-500 text-white shrink-0">
+                      {pendingTicketsCount > 99 ? '99+' : pendingTicketsCount}
+                    </span>
+                  )}
+                </span>
+              )}
+            </Link>
           </>
         )}
 
@@ -1346,6 +1423,24 @@ export const DashboardLayout: React.FC = () => {
               <AuditLogNavIcon active={isActivePrefix('/admin/audit-logs')} theme={theme} />
               {!collapsed && <span className="truncate">Audit Log</span>}
             </Link>
+            <Link
+              to="/admin/tickets"
+              onClick={onItemClick}
+              className={navLinkClass(isActivePrefix('/admin/tickets'), collapsed)}
+              title="Tickets"
+            >
+              <TicketsNavIcon active={isActivePrefix('/admin/tickets')} theme={theme} />
+              {!collapsed && (
+                <span className="flex-1 flex items-center justify-between gap-2 min-w-0">
+                  <span className="truncate">Tickets</span>
+                  {pendingTicketsCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold leading-none bg-amber-500 text-white shrink-0">
+                      {pendingTicketsCount > 99 ? '99+' : pendingTicketsCount}
+                    </span>
+                  )}
+                </span>
+              )}
+            </Link>
           </>
         )}
 
@@ -1385,18 +1480,18 @@ export const DashboardLayout: React.FC = () => {
               {!collapsed && <span className="truncate">QR Attendance</span>}
             </Link>
 
-            <Link to="/tutor/scores" onClick={onItemClick} className={navLinkClass(isActive('/tutor/scores'), collapsed)} title="Score Entry">
+            <Link to="/tutor/scores" onClick={onItemClick} className={navLinkClass(isActivePrefix('/tutor/scores'), collapsed)} title="Score">
               <AssetSidebarIcon
                 darkSrc={scoreDarkDefault}
                 darkActiveSrc={scoreDarkActive}
                 lightSrc={scoreLightDefault}
                 lightActiveSrc={scoreLightActive}
-                active={isActive('/tutor/scores')}
-                alt="Score Entry"
+                active={isActivePrefix('/tutor/scores')}
+                alt="Score"
                 size={18}
                 theme={theme}
               />
-              {!collapsed && <span className="truncate">Score Entry</span>}
+              {!collapsed && <span className="truncate">Score</span>}
             </Link>
 
             <Link to="/tutor/analytics" onClick={onItemClick} className={navLinkClass(isActive('/tutor/analytics'), collapsed)} title="Data Analytics">

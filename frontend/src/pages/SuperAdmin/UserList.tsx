@@ -13,6 +13,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { TablePagination } from '../../components/TablePagination';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { isTutorEligibleForStudent } from '../../utils/tutorCohortHelpers';
+import { GRADE_LEVEL_OPTIONS } from '../../config/academicConfig';
 
 /* ─── ARAL Badge Helper (Clean typography without pill container) ─── */
 const getAralBadge = (level?: string | null) => {
@@ -284,13 +285,13 @@ const DirectoryFilterDropdown: React.FC<{
   isOpen,
   onToggle,
   onClose,
-  minWidthClass = 'min-w-[100px]',
   menuWidthClass = 'w-48 sm:w-56',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [menuAlign, setMenuAlign] = useState<'left' | 'right'>('left');
 
   const selectedOpt = options.find((o) => o.value === value) || options[0];
+  const hasActiveFilter = Boolean(value);
 
   const handleToggle = () => {
     if (!isOpen && containerRef.current) {
@@ -323,7 +324,7 @@ const DirectoryFilterDropdown: React.FC<{
   return (
     <div
       ref={containerRef}
-      className={`relative inline-flex items-center shrink-0 flex-1 sm:flex-initial ${minWidthClass} sm:min-w-0 ${
+      className={`relative inline-flex items-center w-[calc(50%-3px)] sm:w-auto shrink-0 ${
         isOpen ? 'z-50' : 'z-20'
       }`}
     >
@@ -333,19 +334,23 @@ const DirectoryFilterDropdown: React.FC<{
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         onClick={handleToggle}
-        className="flex h-8 w-full sm:w-auto items-center justify-between gap-1.5 sm:gap-2 rounded-xl border border-gray-200 bg-gray-50 dark:border-[#1A1A1A] dark:bg-[#111111] px-2.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-normal text-gray-700 dark:text-slate-200 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-2xs"
+        className={`flex h-8 w-full sm:w-auto items-center justify-between gap-1.5 rounded-md border px-2.5 text-[10.5px] font-bold uppercase tracking-normal transition cursor-pointer ${
+          hasActiveFilter
+            ? 'border-[var(--brand)]/50 bg-[var(--brand)]/8 text-[var(--brand)] dark:border-blue-500/50 dark:bg-blue-950/40 dark:text-blue-300'
+            : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100/70 dark:border-[#222222] dark:bg-[#161616] dark:text-slate-200 dark:hover:border-[#2E2E2E] dark:hover:bg-[#1C1C1C]'
+        } focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20`}
       >
-        <span className="truncate">{selectedOpt?.label || ''}</span>
+        <span className="truncate max-w-[120px] sm:max-w-[130px]">{selectedOpt?.label || ''}</span>
         <ChevronDown
-          className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform duration-200 ${
-            isOpen ? 'rotate-180' : ''
-          }`}
+          className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${
+            hasActiveFilter ? 'text-[var(--brand)] dark:text-blue-400' : 'text-gray-400'
+          } ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
 
       {isOpen && (
         <div
-          className={`absolute ${
+          className={`animate-fade-in-scale origin-top absolute ${
             menuAlign === 'right' ? 'right-0' : 'left-0'
           } top-full z-50 mt-1 max-h-60 ${menuWidthClass} max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl`}
           role="listbox"
@@ -538,28 +543,40 @@ export const UserList: React.FC = () => {
   // Sync tab with pathname on URL change
   useEffect(() => {
     if (location.pathname.includes('/superadmins')) {
-      if (isSuperUser && activeTab !== 'superadmin') {
-        setActiveTab('superadmin');
-      } else if (!isSuperUser) {
+      if (isSuperUser) {
+        setActiveTab((prev) => (prev === 'superadmin' ? prev : 'superadmin'));
+      } else {
         navigate('/admin/students', { replace: true });
       }
     } else if (location.pathname.includes('/admins')) {
-      if (isSuperUser && activeTab !== 'admin') {
-        setActiveTab('admin');
-      } else if (!isSuperUser) {
+      if (isSuperUser) {
+        setActiveTab((prev) => (prev === 'admin' ? prev : 'admin'));
+      } else {
         navigate('/admin/students', { replace: true });
       }
-    } else if (location.pathname.includes('/principals') && activeTab !== 'principal') {
-      setActiveTab('principal');
-    } else if (location.pathname.includes('/tutors') && activeTab !== 'tutor') {
-      setActiveTab('tutor');
-    } else if (location.pathname.includes('/students') && activeTab !== 'student') {
-      setActiveTab('student');
+    } else if (location.pathname.includes('/principals')) {
+      setActiveTab((prev) => (prev === 'principal' ? prev : 'principal'));
+    } else if (location.pathname.includes('/tutors')) {
+      setActiveTab((prev) => (prev === 'tutor' ? prev : 'tutor'));
+    } else if (location.pathname.includes('/students')) {
+      setActiveTab((prev) => (prev === 'student' ? prev : 'student'));
     }
-  }, [location.pathname, isSuperUser, activeTab, navigate]);
+  }, [location.pathname, isSuperUser, navigate]);
 
   const handleTabChange = (newTab: AccountTab) => {
+    if (newTab === activeTab) return;
     if (!isSuperUser && (newTab === 'admin' || newTab === 'superadmin')) return;
+    const nextCacheKey = [newTab, '', '', '', '', '', '', ordering, 1].join('|');
+    const cached = usersCacheRef.current[nextCacheKey];
+    if (cached) {
+      setUsers(cached.results);
+      setTotalCount(cached.count);
+      setIsLoading(false);
+    } else {
+      setUsers([]);
+      setTotalCount(0);
+      setIsLoading(true);
+    }
     setActiveTab(newTab);
     setPage(1);
     setSearch('');
@@ -575,7 +592,7 @@ export const UserList: React.FC = () => {
         newTab === 'student' ? '/admin/students' :
         newTab === 'tutor' ? '/admin/tutors' :
         '/admin/principals';
-      navigate(targetPath, { replace: true });
+      window.history.replaceState(null, '', targetPath);
     } else if (location.pathname.startsWith('/superadmin/')) {
       const targetPath =
         newTab === 'student' ? '/superadmin/students' :
@@ -583,7 +600,7 @@ export const UserList: React.FC = () => {
         newTab === 'principal' ? '/superadmin/principals' :
         newTab === 'admin' ? '/superadmin/admins' :
         '/superadmin/superadmins';
-      navigate(targetPath, { replace: true });
+      window.history.replaceState(null, '', targetPath);
     }
   };
 
@@ -600,11 +617,37 @@ export const UserList: React.FC = () => {
     return tabs;
   }, [isSuperUser]);
 
+  const activeTabIndex = useMemo(
+    () => Math.max(0, availableTabs.findIndex((t) => t.id === activeTab)),
+    [availableTabs, activeTab]
+  );
+
   const fetchRequestId = useRef(0);
+  const usersCacheRef = useRef<Record<string, { results: User[]; count: number }>>({});
 
   const fetchUsers = async () => {
     const currentRequestId = ++fetchRequestId.current;
-    setIsLoading(true);
+    const cacheKey = [
+      activeTab,
+      search,
+      activeTab === 'student' ? assignedTutorFilter : '',
+      activeTab === 'student' || activeTab === 'tutor' ? aralLevelFilter : '',
+      activeTab === 'student' || activeTab === 'tutor' ? subjectFilter : '',
+      gradeLevelFilter,
+      sectionFilter,
+      ordering,
+      page,
+    ].join('|');
+
+    const cached = usersCacheRef.current[cacheKey];
+    if (cached) {
+      setUsers(cached.results);
+      setTotalCount(cached.count);
+      setSelectedIds([]);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const data = await userService.getUsers({
@@ -618,13 +661,14 @@ export const UserList: React.FC = () => {
         ordering,
         page,
       });
+      usersCacheRef.current[cacheKey] = { results: data.results, count: data.count };
       if (currentRequestId === fetchRequestId.current) {
         setUsers(data.results);
         setTotalCount(data.count);
         setSelectedIds([]);
       }
     } catch (err) {
-      if (currentRequestId === fetchRequestId.current) {
+      if (currentRequestId === fetchRequestId.current && !cached) {
         console.error(err);
         setError('Failed to fetch user directory.');
       }
@@ -658,6 +702,30 @@ export const UserList: React.FC = () => {
   useEffect(() => {
     fetchTutorsList();
   }, []);
+
+  useEffect(() => {
+    const prefetchTabs = async () => {
+      await Promise.allSettled(
+        availableTabs
+          .filter((tab) => tab.id !== activeTab)
+          .map(async (tab) => {
+            const cacheKey = [tab.id, '', '', '', '', '', '', 'last_name', 1].join('|');
+            if (usersCacheRef.current[cacheKey]) return;
+            try {
+              const data = await userService.getUsers({
+                role: tab.id,
+                ordering: 'last_name',
+                page: 1,
+              });
+              usersCacheRef.current[cacheKey] = { results: data.results, count: data.count };
+            } catch {
+              // Silent background prefetch failure
+            }
+          })
+      );
+    };
+    prefetchTabs();
+  }, [availableTabs]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -723,6 +791,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
       if (isStudent) {
         invalidateTutorStudentsCache(deactivateModalUser.assigned_tutor || undefined);
       }
+      usersCacheRef.current = {};
       fetchUsers();
       setToastNotification({
         show: true,
@@ -773,6 +842,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
       } else {
         await userService.activateUser(id);
       }
+      usersCacheRef.current = {};
       fetchUsers();
       setToastNotification({
         show: true,
@@ -806,6 +876,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
   // Fetch sections that actually exist in the system from the backend
   useEffect(() => {
+    if (activeTab !== 'student' && activeTab !== 'tutor') return;
     let isMounted = true;
     userService.getExistingSections(gradeLevelFilter).then((apiSections) => {
       if (!isMounted) return;
@@ -845,6 +916,11 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
   // Client-side filtering wrapper for seamless real-time response
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
+      if (activeTab === 'student' && u.role !== 'student') return false;
+      if (activeTab === 'tutor' && u.role !== 'tutor') return false;
+      if (activeTab === 'principal' && u.role !== 'principal') return false;
+      if (activeTab === 'admin' && (u.role !== 'admin' || u.is_superuser)) return false;
+      if (activeTab === 'superadmin' && !u.is_superuser && String(u.role) !== 'superadmin') return false;
       if (activeTab === 'student') {
         if (subjectFilter) {
           const s = (u.subject || '').toLowerCase();
@@ -1006,6 +1082,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
       const tutorIdToPass = tutorId === 'tba' ? null : tutorId;
       const res = await userService.bulkAssignTutor(selectedIds, tutorIdToPass);
       setSelectedIds([]);
+      usersCacheRef.current = {};
       fetchUsers();
       setToastNotification({
         show: true,
@@ -1091,8 +1168,8 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
       <button
         type="button"
         onClick={() => handleSort(field)}
-        className={`inline-flex items-center gap-1.5 whitespace-nowrap text-${align} transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
-          isActive ? 'text-gray-700 dark:text-slate-200' : 'text-gray-400 dark:text-slate-400'
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap text-${align} transition-colors hover:text-gray-900 dark:hover:text-slate-100 select-none text-[10.5px] sm:text-[11px] font-extrabold uppercase tracking-wider ${
+          isActive ? 'text-[var(--brand)] font-extrabold' : 'text-gray-600 dark:text-slate-300'
         } cursor-pointer ${className}`}
         aria-label={`Sort by ${label}`}
       >
@@ -1140,12 +1217,43 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
   return (
     <div className="space-y-4 sm:space-y-6" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-      {/* ── Top Navigation Tabs (Pill Switcher) ────────────────────────── */}
+      <style>{`
+        @keyframes userTabPanelEnter {
+          from {
+            opacity: 0;
+            transform: translateY(4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .user-tab-panel-enter {
+          animation: userTabPanelEnter 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .user-tab-panel-enter {
+            animation: none !important;
+          }
+        }
+      `}</style>
+      {/* ── Top Navigation Tabs ────────────────────────────────────────── */}
       <div
-        className="flex w-full rounded-xl bg-gray-100 p-0.5 sm:p-1 gap-0.5 sm:gap-1 dark:bg-[#111111] overflow-x-auto no-scrollbar"
+        className="relative grid w-full rounded-md bg-gray-100 p-1 dark:bg-[#111111] border border-gray-200/70 dark:border-[#1A1A1A] select-none overflow-hidden"
+        style={{
+          gridTemplateColumns: `repeat(${availableTabs.length}, minmax(0, 1fr))`,
+        }}
         role="tablist"
         aria-label="User account management tabs"
       >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1 bottom-1 left-1 rounded-sm bg-[var(--brand)] shadow-xs transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
+          style={{
+            width: `calc((100% - 0.5rem) / ${availableTabs.length})`,
+            transform: `translate3d(${activeTabIndex * 100}%, 0, 0)`,
+          }}
+        />
         {availableTabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -1155,19 +1263,19 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
               role="tab"
               aria-selected={isActive}
               onClick={() => handleTabChange(tab.id)}
-              className={`flex-1 min-w-0 sm:min-w-[70px] h-8 sm:h-9 rounded-lg sm:rounded-md px-1 sm:px-4 flex items-center justify-center text-[10px] sm:text-xs font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
+              className={`relative z-10 h-8 rounded-sm px-2 sm:px-4 flex items-center justify-center text-[10px] sm:text-xs font-bold uppercase tracking-tight sm:tracking-wider transition-colors duration-200 cursor-pointer whitespace-nowrap select-none ${
                 isActive
-                  ? 'bg-[var(--brand)] text-white shadow-xs'
-                  : 'text-gray-400 opacity-60 hover:bg-white/60 hover:text-gray-600 hover:opacity-100 dark:text-slate-500 dark:hover:bg-white/5 dark:hover:text-slate-300'
+                  ? 'text-white'
+                  : 'text-gray-500 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200'
               }`}
             >
               {tab.shortLabel ? (
                 <>
-                  <span className="hidden sm:inline">{tab.label}</span>
                   <span className="sm:hidden">{tab.shortLabel}</span>
+                  <span className="hidden sm:inline">{tab.label}</span>
                 </>
               ) : (
-                tab.label
+                <span>{tab.label}</span>
               )}
             </button>
           );
@@ -1177,15 +1285,17 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
       {/* ── Main Integrated Directory Table Card ──────────────────────── */}
       <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative shadow-sm">
+        <div key={activeTab} className="user-tab-panel-enter">
         {/* Table Toolbar (Section Title + Action Buttons & Filters) */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 px-3 sm:px-4 py-2.5 border-b border-gray-100 dark:border-[#1A1A1A] overflow-visible">
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-2.5 px-3.5 sm:px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] overflow-visible">
           {/* Left: Title & Counter */}
-          <div className="shrink-0 flex items-center justify-between lg:justify-start gap-2">
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm uppercase tracking-wide whitespace-nowrap">
-              {activeTab === 'student'
-                ? 'STUDENTS DIRECTORY'
-                : activeTab === 'tutor'
-                  ? 'TUTORS DIRECTORY'
+          <div className="shrink-0 flex items-center justify-between xl:justify-start gap-2">
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm uppercase tracking-tight whitespace-nowrap">
+                {activeTab === 'student'
+                  ? 'STUDENTS DIRECTORY'
+                  : activeTab === 'tutor'
+                    ? 'TUTORS DIRECTORY'
                     : activeTab === 'principal'
                       ? 'PRINCIPALS DIRECTORY'
                       : activeTab === 'admin'
@@ -1193,14 +1303,15 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                         : activeTab === 'superadmin'
                           ? 'SUPER ADMINS DIRECTORY'
                           : 'USER DIRECTORY'}
-            </h3>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-[#1A1A1A] text-slate-600 dark:text-slate-300 whitespace-nowrap">
-              <AnimatedCounter value={totalCount} /> {totalCount === 1 ? 'user' : 'users'}
-            </span>
+              </h3>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-[#1A1A1A] text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-[#262626] whitespace-nowrap">
+                <AnimatedCounter value={totalCount} /> {totalCount === 1 ? 'user' : 'users'}
+              </span>
+            </div>
           </div>
 
           {/* Right: Actions & Filter Controls */}
-          <div className="flex flex-wrap lg:flex-nowrap items-center gap-1.5 w-full lg:w-auto shrink-0">
+          <div className="flex flex-wrap items-center sm:justify-start xl:justify-end gap-1.5 w-full xl:w-auto min-w-0">
             {/* Tutor Assignment Filter (Student Tab) */}
             {activeTab === 'student' && (
               <DirectoryFilterDropdown
@@ -1306,12 +1417,10 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                 }}
                 options={[
                   { value: '', label: 'ALL GRADES' },
-                  { value: '7', label: 'GRADE 7' },
-                  { value: '8', label: 'GRADE 8' },
-                  { value: '9', label: 'GRADE 9' },
-                  { value: '10', label: 'GRADE 10' },
-                  { value: '11', label: 'GRADE 11' },
-                  { value: '12', label: 'GRADE 12' },
+                  ...GRADE_LEVEL_OPTIONS.map((g) => ({
+                    value: g.replace(/\D/g, ''),
+                    label: g,
+                  })),
                 ]}
                 ariaLabel="Filter by Grade Level"
                 isOpen={openFilterDropdown === 'gradeLevel'}
@@ -1347,7 +1456,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
             )}
 
             {/* Search Input Bar */}
-            <form onSubmit={handleSearchSubmit} className="relative flex w-full sm:w-auto order-first sm:order-none min-w-0 items-center shrink-0">
+            <form onSubmit={handleSearchSubmit} className="relative flex w-full sm:w-44 md:w-48 xl:w-44 2xl:w-52 items-center shrink-0">
               <Search className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-gray-400" />
               <input
                 type="search"
@@ -1355,7 +1464,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="Search users"
-                className="h-8 w-full sm:w-36 lg:w-44 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] pl-8 pr-2.5 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] focus:ring-2 focus:ring-[var(--brand)]/10"
+                className="h-8 w-full rounded-md border border-gray-200 dark:border-[#222222] bg-gray-50 dark:bg-[#161616] pl-8 pr-2.5 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] focus:ring-2 focus:ring-[var(--brand)]/10"
               />
             </form>
 
@@ -1464,7 +1573,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
             <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515]">
               <tr className="bg-gray-50 dark:bg-[#151515]">
                 {/* Sticky User Name Column */}
-                <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#151515] min-w-[155px] max-w-[170px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#151515] min-w-[155px] max-w-[170px] px-2.5 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
                   {activeTab === 'student' ? (
                     <div className="flex items-center gap-1.5">
                       <button
@@ -1496,70 +1605,70 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
                 {activeTab === 'student' ? (
                   <>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[95px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[95px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="LRN" field="lrn" align="center" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="ARAL LEVEL" field="aral_level" align="center" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[125px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[125px] px-2.5 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="ASSIGNED TUTOR" field="assigned_tutor" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[90px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[90px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="SUBJECT" field="subject" align="center" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="GRADE" field="grade_level" align="center" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="SECTION" field="section" align="center" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[125px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[125px] px-2.5 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="PARENT / GUARDIAN" field="parent_guardian_name" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[105px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[105px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="CONTACT NO." field="contact_number" align="center" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="STATUS" field="status" align="center" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-16 min-w-[70px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-16 min-w-[70px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                       ACTION
                     </th>
                   </>
                 ) : activeTab === 'tutor' ? (
                   <>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[130px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[130px] px-2.5 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="EMAIL" field="email" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[105px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[105px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="ARAL SUBJECT" field="subject" align="center" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[95px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[95px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="ARAL LEVEL" field="aral_level" align="center" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="GRADE LEVEL" field="grade_level" align="center" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="SECTION" field="section" align="center" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="STATUS" field="status" align="center" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-16 min-w-[70px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-16 min-w-[70px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                       ACTION
                     </th>
                   </>
                 ) : (
                   <>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[140px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[140px] px-2.5 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="EMAIL" field="email" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                       <SortableHeader label="STATUS" field="status" align="center" />
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-16 min-w-[70px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#151515] w-16 min-w-[70px] px-2 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                       ACTION
                     </th>
                   </>
@@ -1915,11 +2024,11 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
         {/* ── Desktop View (>= 768px): Original Full Table ── */}
         <div className="hidden md:block overflow-x-auto table-scroll-container mobile-scroll-table w-full">
           <table className={`${activeTab === 'student' ? 'min-w-[1100px]' : activeTab === 'tutor' ? 'min-w-[920px]' : 'min-w-[760px]'} w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal`}>
-            <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] shadow-xs">
-              <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
+            <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] shadow-xs">
+              <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
                   {/* Select All Checkbox (Students) */}
                   {activeTab === 'student' && (
-                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] w-10 px-3 py-2.5 text-center whitespace-nowrap">
+                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] w-10 px-3 py-2.5 text-center whitespace-nowrap">
                       <button
                         type="button"
                         onClick={toggleSelectAll}
@@ -1935,11 +2044,11 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                     </th>
                   )}
 
-                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] w-12 px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] w-12 px-3 py-2.5 text-center text-[10.5px] sm:text-[11px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
                     #
                   </th>
 
-                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                     <SortableHeader
                       label={
                         activeTab === 'student' ? 'STUDENT' :
@@ -1954,70 +2063,70 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
                   {activeTab === 'student' ? (
                     <>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="LRN" field="lrn" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="ARAL LEVEL" field="aral_level" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="ASSIGNED TUTOR" field="assigned_tutor" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="SUBJECT" field="subject" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="GRADE LEVEL" field="grade_level" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="SECTION" field="section" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="PARENT / GUARDIAN" field="parent_guardian_name" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="CONTACT NO." field="contact_number" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="STATUS" field="status" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] w-20 px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] w-20 px-4 py-2.5 text-center text-[10.5px] sm:text-[11px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
                         ACTION
                       </th>
                     </>
                   ) : activeTab === 'tutor' ? (
                     <>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="EMAIL" field="email" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="ARAL SUBJECT" field="subject" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="ARAL LEVEL" field="aral_level" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="GRADE LEVEL" field="grade_level" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="SECTION" field="section" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="STATUS" field="status" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] w-20 px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] w-20 px-4 py-2.5 text-center text-[10.5px] sm:text-[11px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
                         ACTION
                       </th>
                     </>
                   ) : (
                     <>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="EMAIL" field="email" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="STATUS" field="status" />
                       </th>
-                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] w-20 px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#151515] border-b border-gray-200 dark:border-[#222222] w-20 px-4 py-2.5 text-center text-[10.5px] sm:text-[11px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">
                         ACTION
                       </th>
                     </>
@@ -2383,6 +2492,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
           onPageChange={setPage}
           itemLabel="users"
         />
+        </div>
       </div>
 
       {/* ── Deactivate Account / Delete Student Confirmation Modal ──────── */}

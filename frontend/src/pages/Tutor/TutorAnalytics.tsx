@@ -2297,7 +2297,7 @@ export const TutorAnalytics: React.FC = () => {
             <>
               {/* ── Risk Summary Cards ─────────────────────────────────────── */}
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className="relative rounded-md border risk-card-high p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
+                <div className="relative rounded-md border border-rose-500 dark:border-rose-500 bg-white dark:bg-[#0A0A0A] hover:border-rose-600 dark:hover:border-rose-400 transition-colors p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
                   <div className="absolute right-3 top-3">
                     <RiskRangeInfo range="Composite rating is 69% and below" />
                   </div>
@@ -2310,7 +2310,7 @@ export const TutorAnalytics: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="relative rounded-md border risk-card-moderate p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
+                <div className="relative rounded-md border border-amber-500 dark:border-amber-500 bg-white dark:bg-[#0A0A0A] hover:border-amber-600 dark:hover:border-amber-400 transition-colors p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
                   <div className="absolute right-3 top-3">
                     <RiskRangeInfo range="Composite rating is between 70% to 85%" />
                   </div>
@@ -2323,7 +2323,7 @@ export const TutorAnalytics: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="relative rounded-md border risk-card-low p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
+                <div className="relative rounded-md border border-emerald-500 dark:border-emerald-500 bg-white dark:bg-[#0A0A0A] hover:border-emerald-600 dark:hover:border-emerald-400 transition-colors p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
                   <div className="absolute right-3 top-3">
                     <RiskRangeInfo range="Composite rating is between 86% to 100%" />
                   </div>

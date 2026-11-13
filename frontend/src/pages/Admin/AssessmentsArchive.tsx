@@ -12,6 +12,11 @@ import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
 import { useAuth } from '../../hooks/useAuth';
 import { isAssessmentWindowOpen } from '../../utils/sessionDescriptionHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
+import {
+  COMPOSITE_WEIGHTS,
+  PASSING_SCORE_RATIO,
+  isNotTakenGrade,
+} from '../../config/academicConfig';
 
 /* ─── Helper: Normalize ARAL Level ─────────────────────────────────── */
 const normalizeAralLevel = (val?: string | null): 'BASIC' | 'PLUS' | 'SUMMER' => {
@@ -804,29 +809,31 @@ export const AssessmentsArchive: React.FC = () => {
           attendanceRate = Math.round((presentCount / sAtt.length) * 1000) / 10;
         }
 
-        // Compute Average Score
+        // Compute Average Score (exclude Not Taken records)
+        const scoredGrades = sGrades.filter((g) => !isNotTakenGrade(g));
         let avgScore = 100.0;
-        if (sGrades.length > 0) {
-          const totalPct = sGrades.reduce((acc, g) => {
+        if (scoredGrades.length > 0) {
+          const totalPct = scoredGrades.reduce((acc, g) => {
             const ts = Number(g.total_score) || 100;
             const sc = Number(g.score) || 0;
             return acc + (sc / ts) * 100;
           }, 0);
-          avgScore = Math.round((totalPct / sGrades.length) * 10) / 10;
+          avgScore = Math.round((totalPct / scoredGrades.length) * 10) / 10;
         }
 
         // Compute Composite Score (40% Attendance + 60% Academic Performance)
-        const compositeScore = Math.round(((attendanceRate * 0.4) + (avgScore * 0.6)) * 10) / 10;
+        const compositeScore = Math.round(((attendanceRate * COMPOSITE_WEIGHTS.attendance) + (avgScore * COMPOSITE_WEIGHTS.score)) * 10) / 10;
 
         // Determine Status & Assessment Score
-        // Check if student has explicit evaluation record
-        const evalGrade = sGrades.find((g) => {
+        // Check if student has explicit evaluation record (prefer taken record over Not Taken)
+        const matchingEvalGrades = sGrades.filter((g) => {
           const subj = (g.subject || '').toUpperCase();
           const rem = (g.remarks || '').toUpperCase();
           if (activeTab === 'mosy') return subj.includes('MOSY') || rem.includes('MOSY');
           if (activeTab === 'eosy') return subj.includes('EOSY') || rem.includes('EOSY');
           return subj.includes('SUMMER') || rem.includes('SUMMER');
         });
+        const evalGrade = matchingEvalGrades.find((g) => !isNotTakenGrade(g)) ?? matchingEvalGrades[0];
 
         let assessmentScoreStr = '—';
         let status: 'MOVED_UP' | 'GRADUATED' | 'RETAINED' | 'PENDING' = 'PENDING';
@@ -835,12 +842,12 @@ export const AssessmentsArchive: React.FC = () => {
         const tutorLevel = (tutor.tutor_type || tutor.aral_level || '').toLowerCase();
         const isPlusCohort = rawLevel === 'plus' || rawLevel === 'graduated' || tutorLevel === 'plus';
 
-        if (evalGrade && evalGrade.remarks?.toLowerCase() !== 'not taken') {
+        if (evalGrade && !isNotTakenGrade(evalGrade)) {
           const ts = Number(evalGrade.total_score) || 40;
           const sc = Number(evalGrade.score) || 0;
           const pct = Math.round((sc / ts) * 1000) / 10;
           assessmentScoreStr = `${pct.toFixed(1)}%`;
-          const isPassed = ts === 40 ? sc >= 28 : (sc / ts) >= 0.7;
+          const isPassed = (sc / ts) >= PASSING_SCORE_RATIO;
 
           if (activeTab === 'mosy') {
             // In MOSY (Q1 & Q2): Plus students who pass graduate!
@@ -876,7 +883,7 @@ export const AssessmentsArchive: React.FC = () => {
         }
 
         // Only archive students who actually have an evaluation grade or completed record in this concluded period
-        const hasEvaluatedRecord = Boolean(evalGrade && evalGrade.remarks?.toLowerCase() !== 'not taken') ||
+        const hasEvaluatedRecord = Boolean(evalGrade && !isNotTakenGrade(evalGrade)) ||
           (rawLevel === 'graduated' && (activeTab === 'eosy' || activeTab === 'summer'));
 
         if (!hasEvaluatedRecord) {

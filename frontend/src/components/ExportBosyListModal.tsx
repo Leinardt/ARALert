@@ -13,6 +13,8 @@ import {
 } from '../utils/bosyListExportService';
 import { DEPED_LOGO_SRC, PNAHS_LOGO_SRC } from '../assets/template_logos/logosBase64';
 import { formatStudentName, compareNamesByLastName } from '../utils/studentFormatters';
+import { academicService } from '../services/academicService';
+import { GRADE_LEVEL_OPTIONS, SCHOOL_METADATA_DEFAULTS } from '../config/academicConfig';
 
 export interface ExportBosyListModalProps {
   isOpen: boolean;
@@ -64,12 +66,24 @@ export const ExportBosyListModal: React.FC<ExportBosyListModalProps> = ({
   defaultTutorId,
 }) => {
   // Config & Header details
-  const [division, setDivision] = useState('REGION V - BICOL / SCHOOLS DIVISION OF MASBATE');
-  const [district, setDistrict] = useState('DISTRICT OF PALANAS');
-  const [schoolName, setSchoolName] = useState('PALANAS NATIONAL AGRICULTURE HIGH SCHOOL');
-  const [schoolAddress, setSchoolAddress] = useState('Palanas, Masbate');
+  const [division, setDivision] = useState(`REGION V - BICOL / SCHOOLS ${SCHOOL_METADATA_DEFAULTS.division}`);
+  const [district, setDistrict] = useState<string>(SCHOOL_METADATA_DEFAULTS.district);
+  const [schoolName, setSchoolName] = useState<string>(SCHOOL_METADATA_DEFAULTS.schoolName);
+  const [schoolAddress, setSchoolAddress] = useState<string>(SCHOOL_METADATA_DEFAULTS.schoolAddress);
   const [documentTitle, setDocumentTitle] = useState('BOSY LIST OF ARAL TUTEES');
   const [schoolYear, setSchoolYear] = useState('2026-2027');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    academicService
+      .getCurrentSchoolYear()
+      .then((sy) => {
+        if (sy?.school_year) setSchoolYear(sy.school_year);
+      })
+      .catch(() => {
+        // Keep current fallback school year if request fails
+      });
+  }, [isOpen]);
 
   // Signatories
   const [tutorName, setTutorName] = useState(
@@ -137,7 +151,7 @@ export const ExportBosyListModal: React.FC<ExportBosyListModalProps> = ({
       const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
       return numA - numB || a.localeCompare(b);
     });
-    return list.length > 0 ? list : ['GRADE 7', 'GRADE 8', 'GRADE 9', 'GRADE 10', 'GRADE 11', 'GRADE 12'];
+    return list.length > 0 ? list : [...GRADE_LEVEL_OPTIONS];
   }, [students]);
 
   // 2. Available Sections (cascading from selectedGrade)

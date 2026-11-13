@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Plus, Trash2, Check, AlertCircle } from 'lucide-react';
 import type { TutorRoleDetailGroup } from '../utils/tutorCohortHelpers';
 import { createDefaultRoleDetail } from '../utils/tutorCohortHelpers';
+import { ARAL_LEVEL_OPTIONS, GRADE_LEVEL_OPTIONS } from '../config/academicConfig';
 
 interface TutorRoleDetailsSectionProps {
   groups: TutorRoleDetailGroup[];
@@ -10,7 +11,7 @@ interface TutorRoleDetailsSectionProps {
   errors?: Record<string, string>;
 }
 
-const GRADE_OPTIONS = ['GRADE 7', 'GRADE 8', 'GRADE 9', 'GRADE 10', 'GRADE 11', 'GRADE 12'];
+const GRADE_OPTIONS = [...GRADE_LEVEL_OPTIONS];
 
 export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = ({
   groups,
@@ -136,44 +137,21 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                   ARAL Level <span className="text-red-500">*</span>
                 </label>
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleSetAralLevel(gIdx, 'basic')}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all cursor-pointer ${
-                      group.aralLevel === 'basic'
-                        ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] font-bold shadow-2xs'
-                        : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838]'
-                    }`}
-                  >
-                    {group.aralLevel === 'basic' && <Check className="w-3.5 h-3.5" />}
-                    <span>BASIC</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleSetAralLevel(gIdx, 'plus')}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all cursor-pointer ${
-                      group.aralLevel === 'plus'
-                        ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] font-bold shadow-2xs'
-                        : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838]'
-                    }`}
-                  >
-                    {group.aralLevel === 'plus' && <Check className="w-3.5 h-3.5" />}
-                    <span>PLUS</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleSetAralLevel(gIdx, 'summer')}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all cursor-pointer ${
-                      group.aralLevel === 'summer'
-                        ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] font-bold shadow-2xs'
-                        : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838]'
-                    }`}
-                  >
-                    {group.aralLevel === 'summer' && <Check className="w-3.5 h-3.5" />}
-                    <span>SUMMER</span>
-                  </button>
+                  {ARAL_LEVEL_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => handleSetAralLevel(gIdx, opt.value)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all cursor-pointer ${
+                        group.aralLevel === opt.value
+                          ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] font-bold shadow-2xs'
+                          : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838]'
+                      }`}
+                    >
+                      {group.aralLevel === opt.value && <Check className="w-3.5 h-3.5" />}
+                      <span>{opt.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 

@@ -24,6 +24,12 @@ import {
 import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
+import {
+  PASSING_SCORE_RATIO,
+  generateSchoolYearWeeks,
+  getSchoolYearWeekNumberForDate,
+  isNotTakenGrade,
+} from '../../config/academicConfig';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 
@@ -195,15 +201,6 @@ const getWeekdaysForMonday = (mondayStr: string, extraDates: string[] = []): str
   return dates.sort();
 };
 
-const computeWeekOfMonth = (dateObj: Date): number => {
-  const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
-  const day = d.getDay();
-  const wedDiff = day === 0 ? 3 : 3 - day;
-  const wednesday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + wedDiff);
-  const firstDay = new Date(wednesday.getFullYear(), wednesday.getMonth(), 1).getDay();
-  return Math.ceil((wednesday.getDate() + (firstDay === 0 ? 6 : firstDay - 1)) / 7);
-};
-
 const getWeekKey = (dateStr: string) => {
   const d = new Date(dateStr + 'T00:00:00');
   const day = d.getDay();
@@ -212,9 +209,8 @@ const getWeekKey = (dateStr: string) => {
   return mon.toLocaleDateString('en-CA');
 };
 
-const getWeekTitle = (mondayStr: string) => {
-  const d = new Date(`${mondayStr}T00:00:00`);
-  const weekNum = computeWeekOfMonth(d);
+const getWeekTitle = (mondayStr: string, schoolYear?: Partial<SchoolYear> | null, recordedDateKeys?: string[]) => {
+  const weekNum = getSchoolYearWeekNumberForDate(mondayStr, schoolYear, recordedDateKeys);
   return `WEEK ${weekNum}`;
 };
 
@@ -384,6 +380,8 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
     return groupDates.includes(selectedDate);
   }, [groupDates, selectedDate]);
 
+  const effectiveIsOpen = isOpen || tableGroup.rows.length === 0;
+
   const displayRows = useMemo(() => {
     if (!selectedDate || !isOpen) return tableGroup.rows;
     return tableGroup.rows.filter((r) => r.date_logged?.slice(0, 10) === selectedDate);
@@ -537,16 +535,29 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
             })}
           </div>
         </div>
-        {isOpen && (
-          <span className="hidden sm:inline text-[11px] font-semibold text-gray-400">
-            {displayRows.length} Record{displayRows.length !== 1 ? 's' : ''}
-          </span>
+        {effectiveIsOpen && (
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:inline text-[11px] font-semibold text-gray-400">
+              {displayRows.length} Record{displayRows.length !== 1 ? 's' : ''}
+            </span>
+          </div>
         )}
       </div>
 
-      {isOpen && (
+      {effectiveIsOpen && (
         <div className="space-y-6">
-          {scoreSessions.map((session, sIdx) => (
+          {tableGroup.rows.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-1.5 py-10 text-center rounded-md border border-dashed border-gray-200 dark:border-[#1E1E1E] bg-gray-50/50 dark:bg-[#141414]">
+              <CalendarDays className="w-7 h-7 text-gray-300 dark:text-gray-600" />
+              <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">
+                No score records for {tableGroup.title}
+              </p>
+              <p className="text-[11px] text-gray-400 dark:text-slate-500">
+                Select another week from the dropdown to view recorded scores.
+              </p>
+            </div>
+          ) : (
+            scoreSessions.map((session, sIdx) => (
             <div key={session.key} className={sIdx > 0 ? 'mt-6' : ''}>
               <EntrySessionSeparator label={session.label} time={session.time} />
               {/* Desktop Table View (>= 768px) */}
@@ -606,7 +617,11 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-700 dark:text-slate-300 whitespace-nowrap font-medium">
-                        {grade.score} / {grade.total_score}
+                        {isNotTaken ? (
+                          <span className="font-bold text-gray-400 dark:text-slate-500">-</span>
+                        ) : (
+                          `${grade.score} / ${grade.total_score}`
+                        )}
                       </td>
                       <td className="px-4 py-3 text-left whitespace-nowrap">
                         <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${
@@ -714,19 +729,23 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
                       <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
                         Score
                       </span>
-                      <p className="text-xl font-extrabold text-gray-900 dark:text-slate-100">
-                        {grade.score}{' '}
-                        <span className="text-xs font-semibold text-gray-400 dark:text-slate-500">
-                          / {grade.total_score}
-                        </span>
-                      </p>
+                      {isNotTaken ? (
+                        <p className="text-xl font-extrabold text-gray-400 dark:text-slate-500">-</p>
+                      ) : (
+                        <p className="text-xl font-extrabold text-gray-900 dark:text-slate-100">
+                          {grade.score}{' '}
+                          <span className="text-xs font-semibold text-gray-400 dark:text-slate-500">
+                            / {grade.total_score}
+                          </span>
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
                         Result
                       </span>
-                      <p className={`text-xl font-black ${isNotTaken ? 'text-gray-400' : scorePercentage >= 70 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                        {isNotTaken ? '0%' : `${smartPct(scorePercentage)}%`}
+                      <p className={`text-xl font-black ${isNotTaken ? 'text-gray-400 dark:text-slate-500' : scorePercentage >= 70 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                        {isNotTaken ? '-' : `${smartPct(scorePercentage)}%`}
                       </p>
                     </div>
                   </div>
@@ -740,7 +759,8 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
             })}
           </div>
             </div>
-          ))}
+          ))
+          )}
         </div>
       )}
     </div>
@@ -764,12 +784,18 @@ export const StudentScores: React.FC = () => {
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
+  const [showWeekDropdown, setShowWeekDropdown] = useState(false);
   const periodDropdownRef = useRef<HTMLDivElement>(null);
+  const weekDropdownRef = useRef<HTMLDivElement>(null);
+  const [currentSchoolYearObj, setCurrentSchoolYearObj] = useState<SchoolYear | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (periodDropdownRef.current && !periodDropdownRef.current.contains(e.target as Node)) {
         setShowPeriodDropdown(false);
+      }
+      if (weekDropdownRef.current && !weekDropdownRef.current.contains(e.target as Node)) {
+        setShowWeekDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -811,6 +837,9 @@ export const StudentScores: React.FC = () => {
           }
           if (historyData.status === 'fulfilled') {
             setStudentHistory(historyData.value);
+          }
+          if (currentSyData.status === 'fulfilled' && currentSyData.value) {
+            setCurrentSchoolYearObj(currentSyData.value);
           }
           if (currentSyData.status === 'fulfilled' && currentSyData.value?.school_year) {
             const activeSy = currentSyData.value.school_year;
@@ -996,15 +1025,15 @@ export const StudentScores: React.FC = () => {
       return { passedCount: 0, failedCount: 0, calculatedAvgScore: 0 };
     }
     const takenGrades = filteredGrades.filter(
-      (g) => g.remarks?.trim().toLowerCase() !== 'not taken'
+      (g) => !isNotTakenGrade(g)
     );
     const passed = takenGrades.filter((g) => {
       const total = Number(g.total_score) || 100;
-      return (Number(g.score) / total) >= 0.7;
+      return (Number(g.score) / total) >= PASSING_SCORE_RATIO;
     }).length;
     const failed = takenGrades.filter((g) => {
       const total = Number(g.total_score) || 100;
-      return (Number(g.score) / total) < 0.7;
+      return (Number(g.score) / total) < PASSING_SCORE_RATIO;
     }).length;
     const avg = takenGrades.length > 0
       ? Number((takenGrades.reduce((sum, g) => sum + ((Number(g.score) / (Number(g.total_score) || 100)) * 100), 0) / takenGrades.length).toFixed(2))
@@ -1017,7 +1046,7 @@ export const StudentScores: React.FC = () => {
   }, [filteredGrades]);
 
   const hasScoreData = useMemo(() => {
-    return filteredGrades.some((g) => g.remarks?.trim().toLowerCase() !== 'not taken');
+    return filteredGrades.some((g) => !isNotTakenGrade(g));
   }, [filteredGrades]);
 
   const sortedHistory = useMemo(
@@ -1025,31 +1054,88 @@ export const StudentScores: React.FC = () => {
     [filteredGrades]
   );
 
+  const recordedDateKeys = useMemo(() => Array.from(loggedDates), [loggedDates]);
+
+  const schoolYearWeeks = useMemo(
+    () => generateSchoolYearWeeks(currentSchoolYearObj, recordedDateKeys),
+    [currentSchoolYearObj, recordedDateKeys]
+  );
+
+  const [selectedWeekMonday, setSelectedWeekMonday] = useState<string>('');
+
   const mostRecentDateWithEntry = useMemo(() => {
     if (sortedHistory.length === 0) return null;
     return sortedHistory[0].date_logged?.slice(0, 10) || null;
   }, [sortedHistory]);
+
+  useEffect(() => {
+    if (schoolYearWeeks.length === 0) return;
+    setSelectedWeekMonday((prev) => {
+      if (prev && schoolYearWeeks.some((w) => w.weekKey === prev)) {
+        return prev;
+      }
+      if (mostRecentDateWithEntry) {
+        const recentMon = getWeekKey(mostRecentDateWithEntry);
+        if (schoolYearWeeks.some((w) => w.weekKey === recentMon)) {
+          return recentMon;
+        }
+      }
+      const todayMon = getWeekKey(new Date().toLocaleDateString('en-CA'));
+      if (schoolYearWeeks.some((w) => w.weekKey === todayMon)) {
+        return todayMon;
+      }
+      return schoolYearWeeks[schoolYearWeeks.length - 1].weekKey;
+    });
+  }, [schoolYearWeeks, mostRecentDateWithEntry]);
+
+  const selectedWeekOption = useMemo(
+    () => schoolYearWeeks.find((w) => w.weekKey === selectedWeekMonday) || schoolYearWeeks[schoolYearWeeks.length - 1] || null,
+    [schoolYearWeeks, selectedWeekMonday]
+  );
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
     if (jumpDate) {
       setSelectedDate(jumpDate);
+    } else if (viewMode === 'week' && selectedWeekOption) {
+      const firstMatchInWeek = sortedHistory.find(
+        (g) => getWeekKey(g.date_logged?.slice(0, 10) || '') === selectedWeekOption.weekKey
+      );
+      setSelectedDate(firstMatchInWeek ? firstMatchInWeek.date_logged.slice(0, 10) : selectedWeekOption.weekKey);
     } else if (mostRecentDateWithEntry) {
       setSelectedDate(mostRecentDateWithEntry);
     } else {
       setSelectedDate(null);
     }
-  }, [jumpDate, mostRecentDateWithEntry, viewMode]);
+  }, [jumpDate, mostRecentDateWithEntry, viewMode, selectedWeekOption, sortedHistory]);
+
+  const displayedHistory = useMemo(() => {
+    if (viewMode === 'week' && !jumpDate && selectedWeekOption) {
+      return sortedHistory.filter(
+        (log) => getWeekKey((log.date_logged?.slice(0, 10) || log.created_at?.slice(0, 10) || '')) === selectedWeekOption.weekKey
+      );
+    }
+    return sortedHistory;
+  }, [viewMode, jumpDate, selectedWeekOption, sortedHistory]);
 
   const groupedHistory = useMemo((): ScoreTableGroup[] => {
     if (jumpDate) {
       return [{
         key: jumpDate,
-        title: viewMode === 'week' ? getWeekTitle(getWeekKey(jumpDate)) : getMonthTitle(getMonthKey(jumpDate)),
+        title: viewMode === 'week' ? getWeekTitle(getWeekKey(jumpDate), currentSchoolYearObj, recordedDateKeys) : getMonthTitle(getMonthKey(jumpDate)),
         weekMonday: getWeekKey(jumpDate),
         isMonthGroup: viewMode === 'month',
         rows: sortedHistory,
+      }];
+    }
+    if (viewMode === 'week' && selectedWeekOption) {
+      return [{
+        key: selectedWeekOption.weekKey,
+        title: selectedWeekOption.label.toUpperCase(),
+        weekMonday: selectedWeekOption.weekKey,
+        isMonthGroup: false,
+        rows: displayedHistory,
       }];
     }
     const grouped = new Map<string, Grade[]>();
@@ -1064,13 +1150,13 @@ export const StudentScores: React.FC = () => {
       .sort(([a], [b]) => (b > a ? 1 : -1))
       .map(([key, rows]) => ({
         key,
-        title: viewMode === 'week' ? getWeekTitle(key) : getMonthTitle(key),
+        title: viewMode === 'week' ? getWeekTitle(key, currentSchoolYearObj, recordedDateKeys) : getMonthTitle(key),
         weekMonday: viewMode === 'week' ? key : undefined,
         isMonthGroup: viewMode === 'month',
         rows,
       }));
-  }, [sortedHistory, jumpDate, viewMode]);
-  const visibleRecordsCount = sortedHistory.length;
+  }, [sortedHistory, displayedHistory, jumpDate, viewMode, selectedWeekOption, currentSchoolYearObj, recordedDateKeys]);
+  const visibleRecordsCount = displayedHistory.length;
 
   if (loading) {
     return (
@@ -1236,7 +1322,7 @@ export const StudentScores: React.FC = () => {
             )}
           </div>
 
-          {/* 3. View mode toggle (WEEK / MONTH) + Calendar Button */}
+          {/* 3. View mode toggle (WEEK / MONTH) + School Year Week Dropdown + Calendar Button */}
           <div className="order-2 sm:order-3 flex items-center gap-1.5 sm:gap-2 shrink-0">
             <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
               {(['week', 'month'] as const).map((mode) => (
@@ -1256,6 +1342,60 @@ export const StudentScores: React.FC = () => {
                 </button>
               ))}
             </div>
+
+            {viewMode === 'week' && schoolYearWeeks.length > 0 && (
+              <div ref={weekDropdownRef} className="relative z-40">
+                <button
+                  type="button"
+                  onClick={() => setShowWeekDropdown((prev) => !prev)}
+                  aria-label="Select school year week"
+                  aria-expanded={showWeekDropdown}
+                  className="inline-flex h-7.5 sm:h-8 items-center justify-between gap-1.5 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-[10px] sm:text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-gray-100 dark:hover:bg-[#222222] focus:border-[var(--brand)] cursor-pointer whitespace-nowrap"
+                >
+                  <span>{selectedWeekOption ? selectedWeekOption.label : 'Week 1'}</span>
+                  <ChevronDown
+                    className={`h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 opacity-75 transition-transform duration-150 ${
+                      showWeekDropdown ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                {showWeekDropdown && (
+                  <div className="absolute right-0 top-full mt-1.5 z-50 w-52 max-h-72 overflow-y-auto flex flex-col gap-0.5 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-1.5 shadow-xl">
+                    {schoolYearWeeks.map((week) => {
+                      const isSelected = !jumpDate && selectedWeekOption?.weekKey === week.weekKey;
+                      const weekHasRecords = recordedDateKeys.some(
+                        (d) => getWeekKey(d) === week.weekKey
+                      );
+                      return (
+                        <button
+                          key={week.weekKey}
+                          type="button"
+                          onClick={() => {
+                            setSelectedWeekMonday(week.weekKey);
+                            setJumpDate(null);
+                            setViewMode('week');
+                            setShowWeekDropdown(false);
+                          }}
+                          className={`flex items-center justify-between w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                            isSelected
+                              ? 'bg-[var(--brand-light)] text-[var(--brand)] font-bold dark:bg-blue-950/50 dark:text-blue-300'
+                              : 'text-gray-700 dark:text-slate-200 font-medium hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                          }`}
+                        >
+                          <span className="truncate">{week.label}</span>
+                          {weekHasRecords && (
+                            <span
+                              className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] shrink-0 ml-2"
+                              title="Has recorded scores"
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="relative inline-flex items-center shrink-0">
               <button
@@ -1322,7 +1462,7 @@ export const StudentScores: React.FC = () => {
                 <p className="text-xs mt-0.5 text-rose-700 dark:text-rose-300">{error}</p>
               </div>
             </div>
-          ) : sortedHistory.length === 0 ? (
+          ) : (displayedHistory.length === 0 && !(viewMode === 'week' && !jumpDate && groupedHistory.length > 0)) ? (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
               <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
               <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">

@@ -79,13 +79,15 @@ def evaluate_student_aral_progression(student):
     elif student.aral_level in ('basic', 'plus'):
         baseline_level = student.aral_level.lower()
 
-    # Find the most recently logged milestone grade (MOSY, EOSY, or Summer)
+    # Find the most recently logged milestone grade (MOSY, EOSY, or Summer),
+    # preferring a taken assessment over a "Not Taken" placeholder.
     grades = ApiGrade.objects.filter(student=student)
-    milestone_grade = grades.filter(
+    milestone_qs = grades.filter(
         Q(subject__icontains='MOSY') | Q(remarks__icontains='MOSY') |
         Q(subject__icontains='EOSY') | Q(remarks__icontains='EOSY') |
         Q(subject__icontains='Summer') | Q(remarks__icontains='Summer')
-    ).order_by('-date_logged', '-id').first()
+    ).order_by('-date_logged', '-id')
+    milestone_grade = milestone_qs.exclude(remarks__iexact='Not Taken').first() or milestone_qs.first()
 
     if not milestone_grade:
         return {
@@ -99,14 +101,32 @@ def evaluate_student_aral_progression(student):
             'message': 'No milestone assessment logged.'
         }
 
+    subj = (milestone_grade.subject or '').upper()
+    ass_type = 'MOSY' if 'MOSY' in subj else ('EOSY' if 'EOSY' in subj else 'Summer Assessment')
+
+    if (milestone_grade.remarks or '').strip().lower() == 'not taken':
+        if enrollment:
+            if 'MOSY' in ass_type:
+                enrollment.mosy_result = 'not_taken'
+                enrollment.save(update_fields=['mosy_result', 'updated_at'])
+            elif 'EOSY' in ass_type:
+                enrollment.eosy_result = 'not_taken'
+                enrollment.save(update_fields=['eosy_result', 'updated_at'])
+        return {
+            'student_id': str(student.id),
+            'student_name': student.get_full_name(),
+            'previous_level': student.aral_level or baseline_level,
+            'new_level': student.aral_level or baseline_level,
+            'assessment_type': ass_type,
+            'score_percentage': None,
+            'status': 'NOT_TAKEN',
+            'message': f'{ass_type} Not Taken.'
+        }
+
     ts = float(milestone_grade.total_score) if milestone_grade.total_score and float(milestone_grade.total_score) > 0 else 40.0
     s = float(milestone_grade.score) if milestone_grade.score is not None else 0.0
     pct = round((s / ts) * 100.0, 1)
     is_pass = (s >= 28.0) if ts == 40.0 else ((s / ts) >= 0.7)
-
-    # Determine assessment name
-    subj = (milestone_grade.subject or '').upper()
-    ass_type = 'MOSY' if 'MOSY' in subj else ('EOSY' if 'EOSY' in subj else 'Summer Assessment')
 
     curr_level = student.aral_level or baseline_level
     if is_pass:
@@ -1687,8 +1707,8 @@ class StudentAcademicProfileView(APIView):
         w_tasks   = 60
         w_attend  = 40
 
-        # Grades (optimized from 64 queries to 1 query)
-        grades = ApiGrade.objects.filter(student=student)
+        # Grades (optimized from 64 queries to 1 query) — exclude Not Taken records from score averages
+        grades = ApiGrade.objects.filter(student=student).exclude(remarks__iexact='Not Taken')
         grade_stats = (
             grades.values('subject', 'quarter')
             .annotate(
@@ -1810,6 +1830,7 @@ class PrincipalDashboardView(APIView):
 
         class_grades_qs = (
             ApiGrade.objects.filter(student__is_active=True, date_logged__gte=trend_start, date_logged__lte=today)
+            .exclude(remarks__iexact='Not Taken')
             .values('date_logged')
             .annotate(avg_score=Avg('score'))
         )
@@ -1847,6 +1868,7 @@ class PrincipalDashboardView(APIView):
 
         tg_qs = (
             ApiGrade.objects.filter(student__is_active=True, tutor_id__in=top_tutor_ids, date_logged__gte=tutor_start, date_logged__lte=today)
+            .exclude(remarks__iexact='Not Taken')
             .values('tutor_id', 'date_logged')
             .annotate(avg_score=Avg('score'))
         )

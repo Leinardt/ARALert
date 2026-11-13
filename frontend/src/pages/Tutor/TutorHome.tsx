@@ -14,6 +14,7 @@ import {
   BarChart2,
 } from 'lucide-react';
 import { computeStudentRiskRows, type StudentRiskRow, getRiskAvatarClass } from '../../utils/analyticsHelpers';
+import { isNotTakenGrade } from '../../config/academicConfig';
 import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
 import {
   getCurrentSemesterMilestone,
@@ -655,7 +656,7 @@ export const TutorHome: React.FC = () => {
     const studentIds = new Set(filteredStudents.map((s) => String(s.id)));
     const isAllSubject = !selectedSubject || selectedSubject.toLowerCase() === 'all';
     const assessmentGrades = grades.filter((g) => {
-      if (!studentIds.has(String(g.student)) || g.component_type !== 'assessment') return false;
+      if (!studentIds.has(String(g.student)) || g.component_type !== 'assessment' || isNotTakenGrade(g)) return false;
       if (!isAllSubject && g.subject) {
         const gradeSubj = g.subject.toLowerCase().trim();
         const selSubj = selectedSubject.toLowerCase().trim();

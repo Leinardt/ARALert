@@ -10,6 +10,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
+import { isNotTakenGrade } from '../../config/academicConfig';
 import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
 import {
   getCurrentSemesterMilestone,
@@ -639,7 +640,9 @@ export const StudentHome: React.FC = () => {
 
   // ── Performance Trend Data (10 days / 6 weeks / 6 months) ───────────────────
   const last4WeeksData = useMemo(() => {
-    const assessmentGrades = currentStudentGrades.filter((g) => g.component_type === 'assessment');
+    const assessmentGrades = currentStudentGrades.filter(
+      (g) => g.component_type === 'assessment' && !isNotTakenGrade(g)
+    );
     if (assessmentGrades.length === 0) return [];
 
     const now = new Date();

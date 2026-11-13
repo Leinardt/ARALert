@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../../utils/analyticsHelpers';
+import { isNotTakenGrade } from '../../config/academicConfig';
 import {
   AlertCircle,
   ChevronLeft,
@@ -159,6 +160,7 @@ const buildRiskTrendPoints = (
   const points = periods.map((period) => {
     const periodGrades = grades.filter((grade) => (
       studentIds.has(String(grade.student))
+      && !isNotTakenGrade(grade)
       && (grade.date_logged || grade.created_at)
       && new Date(`${(grade.date_logged || grade.created_at || '').slice(0, 10)}T00:00:00`) < period.end
     ));
@@ -1003,7 +1005,7 @@ export const StudentAnalytics: React.FC = () => {
         <div
           className={`relative rounded-md border p-4 min-h-[100px] flex flex-col justify-center transition-all duration-200 shadow-sm ${
             studentRiskTier === 'High'
-              ? 'risk-card-high'
+              ? 'border-rose-500 dark:border-rose-500 bg-white dark:bg-[#111111] hover:border-rose-600 dark:hover:border-rose-400'
               : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#111111] opacity-60'
           }`}
         >
@@ -1035,7 +1037,7 @@ export const StudentAnalytics: React.FC = () => {
         <div
           className={`relative rounded-md border p-4 min-h-[100px] flex flex-col justify-center transition-all duration-200 shadow-sm ${
             (studentRiskTier === 'Moderate' || studentRiskTier === 'Medium')
-              ? 'risk-card-moderate'
+              ? 'border-amber-500 dark:border-amber-500 bg-white dark:bg-[#111111] hover:border-amber-600 dark:hover:border-amber-400'
               : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#111111] opacity-60'
           }`}
         >
@@ -1067,7 +1069,7 @@ export const StudentAnalytics: React.FC = () => {
         <div
           className={`relative rounded-md border p-4 min-h-[100px] flex flex-col justify-center transition-all duration-200 shadow-sm ${
             studentRiskTier === 'Low'
-              ? 'risk-card-low'
+              ? 'border-emerald-500 dark:border-emerald-500 bg-white dark:bg-[#111111] hover:border-emerald-600 dark:hover:border-emerald-400'
               : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#111111] opacity-60'
           }`}
         >

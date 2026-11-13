@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../../utils/analyticsHelpers';
+import { isNotTakenGrade, PASSING_SCORE_RATIO } from '../../config/academicConfig';
 import {
   Check,
   ChevronDown,
@@ -218,7 +219,7 @@ const buildTrendPoints = (
     ? grades.filter((grade) => (
         studentIds.has(getGradeStudentId(grade)) &&
         grade.component_type !== 'attendance' &&
-        grade.remarks !== 'Not Taken' &&
+        !isNotTakenGrade(grade) &&
         Number(grade.total_score) > 0 &&
         getRecordDate(grade) !== null
       ))
@@ -309,7 +310,7 @@ const buildRiskTrend = (
   const relevantGrades = grades.filter((grade) => (
     studentIds.has(getGradeStudentId(grade)) &&
     grade.component_type !== 'attendance' &&
-    grade.remarks !== 'Not Taken' &&
+    !isNotTakenGrade(grade) &&
     getRecordDate(grade) !== null
   ));
   const relevantAttendance = attendanceLogs.filter((log) => (
@@ -2101,16 +2102,16 @@ export const PrincipalAnalytics: React.FC = () => {
   const scoreSummary = useMemo(() => {
     const { start, end, label } = getPeriodDateRange(scoreFilter);
     const scoreRecords = scopedGrades.filter((grade) => {
-      if (grade.component_type === 'attendance' || grade.remarks === 'Not Taken') return false;
+      if (grade.component_type === 'attendance' || isNotTakenGrade(grade)) return false;
       const d = getRecordDate(grade);
       return d ? d >= start && d <= end : false;
     });
 
     const passed = scoreRecords.filter(
-      (grade) => Number(grade.total_score) > 0 && (Number(grade.score) / Number(grade.total_score)) >= 0.7
+      (grade) => Number(grade.total_score) > 0 && (Number(grade.score) / Number(grade.total_score)) >= PASSING_SCORE_RATIO
     ).length;
     const failed = scoreRecords.filter(
-      (grade) => Number(grade.total_score) > 0 && (Number(grade.score) / Number(grade.total_score)) < 0.7
+      (grade) => Number(grade.total_score) > 0 && (Number(grade.score) / Number(grade.total_score)) < PASSING_SCORE_RATIO
     ).length;
     const total = passed + failed;
 
@@ -2432,7 +2433,7 @@ export const PrincipalAnalytics: React.FC = () => {
         <>
           {/* ── Risk Summary Cards ─────────────────────────────────────── */}
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="relative rounded-md border risk-card-high p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
+            <div className="relative rounded-md border border-rose-500 dark:border-rose-500 bg-white dark:bg-[#111111] hover:border-rose-600 dark:hover:border-rose-400 transition-colors p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
               <div className="absolute right-3 top-3">
                 <RiskRangeInfo range="Composite rating is 69% and below" />
               </div>
@@ -2447,7 +2448,7 @@ export const PrincipalAnalytics: React.FC = () => {
               </div>
             </div>
 
-            <div className="relative rounded-md border risk-card-moderate p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
+            <div className="relative rounded-md border border-amber-500 dark:border-amber-500 bg-white dark:bg-[#111111] hover:border-amber-600 dark:hover:border-amber-400 transition-colors p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
               <div className="absolute right-3 top-3">
                 <RiskRangeInfo range="Composite rating is between 70% to 85%" />
               </div>
@@ -2462,7 +2463,7 @@ export const PrincipalAnalytics: React.FC = () => {
               </div>
             </div>
 
-            <div className="relative rounded-md border risk-card-low p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
+            <div className="relative rounded-md border border-emerald-500 dark:border-emerald-500 bg-white dark:bg-[#111111] hover:border-emerald-600 dark:hover:border-emerald-400 transition-colors p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
               <div className="absolute right-3 top-3">
                 <RiskRangeInfo range="Composite rating is between 86% to 100%" />
               </div>
@@ -2760,8 +2761,8 @@ export const PrincipalAnalytics: React.FC = () => {
                 <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
                   Average Score Rate {scoreSummary.periodLabel !== 'Today' ? `(${scoreSummary.periodLabel})` : ''}
                 </p>
-                <p className={`text-2xl sm:text-3xl font-black mt-0.5 tracking-tight ${scoreSummary.total === 0 && activeGrades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-moderate' : 'text-risk-high'}`}>
-                  {scoreSummary.total === 0 && activeGrades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? '—' : <AnimatedCounter value={avgScore} decimals={avgScore % 1 !== 0 ? 1 : 0} suffix="%" />}
+                <p className={`text-2xl sm:text-3xl font-black mt-0.5 tracking-tight ${scoreSummary.total === 0 && activeGrades.filter((g) => g.component_type !== 'attendance' && !isNotTakenGrade(g)).length === 0 ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-moderate' : 'text-risk-high'}`}>
+                  {scoreSummary.total === 0 && activeGrades.filter((g) => g.component_type !== 'attendance' && !isNotTakenGrade(g)).length === 0 ? '—' : <AnimatedCounter value={avgScore} decimals={avgScore % 1 !== 0 ? 1 : 0} suffix="%" />}
                 </p>
                 <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">
                   {scoreScope !== 'all'
