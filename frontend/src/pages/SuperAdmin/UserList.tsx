@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { userService, UserActivityItem } from '../../services/userService';
+import { userService, UserActivityItem, invalidateTutorStudentsCache } from '../../services/userService';
 import type { User } from '../../types';
 import {
   Search, Plus, Edit, ShieldAlert, ShieldCheck,
@@ -716,24 +716,28 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
   const confirmDeactivate = async () => {
     if (!deactivateModalUser) return;
+    const isStudent = deactivateModalUser.role === 'student';
     setIsDeactivating(true);
     try {
       await userService.deactivateUser(deactivateModalUser.id);
+      if (isStudent) {
+        invalidateTutorStudentsCache(deactivateModalUser.assigned_tutor || undefined);
+      }
       fetchUsers();
       setToastNotification({
         show: true,
         type: 'success',
-        title: 'Status Updated',
-        message: 'User account successfully deactivated.',
+        title: isStudent ? 'Student Deleted' : 'Status Updated',
+        message: isStudent ? 'Student account successfully deleted.' : 'User account successfully deactivated.',
       });
       setDeactivateModalUser(null);
     } catch (err: any) {
       console.error(err);
-      const detailMsg = err?.response?.data?.detail || 'Failed to deactivate user account.';
+      const detailMsg = err?.response?.data?.detail || (isStudent ? 'Failed to delete student account.' : 'Failed to deactivate user account.');
       setToastNotification({
         show: true,
         type: 'error',
-        title: 'Update Failed',
+        title: isStudent ? 'Delete Failed' : 'Update Failed',
         message: detailMsg,
       });
     } finally {
@@ -1752,15 +1756,11 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                               <button
                                 type="button"
                                 onClick={() => handleStatusClick(u)}
-                                className={`inline-flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.05] touch-manipulation cursor-pointer transition-colors ${
-                                  u.is_active
-                                    ? 'text-gray-400 hover:text-red-600'
-                                    : 'text-gray-400 hover:text-emerald-600'
-                                }`}
-                                title={u.is_active ? 'Deactivate Account' : 'Activate Account'}
-                                aria-label={u.is_active ? 'Deactivate Account' : 'Activate Account'}
+                                className="inline-flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.05] touch-manipulation cursor-pointer transition-colors text-gray-400 hover:text-red-600"
+                                title="Delete"
+                                aria-label="Delete"
                               >
-                                {u.is_active ? <ShieldAlert className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             )}
                           </td>
@@ -2223,14 +2223,11 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                                 <button
                                   type="button"
                                   onClick={() => handleStatusClick(u)}
-                                  className={`inline-flex items-center justify-center p-2 sm:p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.05] touch-manipulation cursor-pointer transition-colors ${u.is_active
-                                    ? 'text-gray-400 hover:text-red-600'
-                                    : 'text-gray-400 hover:text-emerald-600'
-                                    }`}
-                                  title={u.is_active ? 'Deactivate Account' : 'Activate Account'}
-                                  aria-label={u.is_active ? 'Deactivate Account' : 'Activate Account'}
+                                  className="inline-flex items-center justify-center p-2 sm:p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.05] touch-manipulation cursor-pointer transition-colors text-gray-400 hover:text-red-600"
+                                  title="Delete"
+                                  aria-label="Delete"
                                 >
-                                  {u.is_active ? <ShieldAlert className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
                               )}
                             </td>
@@ -2388,7 +2385,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
         />
       </div>
 
-      {/* ── Deactivate Account Confirmation Modal ──────────────────────── */}
+      {/* ── Deactivate Account / Delete Student Confirmation Modal ──────── */}
       {deactivateModalUser && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#0A0A0A] rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 dark:border-[#1A1A1A] space-y-4 animate-in fade-in zoom-in-95 duration-150">
@@ -2398,17 +2395,23 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
-                  Deactivate Account
+                  {deactivateModalUser.role === 'student' ? 'Delete Student' : 'Deactivate Account'}
                 </h3>
                 <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 mt-0.5 truncate">
-                  {deactivateModalUser.full_name || `${deactivateModalUser.first_name} ${deactivateModalUser.last_name}`} ({deactivateModalUser.email || deactivateModalUser.username})
+                  {deactivateModalUser.full_name || `${deactivateModalUser.first_name} ${deactivateModalUser.last_name}`} (
+                  {deactivateModalUser.role === 'student'
+                    ? deactivateModalUser.lrn || 'Student'
+                    : deactivateModalUser.email || deactivateModalUser.username}
+                  )
                 </p>
               </div>
             </div>
 
             <div className="p-3.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
               <p className="text-xs font-medium text-amber-900 dark:text-amber-200 leading-relaxed">
-                Are you sure you want to deactivate this account? Deactivating an account while the user is logged in will forcibly make them logout and locked from entering the system
+                {deactivateModalUser.role === 'student'
+                  ? 'Are you sure you want to delete this student? The student and their associated records will no longer appear in active views, while historical records are preserved in the database.'
+                  : 'Are you sure you want to deactivate this account? Deactivating an account while the user is logged in will forcibly make them logout and locked from entering the system'}
               </p>
             </div>
 
@@ -2427,7 +2430,13 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                 onClick={confirmDeactivate}
                 className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-xs font-bold cursor-pointer disabled:opacity-50 shadow-xs transition-colors"
               >
-                {isDeactivating ? 'Deactivating...' : 'Deactivate Account'}
+                {deactivateModalUser.role === 'student'
+                  ? isDeactivating
+                    ? 'Deleting...'
+                    : 'Delete'
+                  : isDeactivating
+                    ? 'Deactivating...'
+                    : 'Deactivate Account'}
               </button>
             </div>
           </div>

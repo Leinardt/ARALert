@@ -1,0 +1,124 @@
+%%{init: {'theme': 'base', 'flowchart': {'curve': 'basis', 'nodeSpacing': 78, 'rankSpacing': 390, 'padding': 24}, 'themeVariables': {'fontFamily': 'Segoe UI, Arial, sans-serif', 'fontSize': '11.5px', 'lineColor': '#334155', 'edgeLabelBackground': '#FFFFFF'}}}%%
+flowchart LR
+    %% Standard DFD Notation in Mermaid:
+    %% External Entity = Sharp Rectangle [ ... ]
+    %% Process = Rounded Rectangle ([ ... ])
+    %% Data Store = Parallel-Compartment Rectangle [[ ... ]]
+    classDef entity fill:#EFF6FF,stroke:#1E3A8A,stroke-width:2.2px,color:#0F172A,font-weight:bold;
+    classDef process fill:#F0FDF4,stroke:#166534,stroke-width:2.2px,color:#0F172A,font-weight:bold;
+    classDef datastore fill:#FFFBEB,stroke:#B45309,stroke-width:2.2px,color:#0F172A,font-weight:bold;
+
+    %% Left Column: Verified External Entities
+    E_GOOGLE["Google Identity Services<br/>(OAuth 2.0 / OIDC)"]:::entity
+    E_SA["Super Admin"]:::entity
+    E_ADM["School Admin"]:::entity
+    E_PRI["Principal"]:::entity
+    E_TUT["Tutor"]:::entity
+    E_STU["Student"]:::entity
+
+    %% Center Column: Level 0 Major System Processes (1.0 - 7.0)
+    P1(["1.0 Authentication, Consent<br/>& Session Management"]):::process
+    P2(["2.0 Account Provisioning, Student<br/>Enrollment & Profile Change Control"]):::process
+    P3(["3.0 Tutor Cohort Assignment<br/>& Capacity Management"]):::process
+    P4(["4.0 QR Session &<br/>Attendance Processing"]):::process
+    P5(["5.0 Assessment Grading, Remediation<br/>Activity & Risk Processing"]):::process
+    P6(["6.0 Milestone Evaluation, Summer<br/>Remediation & SY Transition"]):::process
+    P7(["7.0 Institutional Analytics, Historical<br/>Archiving & Report Compilation"]):::process
+
+    %% Right Column: Persistent Database Data Stores (D1 - D9)
+    D1[["D1 | Users, Whitelist & JWT Blacklist<br/>(users, allowed_emails, token_blacklist_*)"]]:::datastore
+    D2[["D2 | Profile Edit Requests<br/>(student_edit_requests)"]]:::datastore
+    D3[["D3 | School Years & Enrollments<br/>(school_year, student_enrollment)"]]:::datastore
+    D4[["D4 | Tutor Assignment History<br/>(tutor_assignment_history)"]]:::datastore
+    D5[["D5 | Attendance Sessions & Logs<br/>(api_attendance_session, api_attendance)"]]:::datastore
+    D6[["D6 | Assessment Grades & Activities<br/>(api_grade, api_aral_activity)"]]:::datastore
+    D7[["D7 | Academic Risk Alerts<br/>(api_academic_risk)"]]:::datastore
+    D8[["D8 | Summer Remediation Records<br/>(summer_record)"]]:::datastore
+    D9[["D9 | System & Transition Audit Logs<br/>(audit_logs, transition_audit_log)"]]:::datastore
+
+    %% ================= EXTERNAL ENTITY <-> PROCESS FLOWS =================
+    E_GOOGLE <-->|"OIDC Verify / Identity Claims"| P1
+    E_SA <-->|"OAuth, Whitelist, Name / JWT & Time"| P1
+    E_ADM <-->|"OAuth, Consent / JWT & Time"| P1
+    E_PRI <-->|"OAuth, Consent / JWT & Time"| P1
+    E_TUT <-->|"OAuth, Consent / JWT & Time"| P1
+    E_STU <-->|"12-Digit LRN, Consent / JWT & Time"| P1
+
+    E_SA <-->|"Account Reg, Status, Reviews / Directory"| P2
+    E_ADM <-->|".xlsx Enroll, LRN Check, Reviews / Queue"| P2
+    E_PRI <-->|"Staff Edit Req / Staff Directory"| P2
+    E_TUT <-->|"Student & Self Edit Req / Cohort List"| P2
+    E_STU <-->|"Self Edit Req / Request Status"| P2
+
+    E_SA <-->|"Tutor Assign / Slot Metrics & Queues"| P3
+    E_ADM <-->|"Single & Bulk Assign / 25-Slot Queues"| P3
+    E_TUT <-->|"Cohort Sync / Assigned Cohort Roster"| P3
+    E_STU <-->|"Tutor Lookup / Assigned Tutor Info"| P3
+
+    E_TUT <-->|"QR Session, Scans, Manual / Live Feed"| P4
+    E_STU <-->|"QR Pass or Scan / QR Badge & Logs"| P4
+    E_ADM <-->|"Staff DTR Session & Edits / Logs"| P4
+    E_PRI <-->|"QR & DTR Scans / Attendance Logs"| P4
+
+    E_TUT <-->|"Scores, Tasks, Risk Notes / Risk Alerts"| P5
+    E_STU <-->|"Acknowledge Note / Scores, GPA & Level"| P5
+    E_SA <-->|"Risk Notes & Eval / Student Profiles"| P5
+    E_ADM <-->|"Risk Notes & Eval / Student Profiles"| P5
+    E_PRI <-->|"Eval Trigger / Profiles & Risks"| P5
+
+    E_SA <-->|"Window, MOSY, Rollover / Summary"| P6
+    E_ADM <-->|"Window, MOSY, Summer, Rollover / Gates"| P6
+    E_PRI <-->|"Window Toggle & Summer Eval / State"| P6
+    E_TUT <-->|"Summer Pass/Fail Eval / Window State"| P6
+    E_STU <-->|"SY Poll / Active SY & Semester"| P6
+
+    E_PRI <-->|"Trend Filters / Executive KPI & DTR"| P7
+    E_SA <-->|"Audit, Archive, Export / PHT Logs & Files"| P7
+    E_ADM <-->|"KPI, Audit, Archive, Export / BOSY & Files"| P7
+    E_TUT <-->|"Cohort Analytics, Archive, Export / Files"| P7
+    E_STU <-->|"History & QR Export / Progress & Pass"| P7
+
+    %% ================= PROCESS <-> DATA STORE FLOWS =================
+    P1 <-->|"R/W: User, LRN, Whitelist, Consent, Tokens"| D1
+    P1 -->|"W: Auth & Whitelist Audit"| D9
+
+    P2 <-->|"R/W: LRNs, Users, Active Flag, Blacklist"| D1
+    P2 <-->|"R/W: Edit Requests & Frozen Snapshot"| D2
+    P2 <-->|"R/W: Synced Graduation Status"| D3
+    P2 <-->|"R: Assignment Metadata"| D4
+    P2 -->|"W: User & Edit Audit"| D9
+
+    P3 <-->|"R/W: Specialization, Load & assigned_tutor"| D1
+    P3 <-->|"R/W: Active SY Queue & StudentEnrollment"| D3
+    P3 <-->|"R/W: TutorAssignmentHistory"| D4
+    P3 -->|"W: Assignment Audit"| D9
+
+    P4 <-->|"R: Cohort & Staff Role"| D1
+    P4 <-->|"R: Active School Year"| D3
+    P4 <-->|"R/W: QR Sessions, Scans, DTR & Auto-Absent"| D5
+    P4 <-->|"R: Linked ARAL Activity"| D6
+    P4 -->|"W: Attendance & DTR Audit"| D9
+
+    P5 <-->|"R/W: Weights & >=70% aral_level"| D1
+    P5 <-->|"R: Baseline Enrollment"| D3
+    P5 <-->|"R: Baseline Tutor History"| D4
+    P5 <-->|"R: Attendance (40% Risk)"| D5
+    P5 <-->|"R/W: Bulk Grades & ARAL Activities"| D6
+    P5 <-->|"R/W: Risk Notes & Student Ack"| D7
+    P5 -->|"W: Grade & Risk Audit"| D9
+
+    P6 <-->|"R/W: Promoted, Graduated or Summer Users"| D1
+    P6 <-->|"R/W: Semester, Archive SY, Next SY & Enroll"| D3
+    P6 <-->|"R/W: Closed & Rolled Tutor History"| D4
+    P6 <-->|"R: MOSY & EOSY Grades"| D6
+    P6 <-->|"R/W: Summer Referrals & Outcomes"| D8
+    P6 <-->|"R/W: Window State & TransitionAuditLog"| D9
+
+    P7 <-->|"R: User & Role Counts"| D1
+    P7 <-->|"R: Archived SYs & Enrollments"| D3
+    P7 <-->|"R: Cohort History"| D4
+    P7 <-->|"R: Attendance & DTR Series"| D5
+    P7 <-->|"R: Score & Milestone Series"| D6
+    P7 <-->|"R: Unresolved Risk Counts"| D7
+    P7 <-->|"R: Summer History"| D8
+    P7 <-->|"R: Audit & Rollover Logs"| D9

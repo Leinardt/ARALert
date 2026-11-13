@@ -1,0 +1,300 @@
+%%{init: {'theme': 'base', 'flowchart': {'curve': 'basis', 'nodeSpacing': 52, 'rankSpacing': 195, 'padding': 18}, 'themeVariables': {'fontFamily': 'Segoe UI, Arial, sans-serif', 'fontSize': '12px', 'lineColor': '#1E293B', 'edgeLabelBackground': '#FFFFFF', 'clusterBkg': '#F8FAFC', 'clusterBorder': '#94A3B8'}}}%%
+flowchart TB
+    classDef entity fill:#EFF6FF,stroke:#1E3A8A,stroke-width:2px,color:#0F172A,font-weight:bold;
+    classDef process fill:#F0FDF4,stroke:#166534,stroke-width:2px,color:#0F172A,font-weight:bold;
+    classDef datastore fill:#FFFBEB,stroke:#B45309,stroke-width:2px,color:#0F172A,font-weight:bold;
+
+    %% ==================== 1.0 AUTHENTICATION & SESSION MANAGEMENT ====================
+    subgraph S1["1.0 Authentication, Consent & Session Management (Level 1 Decomposition)"]
+        direction LR
+        E1_STAFF["Staff Users<br/>(Super Admin, School Admin,<br/>Principal, Tutor)"]:::entity
+        E1_STU["Student"]:::entity
+        E1_SA["Super Admin"]:::entity
+
+        P1_1(["1.1 Verify Staff Google OAuth<br/>& Pre-Registration"]):::process
+        P1_2(["1.2 Authenticate Student<br/>12-Digit LRN Login"]):::process
+        P1_3(["1.3 Record RA 10173 Consent &<br/>Serve Profile / Server Time"]):::process
+        P1_4(["1.4 Rotate/Blacklist JWTs &<br/>Manage Allowed Emails"]):::process
+
+        E1_GOOGLE["Google Identity Services<br/>(OAuth 2.0 / OIDC)"]:::entity
+        D1_A[["D1 | users, allowed_emails,<br/>token_blacklist_*"]]:::datastore
+        D9_A[["D9 | audit_logs"]]:::datastore
+
+        E1_STAFF <-->|"In: id_token / Out: JWT & Redirect"| P1_1
+        P1_1 <-->|"Out: Verify Token / In: Claims"| E1_GOOGLE
+        P1_1 <-->|"R: Email / W: google_sub, last_login"| D1_A
+        P1_1 -->|"W: Staff Login Audit"| D9_A
+
+        E1_STU <-->|"In: 12-Digit LRN / Out: JWT & '/student'"| P1_2
+        P1_2 <-->|"R: LRN & Active / W: last_login"| D1_A
+        P1_2 -->|"W: Student Login Audit"| D9_A
+
+        E1_STAFF <-->|"In: Consent / Out: Profile & PHT Time"| P1_3
+        E1_STU <-->|"In: Consent / Out: Profile & PHT Time"| P1_3
+        E1_SA -->|"In: PATCH Own Admin Name"| P1_3
+        P1_3 <-->|"R/W: Consent Timestamp & Name"| D1_A
+        P1_3 -->|"W: Consent & Profile Audit"| D9_A
+
+        E1_STAFF <-->|"In: Refresh or Logout / Out: JWT"| P1_4
+        E1_STU <-->|"In: Refresh or Logout / Out: JWT"| P1_4
+        E1_SA <-->|"In: Whitelist CRUD / Out: Emails"| P1_4
+        P1_4 <-->|"R/W: token_blacklist_* & allowed_emails"| D1_A
+        P1_4 -->|"W: Logout & Whitelist Audit"| D9_A
+    end
+
+    %% ==================== 2.0 ACCOUNT, ENROLLMENT & PROFILE REQUESTS ====================
+    subgraph S2["2.0 Account Provisioning, Student Enrollment & Profile Change Control (Level 1 Decomposition)"]
+        direction LR
+        E2_SA["Super Admin"]:::entity
+        E2_ADM["School Admin"]:::entity
+        E2_STAFF["Principal / Tutor"]:::entity
+        E2_STU["Student"]:::entity
+
+        P2_1(["2.1 Pre-Register Staff & Enroll<br/>Students (Single & Batch .xlsx)"]):::process
+        P2_2(["2.2 Query, Update & Activate /<br/>Deactivate User Accounts"]):::process
+        P2_3(["2.3 Submit & Cancel Profile<br/>Edit Requests"]):::process
+        P2_4(["2.4 Review, Approve or Reject<br/>Profile Edit Requests"]):::process
+
+        D1_B[["D1 | users, token_blacklist_*"]]:::datastore
+        D2_B[["D2 | student_edit_requests"]]:::datastore
+        D34_B[["D3/D4 | student_enrollment,<br/>tutor_assignment_history"]]:::datastore
+        D9_B[["D9 | audit_logs"]]:::datastore
+
+        E2_SA <-->|"In: Create Accounts / Out: Created User"| P2_1
+        E2_ADM <-->|"In: .xlsx & LRN Check / Out: Conflicts & Users"| P2_1
+        P2_1 <-->|"R: Existing LRNs / W: Sanitized Users"| D1_B
+        P2_1 -->|"W: USER_CREATED Audit"| D9_B
+
+        E2_SA <-->|"In: Filters, Edits, Status / Out: Directory"| P2_2
+        E2_ADM <-->|"In: Non-Admin Status / Out: Directory"| P2_2
+        E2_STAFF <-->|"In: Student Update / Out: Cohort List"| P2_2
+        P2_2 <-->|"R/W: Users & Deactivated Token Blacklist"| D1_B
+        P2_2 <-->|"R: History / W: Synced Graduation"| D34_B
+        P2_2 -->|"W: User Status Audit"| D9_B
+
+        E2_ADM <-->|"In: Admin Self-Edit Req / Out: Status"| P2_3
+        E2_STAFF <-->|"In: Staff/Student Edit Req / Out: Status"| P2_3
+        E2_STU <-->|"In: Self Edit Req or Cancel / Out: Status"| P2_3
+        P2_3 <-->|"R: Current 'Before' Identity"| D1_B
+        P2_3 <-->|"W: Pending Request + Frozen JSON / Delete"| D2_B
+        P2_3 -->|"W: Edit Submitted/Cancelled Audit"| D9_B
+
+        E2_SA <-->|"In: Review All & Admin Edits / Out: Decision"| P2_4
+        E2_ADM <-->|"In: Review Student/Staff Edits / Out: Decision"| P2_4
+        P2_4 <-->|"R: Pending / W: Approved or Rejected"| D2_B
+        P2_4 -->|"W: Approved Identity & ARAL Level"| D1_B
+        P2_4 -->|"W: Edit Reviewed Audit"| D9_B
+    end
+
+    %% ==================== 3.0 TUTOR COHORT ASSIGNMENT ====================
+    subgraph S3["3.0 Tutor Cohort Assignment & Capacity Management (Level 1 Decomposition)"]
+        direction LR
+        E3_ADM["School Admin /<br/>Super Admin"]:::entity
+        E3_TUT["Tutor"]:::entity
+        E3_STU["Student"]:::entity
+
+        P3_1(["3.1 Compute 25-Slot Capacity &<br/>Unassigned Student Queues"]):::process
+        P3_2(["3.2 Validate Compatibility &<br/>Assign Individual Tutor"]):::process
+        P3_3(["3.3 Execute Bulk Cohort Dispatch<br/>& Record Assignment History"]):::process
+
+        D1_C[["D1 | users"]]:::datastore
+        D3_C[["D3 | school_year, student_enrollment"]]:::datastore
+        D4_C[["D4 | tutor_assignment_history"]]:::datastore
+        D9_C[["D9 | audit_logs"]]:::datastore
+
+        E3_ADM <-->|"In: Query Available / Out: 25-Slot Metrics & Queues"| P3_1
+        P3_1 <-->|"R: Tutor Specialization & Load"| D1_C
+        P3_1 <-->|"R: Active SY & Unassigned Enrollments"| D3_C
+
+        E3_ADM <-->|"In: Assign Student-Tutor / Out: Confirmation"| P3_2
+        E3_TUT <-->|"In: Cohort Sync / Out: Updated Cohort Roster"| P3_2
+        P3_2 <-->|"R: Compatibility / W: assigned_tutor"| D1_C
+        P3_2 -->|"W: Upsert StudentEnrollment"| D3_C
+        P3_2 <-->|"R/W: Rotate TutorAssignmentHistory"| D4_C
+        P3_2 -->|"W: TUTOR_ASSIGNED Audit"| D9_C
+
+        E3_ADM <-->|"In: Bulk Assign or Unassign / Out: Summary"| P3_3
+        E3_STU <-->|"In: Tutor Lookup / Out: Assigned Tutor Info"| P3_3
+        P3_3 <-->|"R: Cohort Levels / W: Batch assigned_tutor"| D1_C
+        P3_3 -->|"W: Batch Upsert StudentEnrollment"| D3_C
+        P3_3 <-->|"R/W: Batch TutorAssignmentHistory"| D4_C
+        P3_3 -->|"W: BULK_TUTOR_ASSIGNED Audit"| D9_C
+    end
+
+    %% ==================== 4.0 QR SESSION & ATTENDANCE PROCESSING ====================
+    subgraph S4["4.0 QR Session & Attendance Processing (Level 1 Decomposition)"]
+        direction LR
+        E4_TUT["Tutor"]:::entity
+        E4_STU["Student"]:::entity
+        E4_ADM["School Admin /<br/>Principal"]:::entity
+
+        P4_1(["4.1 Create & Sync Time-Bounded<br/>QR Attendance Sessions"]):::process
+        P4_2(["4.2 Process Student QR / 6-Char<br/>Code Scans & Staff DTR"]):::process
+        P4_3(["4.3 Close Session & Auto-Mark<br/>Unscanned Cohort Absent"]):::process
+        P4_4(["4.4 Log Manual Attendance, Edit<br/>& Delete Attendance Records"]):::process
+
+        D5_D[["D5 | api_attendance_session,<br/>api_attendance"]]:::datastore
+        D136_D[["D1/D3/D6 | users, school_year,<br/>api_aral_activity"]]:::datastore
+        D9_D[["D9 | audit_logs"]]:::datastore
+
+        E4_TUT <-->|"In: Start/Poll Student QR / Out: Countdown"| P4_1
+        E4_ADM <-->|"In: Start Staff DTR QR / Out: Countdown"| P4_1
+        P4_1 <-->|"R: Prior Sessions / W: New Session"| D5_D
+        P4_1 -->|"Internal: Expired Session"| P4_3
+        P4_1 -->|"W: Session Created Audit"| D9_D
+
+        E4_TUT <-->|"In: Scan Student QR or 6-Char / Out: Feed"| P4_2
+        E4_STU <-->|"In: QR Pass or Scan / Out: Check-In Feed"| P4_2
+        E4_ADM <-->|"In: Staff DTR Clock-In/Out / Out: Status"| P4_2
+        P4_2 <-->|"R: Cohort Membership & Active SY"| D136_D
+        P4_2 <-->|"R: Session / W: Present or DTR Timestamps"| D5_D
+        P4_2 -->|"W: QR Scan & DTR Audit"| D9_D
+
+        E4_TUT -->|"In: Close Session (Target Cohort IDs)"| P4_3
+        P4_3 <-->|"R: Active Cohort Students"| D136_D
+        P4_3 <-->|"R: Scans / W: Auto-Absent (>=1 Scan)"| D5_D
+        P4_3 -->|"W: Session Closed Audit"| D9_D
+
+        E4_TUT <-->|"In: Manual Log, Edit, Delete / Out: Logs"| P4_4
+        E4_ADM <-->|"In: Edit or Delete Attendance / Out: Logs"| P4_4
+        E4_STU <-->|"In: View History / Out: QR Badge & Logs"| P4_4
+        P4_4 <-->|"R: Linked ARAL Activity"| D136_D
+        P4_4 <-->|"R/W: Upsert, Update or Delete Attendance"| D5_D
+        P4_4 -->|"W: Manual/Updated/Deleted Audit"| D9_D
+    end
+
+    %% ==================== 5.0 GRADING, ACTIVITIES & ACADEMIC RISK ====================
+    subgraph S5["5.0 Assessment Grading, Remediation Activity & Risk Processing (Level 1 Decomposition)"]
+        direction LR
+        E5_TUT["Tutor"]:::entity
+        E5_STU["Student"]:::entity
+        E5_OVS["School Admin / Principal /<br/>Super Admin"]:::entity
+
+        P5_1(["5.1 Record, Bulk-Update & Delete<br/>Assessment & Milestone Scores"]):::process
+        P5_2(["5.2 Evaluate Student ARAL Level<br/>Progression (>= 70% Threshold)"]):::process
+        P5_3(["5.3 Assign & Update ARAL<br/>Remediation Activities"]):::process
+        P5_4(["5.4 Compute Composite Risk (40/60),<br/>Log Notes & Student Acknowledgment"]):::process
+
+        D6_E[["D6 | api_grade, api_aral_activity"]]:::datastore
+        D134_E[["D1/D3/D4 | users, student_enrollment,<br/>tutor_assignment_history"]]:::datastore
+        D57_E[["D5/D7 | api_attendance,<br/>api_academic_risk"]]:::datastore
+        D9_E[["D9 | audit_logs"]]:::datastore
+
+        E5_TUT <-->|"In: Bulk Scores & Milestones / Out: Sheets"| P5_1
+        E5_STU <-->|"In: Score Query / Out: Score Breakdown"| P5_1
+        P5_1 <-->|"R/W: Bulk Create, Update, Delete ApiGrade"| D6_E
+        P5_1 -->|"Internal: Milestone Trigger"| P5_2
+        P5_1 -->|"W: Grade CRUD Audit"| D9_E
+
+        E5_OVS <-->|"In: Evaluate Level-Up / Out: Progression"| P5_2
+        P5_2 <-->|"R: BOSY/MOSY/EOSY/Summer Scores"| D6_E
+        P5_2 <-->|"R: Baseline / W: Promoted or Reverted Level"| D134_E
+
+        E5_TUT <-->|"In: Activity CRUD / Out: Activity List"| P5_3
+        E5_STU <-->|"In: View Tasks / Out: Assigned Activities"| P5_3
+        P5_3 <-->|"R/W: ApiAralActivity"| D6_E
+
+        E5_TUT <-->|"In: Log/Resolve Risk Notes / Out: Alerts"| P5_4
+        E5_OVS <-->|"In: Risk Notes & Profile / Out: Profiles"| P5_4
+        E5_STU <-->|"In: Acknowledge Risk Note / Out: GPA & Alerts"| P5_4
+        P5_4 <-->|"R: Scores (60% Risk)"| D6_E
+        P5_4 <-->|"R: Tutor Weights (50/30/20)"| D134_E
+        P5_4 <-->|"R: Attendance (40%) / W: Notes & Ack"| D57_E
+        P5_4 -->|"W: Risk Note & Ack Audit"| D9_E
+    end
+
+    %% ==================== 6.0 MILESTONES, SUMMER & SY TRANSITION ====================
+    subgraph S6["6.0 Milestone Evaluation, Summer Remediation & SY Transition (Level 1 Decomposition)"]
+        direction LR
+        E6_ADM["School Admin /<br/>Super Admin"]:::entity
+        E6_PRI["Principal"]:::entity
+        E6_TUT["Tutor"]:::entity
+        E6_STU["Student"]:::entity
+
+        P6_1(["6.1 Switch Active Semester &<br/>Toggle Assessment Window"]):::process
+        P6_2(["6.2 Monitor & Finalize Mid-Year<br/>(MOSY) Evaluations"]):::process
+        P6_3(["6.3 Verify EOSY Gate & Execute<br/>11-Step Atomic SY Transition"]):::process
+        P6_4(["6.4 Activate Summer Remediation<br/>& Record Pass/Fail Evaluation"]):::process
+
+        D3_F[["D3 | school_year, student_enrollment"]]:::datastore
+        D6_F[["D6 | api_grade"]]:::datastore
+        D14_F[["D1/D4 | users,<br/>tutor_assignment_history"]]:::datastore
+        D8_F[["D8 | summer_record"]]:::datastore
+        D9_F[["D9 | audit_logs,<br/>transition_audit_log"]]:::datastore
+
+        E6_ADM <-->|"In: Semester & Window / Out: State"| P6_1
+        E6_PRI <-->|"In: Semester & Window / Out: State"| P6_1
+        E6_TUT <-->|"In: SY Poll / Out: Active SY & Window"| P6_1
+        E6_STU <-->|"In: SY Poll / Out: Active SY & Semester"| P6_1
+        P6_1 <-->|"R/W: SchoolYear.current_semester"| D3_F
+        P6_1 <-->|"R/W: ASSESSMENT_WINDOW_TOGGLED"| D9_F
+
+        E6_ADM <-->|"In: Finalize MOSY / Out: Progress & Queues"| P6_2
+        P6_2 <-->|"R: Cohort MOSY Scores"| D6_F
+        P6_2 <-->|"R/W: mosy_result & Graduation"| D3_F
+        P6_2 <-->|"R/W: Promote Basic->Plus & Close History"| D14_F
+        P6_2 -->|"W: MOSY_FINALIZED Audit"| D9_F
+
+        E6_ADM <-->|"In: Preview & Execute Rollover / Out: Summary"| P6_3
+        P6_3 <-->|"R: Cohort EOSY Scores"| D6_F
+        P6_3 <-->|"R/W: Archive SY, Next SY & Rolled Enrollments"| D3_F
+        P6_3 <-->|"R/W: Promote/Graduate & Roll Basic History"| D14_F
+        P6_3 -->|"W: Summer Referrals"| D8_F
+        P6_3 -->|"W: TransitionAuditLog & Audit"| D9_F
+
+        E6_ADM <-->|"In: Start Summer & Eval / Out: Roster"| P6_4
+        E6_PRI <-->|"In: Summer Pass/Fail Eval / Out: Outcome"| P6_4
+        E6_TUT <-->|"In: Summer Pass/Fail Eval / Out: Outcome"| P6_4
+        P6_4 <-->|"R/W: SummerRecord Status & Result"| D8_F
+        P6_4 -->|"W: Graduate/Promote Learners"| D14_F
+        P6_4 -->|"W: Updated Enrollment"| D3_F
+        P6_4 -->|"W: Summer Remediation Audit"| D9_F
+    end
+
+    %% ==================== 7.0 ANALYTICS, ARCHIVING & REPORT COMPILATION ====================
+    subgraph S7["7.0 Institutional Analytics, Historical Archiving & Report Compilation (Level 1 Decomposition)"]
+        direction LR
+        E7_PRI["Principal"]:::entity
+        E7_ADM["Super Admin /<br/>School Admin"]:::entity
+        E7_TUT["Tutor"]:::entity
+        E7_STU["Student"]:::entity
+
+        P7_1(["7.1 Aggregate Institutional KPIs<br/>& Executive Performance Trends"]):::process
+        P7_2(["7.2 Retrieve Read-Only SY,<br/>Student & Tutor Archives"]):::process
+        P7_3(["7.3 Filter Security Audit Trail<br/>& User Login Activity"]):::process
+        P7_4(["7.4 Compile Downloadable Reports<br/>(PDF, DOCX, XLSX, CSV, JPEG)"]):::process
+
+        D1567_G[["D1/D5/D6/D7 | users, api_attendance,<br/>api_grade, api_academic_risk"]]:::datastore
+        D348_G[["D3/D4/D8 | school_year, student_enrollment,<br/>tutor_assignment_history, summer_record"]]:::datastore
+        D9_G[["D9 | audit_logs, transition_audit_log"]]:::datastore
+
+        E7_PRI <-->|"In: Period Filters / Out: KPI, Risk & DTR Trends"| P7_1
+        E7_ADM <-->|"In: Stats Query / Out: Institutional KPIs"| P7_1
+        E7_TUT <-->|"In: Cohort Filter / Out: Cohort Analytics"| P7_1
+        E7_STU <-->|"In: Analytics View / Out: Personal Progress"| P7_1
+        P7_1 <-->|"R: Counts, Attendance, Grades & Risk Tiers"| D1567_G
+
+        E7_ADM <-->|"In: SY Archive Query / Out: Read-Only Enrollments"| P7_2
+        E7_TUT <-->|"In: Cohort Archive / Out: Past Cohort Roster"| P7_2
+        E7_STU <-->|"In: History Query / Out: Multi-Year Timeline"| P7_2
+        P7_2 <-->|"R: Archived SYs, Enrollments, Cohort & Summer"| D348_G
+
+        E7_ADM <-->|"In: Audit Filters / Out: PHT Audit & Login Logs"| P7_3
+        P7_3 <-->|"R: AuditLog & TransitionAuditLog"| D9_G
+        P7_3 <-->|"R: Target User Metadata"| D1567_G
+
+        E7_ADM <-->|"In: Export BOSY, Att, Score, Audit, QR / Out: Files"| P7_4
+        E7_TUT <-->|"In: Export Cohort Att, Score, QR / Out: Files"| P7_4
+        E7_STU <-->|"In: Export Personal QR / Out: PDF/DOCX/JPEG"| P7_4
+        P7_4 <-->|"R: Verified Attendance & Score Data"| D1567_G
+        P7_4 <-->|"R: Verified Enrollment Data"| D348_G
+        P7_4 <-->|"R: Verified Audit Records"| D9_G
+    end
+
+    %% Top-to-Bottom Subsystem Ordering (1.0 -> 2.0 -> 3.0 -> 4.0 -> 5.0 -> 6.0 -> 7.0)
+    S1 ~~~ S2
+    S2 ~~~ S3
+    S3 ~~~ S4
+    S4 ~~~ S5
+    S5 ~~~ S6
+    S6 ~~~ S7

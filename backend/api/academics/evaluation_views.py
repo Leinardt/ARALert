@@ -375,7 +375,7 @@ class AssignTutorView(APIView):
         period = serializer.validated_data.get('period', 'MOSY')
         notes = serializer.validated_data.get('notes', '')
 
-        student = get_object_or_404(User, id=student_id, role='student')
+        student = get_object_or_404(User, id=student_id, role='student', is_active=True)
         tutor = get_object_or_404(User, id=tutor_id, role='tutor') if tutor_id else None
 
         try:
@@ -563,7 +563,7 @@ class SchoolYearArchiveDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         sy = get_object_or_404(SchoolYear, school_year=school_year)
-        enrollments = StudentEnrollment.objects.filter(school_year=sy).select_related(
+        enrollments = StudentEnrollment.objects.filter(school_year=sy, student__is_active=True).select_related(
             'student', 'assigned_tutor', 'school_year'
         )
 
@@ -609,7 +609,7 @@ class StudentCompleteHistoryView(APIView):
                 {'error': 'You do not have permission to view another student\'s history.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        student = get_object_or_404(User, id=student_id, role='student')
+        student = get_object_or_404(User, id=student_id, role='student', is_active=True)
 
         # Enrollments across all school years
         enrollments = StudentEnrollment.objects.filter(

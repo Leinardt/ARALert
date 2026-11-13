@@ -169,7 +169,7 @@ def get_summer_dashboard_data() -> list[dict]:
     """
     List all students requiring or undergoing Summer intervention for Admin Summer Dashboard.
     """
-    records = SummerRecord.objects.select_related(
+    records = SummerRecord.objects.filter(student__is_active=True).select_related(
         'student', 'previous_enrollment', 'evaluating_tutor'
     ).order_by('-created_at')
 

@@ -65,7 +65,7 @@ class UserStatsView(APIView):
     permission_classes = [IsAdmin]
 
     def get(self, request):
-        base_qs = User.objects.filter(is_superuser=False)
+        base_qs = User.objects.filter(is_superuser=False).exclude(role='student', is_active=False)
         if not request.user.is_superuser:
             base_qs = base_qs.exclude(role='admin')
 
@@ -77,9 +77,9 @@ class UserStatsView(APIView):
             principals=Count('id', filter=Q(role='principal')),
             faculty=Count('id', filter=Q(role='faculty')),
             tutors=Count('id', filter=Q(role='tutor')),
-            students=Count('id', filter=Q(role='student') & ~Q(aral_level='graduated')),
-            assigned_students=Count('id', filter=Q(role='student', assigned_tutor__isnull=False) & ~Q(aral_level='graduated')),
-            unassigned_students=Count('id', filter=Q(role='student', assigned_tutor__isnull=True) & ~Q(aral_level='graduated')),
+            students=Count('id', filter=Q(role='student', is_active=True) & ~Q(aral_level='graduated')),
+            assigned_students=Count('id', filter=Q(role='student', is_active=True, assigned_tutor__isnull=False) & ~Q(aral_level='graduated')),
+            unassigned_students=Count('id', filter=Q(role='student', is_active=True, assigned_tutor__isnull=True) & ~Q(aral_level='graduated')),
         )
 
         total_att = 0
@@ -93,7 +93,7 @@ class UserStatsView(APIView):
             from apps.academics.models import ApiAttendance, ApiGrade, StudentAttendance, AssessmentScore
 
             # Check active API tables first
-            att_aggregates = ApiAttendance.objects.aggregate(
+            att_aggregates = ApiAttendance.objects.exclude(role='student', user__is_active=False).aggregate(
                 total_logs=Count('id'),
                 present=Count('id', filter=Q(status__iexact='present')),
                 absent=Count('id', filter=Q(status__iexact='absent')),
@@ -104,7 +104,7 @@ class UserStatsView(APIView):
 
             # Fallback to historical table if api table has no logs
             if total_att == 0:
-                h_att = StudentAttendance.objects.aggregate(
+                h_att = StudentAttendance.objects.filter(student__is_active=True).aggregate(
                     total_logs=Count('id'),
                     present=Count('id', filter=Q(status__iexact='PRESENT')),
                     absent=Count('id', filter=Q(status__iexact='ABSENT')),
@@ -113,13 +113,13 @@ class UserStatsView(APIView):
                 present_att = h_att['present'] or 0
                 absent_att = h_att['absent'] or 0
 
-            score_aggregates = ApiGrade.objects.filter(score__isnull=False).aggregate(
+            score_aggregates = ApiGrade.objects.filter(score__isnull=False, student__is_active=True).aggregate(
                 avg_score=Avg('score'),
                 total_assessments=Count('id'),
             )
             total_assessments = score_aggregates['total_assessments'] or 0
             if total_assessments == 0:
-                h_score = AssessmentScore.objects.filter(score__isnull=False).aggregate(
+                h_score = AssessmentScore.objects.filter(score__isnull=False, student__is_active=True).aggregate(
                     avg_score=Avg('score'),
                     total_assessments=Count('id'),
                 )
@@ -191,15 +191,15 @@ class UserListCreateView(generics.ListCreateAPIView):
             if role == 'superadmin':
                 queryset = User.objects.filter(is_superuser=True).select_related('assigned_tutor')
             else:
-                queryset = User.objects.filter(is_superuser=False).select_related('assigned_tutor')
+                queryset = User.objects.filter(is_superuser=False).exclude(role='student', is_active=False).select_related('assigned_tutor')
         else:
             # School Admins and lower cannot view SuperAdmins or Admins
-            queryset = User.objects.filter(is_superuser=False).exclude(role='admin').select_related('assigned_tutor')
+            queryset = User.objects.filter(is_superuser=False).exclude(role='admin').exclude(role='student', is_active=False).select_related('assigned_tutor')
 
         if not user.is_superuser and getattr(user, 'role', None) == 'tutor':
             if role == 'principal':
                 return queryset.filter(role='principal', is_active=True)
-            return queryset.filter(assigned_tutor=user, role='student')
+            return queryset.filter(assigned_tutor=user, role='student', is_active=True)
 
         role = self.request.query_params.get('role', '').strip()
 
@@ -509,10 +509,10 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         if not user or not user.is_authenticated:
             return User.objects.none()
         if user.is_superuser:
-            return User.objects.all().select_related('assigned_tutor')
+            return User.objects.exclude(role='student', is_active=False).select_related('assigned_tutor')
         if getattr(user, 'role', None) == 'tutor':
-            return User.objects.filter(role='student', assigned_tutor=user, is_superuser=False).select_related('assigned_tutor')
-        return User.objects.filter(is_superuser=False).exclude(role='admin').select_related('assigned_tutor')
+            return User.objects.filter(role='student', is_active=True, assigned_tutor=user, is_superuser=False).select_related('assigned_tutor')
+        return User.objects.filter(is_superuser=False).exclude(role='admin').exclude(role='student', is_active=False).select_related('assigned_tutor')
 
     def get_serializer_class(self):
         if self.request.method in ('PATCH', 'PUT'):
@@ -800,7 +800,7 @@ class BulkAssignTutorView(APIView):
         student_ids = serializer.validated_data['student_ids']
         tutor = serializer.validated_data.get('tutor_id')  # User instance or None
 
-        students = list(User.objects.filter(id__in=student_ids, role='student', is_superuser=False))
+        students = list(User.objects.filter(id__in=student_ids, role='student', is_active=True, is_superuser=False))
 
         from services.tutor_service import assign_tutor_to_student, validate_tutor_compatibility, get_active_milestone_period
         from django.core.exceptions import ValidationError as DjangoValidationError
@@ -1236,7 +1236,10 @@ class StudentEditRequestListCreateView(APIView):
 
     def get(self, request):
         user = request.user
-        queryset = StudentEditRequest.objects.select_related('student', 'requested_by', 'reviewed_by').all()
+        queryset = StudentEditRequest.objects.select_related('student', 'requested_by', 'reviewed_by').exclude(
+            student__role='student',
+            student__is_active=False,
+        )
 
         if user.is_superuser:
             # Super Admin sees all requests
@@ -1282,9 +1285,9 @@ class StudentEditRequestListCreateView(APIView):
         serializer = StudentEditRequestSerializer(request_items, many=True, context={'request': request})
         
         if user.is_superuser:
-            pending_count = StudentEditRequest.objects.filter(status='pending').count()
+            pending_count = StudentEditRequest.objects.filter(status='pending').exclude(student__role='student', student__is_active=False).count()
         elif getattr(user, 'role', None) == 'admin':
-            pending_count = StudentEditRequest.objects.filter(status='pending', required_reviewer_role='admin').count()
+            pending_count = StudentEditRequest.objects.filter(status='pending', required_reviewer_role='admin').exclude(student__role='student', student__is_active=False).count()
         else:
             pending_count = sum(1 for r in request_items if r.status == 'pending')
 

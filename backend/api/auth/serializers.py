@@ -181,7 +181,7 @@ class StudentLoginSerializer(serializers.Serializer):
 
         if not user.is_active:
             raise serializers.ValidationError(
-                'This account has been deactivated. Please contact your administrator.'
+                'Student account does not exist. Please check your LRN or contact your administrator.'
             )
 
         data['user'] = user

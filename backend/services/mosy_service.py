@@ -479,6 +479,7 @@ def get_mosy_assignment_dashboard_data(school_year: SchoolYear | None = None) ->
     graduated_students = User.objects.filter(
         role='student',
         aral_level='graduated',
+        is_active=True,
     )
     for s in graduated_students:
         graduated_list.append({

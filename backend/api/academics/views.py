@@ -184,7 +184,7 @@ class GradeListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs   = ApiGrade.objects.select_related('student', 'tutor').all()
+        qs   = ApiGrade.objects.select_related('student', 'tutor').filter(student__is_active=True)
 
         student_id = self.request.query_params.get('student_id')
         subject    = self.request.query_params.get('subject')
@@ -200,7 +200,7 @@ class GradeListCreateView(generics.ListCreateAPIView):
         if user.is_superuser or user.role in ('principal', 'admin', 'faculty'):
             return qs
         if user.role == 'tutor':
-            assigned_ids = user.assigned_students.values_list('id', flat=True)
+            assigned_ids = user.assigned_students.filter(is_active=True).values_list('id', flat=True)
             return qs.filter(Q(student_id__in=assigned_ids) | Q(tutor=user))
         if user.role == 'student':
             return qs.filter(student=user)
@@ -407,7 +407,7 @@ class GradeDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs = ApiGrade.objects.select_related('student', 'tutor').all()
+        qs = ApiGrade.objects.select_related('student', 'tutor').filter(student__is_active=True)
         if user.is_superuser or user.role in ('principal', 'admin', 'faculty'):
             return qs
         if user.role == 'tutor':
@@ -481,7 +481,9 @@ class AralActivityListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs   = ApiAralActivity.objects.select_related('student', 'tutor').all()
+        qs   = ApiAralActivity.objects.select_related('student', 'tutor').filter(
+            Q(student__isnull=True) | Q(student__is_active=True)
+        )
 
         student_id    = self.request.query_params.get('student_id')
         status_filter = self.request.query_params.get('status')
@@ -494,7 +496,7 @@ class AralActivityListCreateView(generics.ListCreateAPIView):
         if user.is_superuser or user.role in ('principal', 'admin', 'faculty'):
             return qs
         if user.role == 'tutor':
-            assigned_ids = user.assigned_students.values_list('id', flat=True)
+            assigned_ids = user.assigned_students.filter(is_active=True).values_list('id', flat=True)
             return qs.filter(Q(student_id__in=assigned_ids) | Q(tutor=user))
         if user.role == 'student':
             return qs.filter(student=user)
@@ -520,7 +522,9 @@ class AralActivityDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs = ApiAralActivity.objects.select_related('student', 'tutor').all()
+        qs = ApiAralActivity.objects.select_related('student', 'tutor').filter(
+            Q(student__isnull=True) | Q(student__is_active=True)
+        )
         if user.is_superuser or user.role in ('principal', 'admin', 'faculty'):
             return qs
         if user.role == 'tutor':
@@ -558,7 +562,7 @@ class AcademicRiskListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs   = ApiAcademicRisk.objects.select_related('student').all()
+        qs   = ApiAcademicRisk.objects.select_related('student').filter(student__is_active=True)
 
         student_id = self.request.query_params.get('student_id')
         if student_id:
@@ -567,7 +571,7 @@ class AcademicRiskListCreateView(generics.ListCreateAPIView):
         if user.is_superuser or user.role in ('principal', 'admin', 'faculty'):
             return qs
         if user.role == 'tutor':
-            assigned_ids = user.assigned_students.values_list('id', flat=True)
+            assigned_ids = user.assigned_students.filter(is_active=True).values_list('id', flat=True)
             return qs.filter(student_id__in=assigned_ids)
         if user.role == 'student':
             return qs.filter(student=user)
@@ -609,7 +613,7 @@ class AcademicRiskDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs = ApiAcademicRisk.objects.select_related('student').all()
+        qs = ApiAcademicRisk.objects.select_related('student').filter(student__is_active=True)
         if user.is_superuser or user.role in ('principal', 'admin', 'faculty'):
             return qs
         if user.role == 'tutor':
@@ -951,15 +955,15 @@ class AttendanceScanView(APIView):
 
             try:
                 cand_uuid = uuid.UUID(extracted_token)
-                student_candidate = User.objects.filter(id=cand_uuid, role='student').first()
+                student_candidate = User.objects.filter(id=cand_uuid, role='student', is_active=True).first()
             except (ValueError, TypeError):
                 pass
 
             if not student_candidate:
-                student_candidate = User.objects.filter(lrn=clean_code, role='student').first()
+                student_candidate = User.objects.filter(lrn=clean_code, role='student', is_active=True).first()
 
             if not student_candidate and len(norm_code) >= 6:
-                student_qs = User.objects.filter(role='student')
+                student_qs = User.objects.filter(role='student', is_active=True)
                 matching_students = [
                     s for s in student_qs
                     if str(s.id).lower().replace('-', '').startswith(norm_code)
@@ -1307,7 +1311,7 @@ class AttendanceManualLogView(APIView):
             if not student_ids:
                 return Response({'error': 'At least one valid student_id is required in records.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            students_qs = User.objects.filter(id__in=student_ids, role='student')
+            students_qs = User.objects.filter(id__in=student_ids, role='student', is_active=True)
             if not user.is_superuser:
                 students_qs = students_qs.filter(assigned_tutor=user)
             students_map = {}
@@ -1410,7 +1414,7 @@ class AttendanceManualLogView(APIView):
         if not student_id:
             return Response({'error': 'student_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        student = get_object_or_404(User, id=student_id, role='student')
+        student = get_object_or_404(User, id=student_id, role='student', is_active=True)
 
         if student.assigned_tutor != user and not user.is_superuser:
             return Response(
@@ -1488,7 +1492,9 @@ class AttendanceHistoryView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs   = ApiAttendance.objects.select_related('user', 'tutor', 'aral_activity', 'session').order_by('-date', '-id')
+        qs   = ApiAttendance.objects.select_related('user', 'tutor', 'aral_activity', 'session').exclude(
+            role='student', user__is_active=False
+        ).order_by('-date', '-id')
 
         date_param    = self.request.query_params.get('date')
         role_param    = self.request.query_params.get('role')
@@ -1512,7 +1518,7 @@ class AttendanceHistoryView(generics.ListAPIView):
         if user.role == 'student':
             return qs.filter(user=user)
         if user.role == 'tutor':
-            assigned_ids = user.assigned_students.values_list('id', flat=True)
+            assigned_ids = user.assigned_students.filter(is_active=True).values_list('id', flat=True)
             return qs.filter(Q(role='student') | Q(user=user) | Q(tutor=user) | Q(session__creator=user) | Q(user_id__in=assigned_ids))
         if user.role == 'faculty':
             return qs.filter(user=user)
@@ -1569,7 +1575,9 @@ class AttendanceDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs   = ApiAttendance.objects.select_related('user', 'tutor', 'aral_activity', 'session').order_by('-date', '-id')
+        qs   = ApiAttendance.objects.select_related('user', 'tutor', 'aral_activity', 'session').exclude(
+            role='student', user__is_active=False
+        ).order_by('-date', '-id')
         if user.is_superuser or user.role in ('principal', 'admin'):
             return qs
         if user.role == 'tutor':
@@ -1628,7 +1636,7 @@ class StudentAcademicProfileView(APIView):
         user = request.user
 
         if student_id:
-            student = get_object_or_404(User, id=student_id, role='student')
+            student = get_object_or_404(User, id=student_id, role='student', is_active=True)
         else:
             if user.role == 'student':
                 student = user
@@ -1784,7 +1792,7 @@ class PrincipalDashboardView(APIView):
         students = User.objects.filter(role='student', is_active=True)
 
         # Risk summary (1 query)
-        risk_counts = ApiAcademicRisk.objects.filter(resolved=False).values('risk_level').annotate(count=Count('id'))
+        risk_counts = ApiAcademicRisk.objects.filter(resolved=False, student__is_active=True).values('risk_level').annotate(count=Count('id'))
         risk_map = {row['risk_level']: row['count'] for row in risk_counts}
         moderate_count = risk_map.get('moderate', 0) + risk_map.get('medium', 0)
         risk_summary = {
@@ -1801,14 +1809,14 @@ class PrincipalDashboardView(APIView):
         trend_start = today - td(days=days - 1)
 
         class_grades_qs = (
-            ApiGrade.objects.filter(date_logged__gte=trend_start, date_logged__lte=today)
+            ApiGrade.objects.filter(student__is_active=True, date_logged__gte=trend_start, date_logged__lte=today)
             .values('date_logged')
             .annotate(avg_score=Avg('score'))
         )
         class_grade_map = {row['date_logged']: row['avg_score'] for row in class_grades_qs}
 
         class_att_qs = (
-            ApiAttendance.objects.filter(date__gte=trend_start, date__lte=today, role='student')
+            ApiAttendance.objects.filter(user__is_active=True, date__gte=trend_start, date__lte=today, role='student')
             .values('date')
             .annotate(
                 total=Count('id'),
@@ -1838,14 +1846,14 @@ class PrincipalDashboardView(APIView):
         tutor_start = today - td(days=tutor_days - 1)
 
         tg_qs = (
-            ApiGrade.objects.filter(tutor_id__in=top_tutor_ids, date_logged__gte=tutor_start, date_logged__lte=today)
+            ApiGrade.objects.filter(student__is_active=True, tutor_id__in=top_tutor_ids, date_logged__gte=tutor_start, date_logged__lte=today)
             .values('tutor_id', 'date_logged')
             .annotate(avg_score=Avg('score'))
         )
         tutor_grade_map = {(row['tutor_id'], row['date_logged']): row['avg_score'] for row in tg_qs}
 
         ta_qs = (
-            ApiAttendance.objects.filter(tutor_id__in=top_tutor_ids, date__gte=tutor_start, date__lte=today)
+            ApiAttendance.objects.filter(user__is_active=True, tutor_id__in=top_tutor_ids, date__gte=tutor_start, date__lte=today)
             .values('tutor_id', 'date')
             .annotate(
                 total=Count('id'),
@@ -1947,11 +1955,11 @@ class AralLevelProgressionView(APIView):
         student_id = request.data.get('student_id')
 
         if student_id:
-            students = User.objects.filter(id=student_id, role='student')
+            students = User.objects.filter(id=student_id, role='student', is_active=True)
         elif user.role == 'tutor':
-            students = user.assigned_students.filter(role='student')
+            students = user.assigned_students.filter(role='student', is_active=True)
         else:
-            students = User.objects.filter(role='student')
+            students = User.objects.filter(role='student', is_active=True)
 
         results = [evaluate_student_aral_progression(s) for s in students]
         return Response({'results': results}, status=status.HTTP_200_OK)

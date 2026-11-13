@@ -1023,7 +1023,7 @@ export const EditUser: React.FC = () => {
         </form>
       </div>
 
-      {/* ── Deactivate Account Confirmation Modal ──────────────────────── */}
+      {/* ── Deactivate Account / Delete Student Confirmation Modal ──────── */}
       {showDeactivateConfirmModal && pendingSubmitData && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#0A0A0A] rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 dark:border-[#1A1A1A] space-y-4 animate-in fade-in zoom-in-95 duration-150">
@@ -1033,17 +1033,21 @@ export const EditUser: React.FC = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
-                  Deactivate Account
+                  {selectedRole === 'student' ? 'Delete Student' : 'Deactivate Account'}
                 </h3>
                 <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 mt-0.5 truncate">
-                  {userInitialData?.full_name || `${pendingSubmitData.first_name} ${pendingSubmitData.last_name}`} ({pendingSubmitData.email})
+                  {userInitialData?.full_name || `${pendingSubmitData.first_name} ${pendingSubmitData.last_name}`} (
+                  {selectedRole === 'student' ? pendingSubmitData.lrn || 'Student' : pendingSubmitData.email}
+                  )
                 </p>
               </div>
             </div>
 
             <div className="p-3.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
               <p className="text-xs font-medium text-amber-900 dark:text-amber-200 leading-relaxed">
-                Are you sure you want to deactivate this account? Deactivating an account while the user is logged in will forcibly make them logout and locked from entering the system
+                {selectedRole === 'student'
+                  ? 'Are you sure you want to delete this student? The student and their associated records will no longer appear in active views, while historical records are preserved in the database.'
+                  : 'Are you sure you want to deactivate this account? Deactivating an account while the user is logged in will forcibly make them logout and locked from entering the system'}
               </p>
             </div>
 
@@ -1065,7 +1069,13 @@ export const EditUser: React.FC = () => {
                 onClick={confirmDeactivationSave}
                 className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-xs font-bold cursor-pointer disabled:opacity-50 shadow-xs transition-colors"
               >
-                {isSubmitting ? 'Deactivating...' : 'Deactivate Account'}
+                {selectedRole === 'student'
+                  ? isSubmitting
+                    ? 'Deleting...'
+                    : 'Delete'
+                  : isSubmitting
+                    ? 'Deactivating...'
+                    : 'Deactivate Account'}
               </button>
             </div>
           </div>
