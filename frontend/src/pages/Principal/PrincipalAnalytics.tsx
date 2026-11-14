@@ -19,6 +19,7 @@ import type { Attendance, Grade, User } from '../../types';
 import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
 import { buildTutorClassSections, isStudentInCohort } from '../../utils/tutorCohortHelpers';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
+import { SlidingTabBar, SlidingPeriodToggle } from '../../components/SlidingTabs';
 
 interface ExtendedRiskRow extends StudentRiskRow {
   absentCount: number;
@@ -2401,33 +2402,18 @@ export const PrincipalAnalytics: React.FC = () => {
       </div>
 
       {/* ── Main Tab Switcher ── */}
-      <div
-        className="flex w-full rounded-md bg-gray-100 p-0.5 gap-0.5 dark:bg-[#111111]"
-        role="tablist"
-        aria-label="Analytics view"
-      >
-        {([
-          ['overall', 'Overall'],
-          ['attendance', 'Attendance'],
-          ['score', 'Score'],
-        ] as const).map(([tab, label]) => (
-          <button
-            key={tab}
-            type="button"
-            role="tab"
-            aria-selected={activeAnalyticsTab === tab}
-            onClick={() => setActiveAnalyticsTab(tab)}
-            className={`flex-1 h-8 rounded-sm px-4 flex items-center justify-center text-xs font-bold uppercase transition-all cursor-pointer ${
-              activeAnalyticsTab === tab
-                ? 'bg-[var(--brand)] text-white'
-                : 'text-gray-400 opacity-60 hover:bg-white/60 hover:text-gray-600 hover:opacity-100 dark:text-slate-500 dark:hover:bg-white/5 dark:hover:text-slate-300'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <SlidingTabBar
+        tabs={[
+          { id: 'overall', label: 'Overall' },
+          { id: 'attendance', label: 'Attendance' },
+          { id: 'score', label: 'Score' },
+        ] as const}
+        activeTab={activeAnalyticsTab}
+        onChange={setActiveAnalyticsTab}
+        ariaLabel="Analytics view"
+      />
 
+      <div key={activeAnalyticsTab} className="tab-panel-enter space-y-4 sm:space-y-6">
       {/* ── Overall Tab Content ── */}
       {activeAnalyticsTab === 'overall' && (
         <>
@@ -2503,25 +2489,15 @@ export const PrincipalAnalytics: React.FC = () => {
                     }}
                   />
                 </div>
-                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0 whitespace-nowrap" role="group" aria-label="Filter risk chart by time period">
-                  {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                    <button
-                      key={filter}
-                      type="button"
-                      onClick={() => {
-                        setRiskTrendFilter(filter);
-                        setRiskTrendPage(0);
-                      }}
-                      className={`cursor-pointer rounded-sm px-2.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all whitespace-nowrap ${
-                        riskTrendFilter === filter
-                          ? 'bg-[var(--brand)] text-white shadow-xs'
-                          : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      {filter}
-                    </button>
-                  ))}
-                </div>
+                <SlidingPeriodToggle
+                  options={['day', 'week', 'month'] as const}
+                  value={riskTrendFilter}
+                  onChange={(filter) => {
+                    setRiskTrendFilter(filter);
+                    setRiskTrendPage(0);
+                  }}
+                  ariaLabel="Filter risk chart by time period"
+                />
                 {/* Period navigation arrows to scroll between previous and present records */}
                 <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present risk records">
                   <button
@@ -2652,25 +2628,15 @@ export const PrincipalAnalytics: React.FC = () => {
                     }}
                   />
                 </div>
-                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0 whitespace-nowrap" aria-label="Attendance trend period">
-                  {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                    <button
-                      key={filter}
-                      type="button"
-                      onClick={() => {
-                        setAttendanceFilter(filter);
-                        setAttendanceTrendPage(0);
-                      }}
-                      className={`rounded-sm px-2.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
-                        attendanceFilter === filter
-                          ? 'bg-[var(--brand)] text-white shadow-xs'
-                          : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      {filter}
-                    </button>
-                  ))}
-                </div>
+                <SlidingPeriodToggle
+                  options={['day', 'week', 'month'] as const}
+                  value={attendanceFilter}
+                  onChange={(filter) => {
+                    setAttendanceFilter(filter);
+                    setAttendanceTrendPage(0);
+                  }}
+                  ariaLabel="Attendance trend period"
+                />
                 {/* Period navigation arrows */}
                 <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present attendance records">
                   <button
@@ -2797,25 +2763,15 @@ export const PrincipalAnalytics: React.FC = () => {
                     }}
                   />
                 </div>
-                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0 whitespace-nowrap" aria-label="Score trend period">
-                  {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                    <button
-                      key={filter}
-                      type="button"
-                      onClick={() => {
-                        setScoreFilter(filter);
-                        setScoreTrendPage(0);
-                      }}
-                      className={`rounded-sm px-2.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
-                        scoreFilter === filter
-                          ? 'bg-[var(--brand)] text-white shadow-xs'
-                          : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      {filter}
-                    </button>
-                  ))}
-                </div>
+                <SlidingPeriodToggle
+                  options={['day', 'week', 'month'] as const}
+                  value={scoreFilter}
+                  onChange={(filter) => {
+                    setScoreFilter(filter);
+                    setScoreTrendPage(0);
+                  }}
+                  ariaLabel="Score trend period"
+                />
                 {/* Period navigation arrows */}
                 <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present score records">
                   <button
@@ -2867,6 +2823,7 @@ export const PrincipalAnalytics: React.FC = () => {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 };

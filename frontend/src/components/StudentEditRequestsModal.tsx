@@ -11,6 +11,7 @@ import { SystemUpdateNotification, SYSTEM_UPDATES } from './SystemUpdateNotifica
 import { ticketService, SupportTicketItem } from '../services/ticketService';
 import { announcementService, SystemAnnouncementItem } from '../services/announcementService';
 import { useAuth } from '../hooks/useAuth';
+import { useSlidingIndicator } from './SlidingTabs';
 
 interface StudentEditRequestsModalProps {
   isOpen: boolean;
@@ -27,6 +28,15 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
   const isSuperAdmin = Boolean(user?.is_superuser);
   const [requests, setRequests] = useState<StudentEditRequest[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'tickets' | 'announcements' | 'history'>('all');
+  const modalTabs = useMemo(
+    () =>
+      (isSuperAdmin
+        ? ['all', 'pending', 'tickets', 'announcements', 'history']
+        : ['all', 'pending', 'announcements', 'history']) as ('all' | 'pending' | 'tickets' | 'announcements' | 'history')[],
+    [isSuperAdmin]
+  );
+  const { containerRef: modalTabsRef, setItemRef: setModalTabRef, pillStyle: modalTabPillStyle } =
+    useSlidingIndicator(modalTabs.indexOf(activeTab), [isOpen, isSuperAdmin]);
   const [tickets, setTickets] = useState<SupportTicketItem[]>([]);
   const [pendingTicketsCount, setPendingTicketsCount] = useState<number>(0);
   const [announcements, setAnnouncements] = useState<SystemAnnouncementItem[]>([]);
@@ -685,102 +695,67 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
         </div>
 
         {/* Tab Selection */}
-        <div
-          className="no-scrollbar px-5 pb-2.5 bg-white dark:bg-slate-900 flex items-center gap-1 overflow-x-auto flex-nowrap flex-shrink-0"
-          style={{ WebkitOverflowScrolling: 'touch' }}
-        >
-          <button
-            type="button"
-            onClick={() => setActiveTab('all')}
-            style={{
-              padding: '3px 7px',
-              borderRadius: '6px',
-              fontSize: '0.68rem',
-              fontWeight: 700,
-              border: 'none',
-              cursor: 'pointer',
-              flexShrink: 0,
-              background: activeTab === 'all' ? '#0052B7' : 'var(--slate-100)',
-              color: activeTab === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
-              whiteSpace: 'nowrap',
-            }}
+        <div className="px-5 pb-2.5 bg-white dark:bg-slate-900 flex-shrink-0">
+          <div
+            ref={modalTabsRef}
+            role="tablist"
+            aria-label="Notifications filter tabs"
+            className="no-scrollbar relative flex items-center gap-1 overflow-x-auto flex-nowrap rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 select-none"
+            style={{ WebkitOverflowScrolling: 'touch' }}
           >
-            ALL ({allCount})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('pending')}
-            style={{
-              padding: '3px 7px',
-              borderRadius: '6px',
-              fontSize: '0.68rem',
-              fontWeight: 700,
-              border: 'none',
-              cursor: 'pointer',
-              flexShrink: 0,
-              background: activeTab === 'pending' ? '#0052B7' : 'var(--slate-100)',
-              color: activeTab === 'pending' ? '#FFFFFF' : 'var(--text-secondary)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            EDIT REQUESTS ({pendingCount})
-          </button>
-          {isSuperAdmin && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('tickets')}
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute top-0.5 bottom-0.5 left-0 rounded-md bg-[#0052B7] shadow-xs will-change-transform motion-reduce:transition-none ${
+                modalTabPillStyle.animate
+                  ? 'transition-[transform,width,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]'
+                  : ''
+              } ${modalTabPillStyle.ready ? 'opacity-100' : 'opacity-0'}`}
               style={{
-                padding: '3px 7px',
-                borderRadius: '6px',
-                fontSize: '0.68rem',
-                fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-                flexShrink: 0,
-                background: activeTab === 'tickets' ? '#0052B7' : 'var(--slate-100)',
-                color: activeTab === 'tickets' ? '#FFFFFF' : 'var(--text-secondary)',
-                whiteSpace: 'nowrap',
+                width: `${modalTabPillStyle.width}px`,
+                transform: `translate3d(${modalTabPillStyle.left}px, 0, 0)`,
               }}
-            >
-              TICKETS ({pendingTicketsCount})
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setActiveTab('announcements')}
-            style={{
-              padding: '3px 7px',
-              borderRadius: '6px',
-              fontSize: '0.68rem',
-              fontWeight: 700,
-              border: 'none',
-              cursor: 'pointer',
-              flexShrink: 0,
-              background: activeTab === 'announcements' ? '#0052B7' : 'var(--slate-100)',
-              color: activeTab === 'announcements' ? '#FFFFFF' : 'var(--text-secondary)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            ANNOUNCEMENTS ({announcements.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('history')}
-            style={{
-              padding: '3px 7px',
-              borderRadius: '6px',
-              fontSize: '0.68rem',
-              fontWeight: 700,
-              border: 'none',
-              cursor: 'pointer',
-              flexShrink: 0,
-              background: activeTab === 'history' ? '#0052B7' : 'var(--slate-100)',
-              color: activeTab === 'history' ? '#FFFFFF' : 'var(--text-secondary)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            HISTORY ({historyCount})
-          </button>
+            />
+            {modalTabs.map((tabId, idx) => {
+              const label =
+                tabId === 'all'
+                  ? `ALL (${allCount})`
+                  : tabId === 'pending'
+                  ? `EDIT REQUESTS (${pendingCount})`
+                  : tabId === 'tickets'
+                  ? `TICKETS (${pendingTicketsCount})`
+                  : tabId === 'announcements'
+                  ? `ANNOUNCEMENTS (${announcements.length})`
+                  : `HISTORY (${historyCount})`;
+              const isActive = activeTab === tabId;
+              return (
+                <button
+                  key={tabId}
+                  ref={setModalTabRef(idx)}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setActiveTab(tabId)}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    border: 'none',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    position: 'relative',
+                    zIndex: 10,
+                    background: 'transparent',
+                    color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
+                    whiteSpace: 'nowrap',
+                    transition: 'color 0.2s',
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Action Alerts */}
@@ -852,7 +827,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
               </p>
             </div>
           ) : (
-            <>
+            <div key={activeTab} className="tab-panel-enter space-y-3 sm:space-y-3.5">
               {activeTab === 'all' && (
                 <>
                   {SYSTEM_UPDATES.map((u) => <SystemUpdateNotification key={u.id} update={u} />)}
@@ -1288,7 +1263,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                 </div>
               );
             })}
-            </>
+            </div>
           )}
         </div>
       </div>

@@ -6,6 +6,7 @@ import {
   Filter, Download,
 } from 'lucide-react';
 import api from '../../api/axios';
+import { useSlidingIndicator } from '../../components/SlidingTabs';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface AuditEntry {
@@ -330,6 +331,9 @@ type Tab = 'security' | 'audit';
 
 export const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('security');
+  const settingsTabs: Tab[] = ['security', 'audit'];
+  const { containerRef: settingsTabsRef, setItemRef: setSettingsTabRef, pillStyle: settingsPillStyle } =
+    useSlidingIndicator(settingsTabs.indexOf(activeTab));
   const [requireMfaStaff, setRequireMfaStaff] = useState(false);
   const [sessionTimeoutMinutes, setSessionTimeoutMinutes] = useState(30);
   const [refreshTimeoutHours, setRefreshTimeoutHours] = useState(24);
@@ -350,6 +354,8 @@ export const Settings: React.FC = () => {
   };
 
   const tabStyle = (tab: Tab): React.CSSProperties => ({
+    position: 'relative',
+    zIndex: 10,
     display: 'inline-flex',
     alignItems: 'center',
     gap: '0.5rem',
@@ -360,10 +366,9 @@ export const Settings: React.FC = () => {
     cursor: 'pointer',
     border: 'none',
     fontFamily: 'var(--font-body)',
-    transition: 'all 0.2s',
-    background: activeTab === tab ? 'linear-gradient(135deg, var(--brand), var(--brand-hover))' : 'transparent',
+    transition: 'color 0.2s',
+    background: 'transparent',
     color: activeTab === tab ? '#fff' : 'var(--text-muted)',
-    boxShadow: activeTab === tab ? '0 4px 14px rgba(16,185,129,0.3)' : 'none',
   });
 
   return (
@@ -385,17 +390,38 @@ export const Settings: React.FC = () => {
         </div>
 
         {/* Tab switcher */}
-        <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-4" style={{ background: 'var(--surface-muted)', padding: '0.35rem', borderRadius: '12px', width: 'fit-content' }}>
-          <button type="button" style={tabStyle('security')} onClick={() => setActiveTab('security')}>
+        <div
+          ref={settingsTabsRef}
+          role="tablist"
+          aria-label="System settings tabs"
+          className="relative flex flex-wrap gap-1.5 sm:gap-2 mt-4 select-none overflow-hidden"
+          style={{ background: 'var(--surface-muted)', padding: '0.35rem', borderRadius: '12px', width: 'fit-content' }}
+        >
+          <div
+            aria-hidden="true"
+            className={`pointer-events-none absolute top-[0.35rem] bottom-[0.35rem] left-0 rounded-[10px] will-change-transform motion-reduce:transition-none ${
+              settingsPillStyle.animate
+                ? 'transition-[transform,width,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]'
+                : ''
+            } ${settingsPillStyle.ready ? 'opacity-100' : 'opacity-0'}`}
+            style={{
+              width: `${settingsPillStyle.width}px`,
+              transform: `translate3d(${settingsPillStyle.left}px, 0, 0)`,
+              background: 'linear-gradient(135deg, var(--brand), var(--brand-hover))',
+              boxShadow: '0 4px 14px rgba(16,185,129,0.3)',
+            }}
+          />
+          <button ref={setSettingsTabRef(0)} type="button" role="tab" aria-selected={activeTab === 'security'} style={tabStyle('security')} onClick={() => setActiveTab('security')}>
             <Shield size={16} /> Security Policy
           </button>
-          <button type="button" style={tabStyle('audit')} onClick={() => setActiveTab('audit')}>
+          <button ref={setSettingsTabRef(1)} type="button" role="tab" aria-selected={activeTab === 'audit'} style={tabStyle('audit')} onClick={() => setActiveTab('audit')}>
             <Activity size={16} /> Audit Trail
           </button>
         </div>
       </div>
 
       {/* Tab content */}
+      <div key={activeTab} className="tab-panel-enter">
       {activeTab === 'security' ? (
         <>
           {saveSuccess && (
@@ -503,6 +529,7 @@ export const Settings: React.FC = () => {
           <AuditLogTab />
         </div>
       )}
+      </div>
     </div>
   );
 };

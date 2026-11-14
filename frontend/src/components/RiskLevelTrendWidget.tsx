@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useId } from 'react';
+import { SlidingPeriodToggle } from './SlidingTabs';
 
 export interface RiskTrendPoint {
   dateKey: string;
@@ -123,39 +124,21 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
 
   // Render segmented toggle control
   const renderToggle = (isMobile: boolean) => (
-    <div
-      className={`inline-flex items-center rounded-xl bg-gray-100/90 dark:bg-[#151A24] p-1 border border-gray-200/60 dark:border-slate-800/80 ${
+    <SlidingPeriodToggle
+      options={['day', 'week', 'month'] as const}
+      value={activeFilter}
+      onChange={onFilterChange}
+      ariaLabel="Filter risk chart by time period"
+      className={`rounded-xl bg-gray-100/90 dark:bg-[#151A24] p-1 border border-gray-200/60 dark:border-slate-800/80 ${
         isMobile ? 'w-full justify-between' : ''
       }`}
-      role="group"
-      aria-label="Filter risk chart by time period"
-    >
-      {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => {
-        const isActive = activeFilter === filter;
-        return (
-          <button
-            key={filter}
-            type="button"
-            onClick={() => onFilterChange(filter)}
-            className={`cursor-pointer rounded-lg font-semibold uppercase tracking-wider transition-all ${
-              isMobile
-                ? `flex-1 min-h-[40px] px-3 text-xs ${
-                    isActive
-                      ? 'bg-[var(--brand)] text-white shadow-xs font-bold'
-                      : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white border border-transparent'
-                  }`
-                : `px-3.5 py-1.5 min-h-[32px] text-[11px] ${
-                    isActive
-                      ? 'bg-[var(--brand)] text-white shadow-xs font-bold'
-                      : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white border border-transparent'
-                  }`
-            }`}
-          >
-            {filter}
-          </button>
-        );
-      })}
-    </div>
+      indicatorClassName="top-1 bottom-1 rounded-lg bg-[var(--brand)] shadow-xs"
+      buttonClassName={
+        isMobile
+          ? 'flex-1 min-h-[40px] px-3 text-xs rounded-lg'
+          : 'px-3.5 py-1.5 min-h-[32px] text-[11px] rounded-lg'
+      }
+    />
   );
 
   return (

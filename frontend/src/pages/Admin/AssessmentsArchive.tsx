@@ -8,6 +8,7 @@ import { userService } from '../../services/userService';
 import { SchoolYear, User, Grade, Attendance } from '../../types';
 import { TableSkeleton } from '../../components/SkeletonLoader';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
+import { useSlidingIndicator } from '../../components/SlidingTabs';
 import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
 import { useAuth } from '../../hooks/useAuth';
 import { isAssessmentWindowOpen } from '../../utils/sessionDescriptionHelpers';
@@ -529,6 +530,9 @@ export const AssessmentsArchive: React.FC = () => {
   const [currentSchoolYear, setCurrentSchoolYear] = useState<SchoolYear | null>(null);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('2026-2027');
   const [activeTab, setActiveTab] = useState<'mosy' | 'eosy' | 'summer'>('mosy');
+  const archivePhaseTabs = ['mosy', 'eosy', 'summer'] as const;
+  const { containerRef: archivePhaseTabsRef, setItemRef: setArchivePhaseTabRef, pillStyle: archivePhasePillStyle } =
+    useSlidingIndicator(archivePhaseTabs.indexOf(activeTab), [selectedSchoolYear, currentSchoolYear?.current_semester]);
 
   const schoolYearOptions = useMemo<SchoolYearOption[]>(() => {
     if (archivedYears.length === 0) {
@@ -1034,16 +1038,36 @@ export const AssessmentsArchive: React.FC = () => {
           </div>
 
           {/* Phase Switcher Tabs — Full width on mobile, distributed flex-1 */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 w-full sm:w-auto">
+          <div
+            ref={archivePhaseTabsRef}
+            role="tablist"
+            aria-label="Archived assessment phase"
+            className="relative flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 w-full sm:w-auto select-none overflow-hidden"
+          >
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute top-1 bottom-1 left-0 rounded-lg bg-white dark:bg-zinc-800 shadow-xs will-change-transform motion-reduce:transition-none ${
+                archivePhasePillStyle.animate
+                  ? 'transition-[transform,width,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]'
+                  : ''
+              } ${archivePhasePillStyle.ready && concludedTabsForSelectedYear.includes(activeTab) ? 'opacity-100' : 'opacity-0'}`}
+              style={{
+                width: `${archivePhasePillStyle.width}px`,
+                transform: `translate3d(${archivePhasePillStyle.left}px, 0, 0)`,
+              }}
+            />
             <button
+              ref={setArchivePhaseTabRef(0)}
               type="button"
+              role="tab"
+              aria-selected={activeTab === 'mosy'}
               onClick={() => setActiveTab('mosy')}
               disabled={!concludedTabsForSelectedYear.includes('mosy')}
-              className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
+              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 !concludedTabsForSelectedYear.includes('mosy')
                   ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-zinc-600'
                   : activeTab === 'mosy'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs cursor-pointer'
+                  ? 'text-slate-900 dark:text-white cursor-pointer'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white cursor-pointer'
               }`}
               title={!concludedTabsForSelectedYear.includes('mosy') ? '1st Semester not yet concluded' : 'Concluded 1st Semester'}
@@ -1058,14 +1082,17 @@ export const AssessmentsArchive: React.FC = () => {
             </button>
 
             <button
+              ref={setArchivePhaseTabRef(1)}
               type="button"
+              role="tab"
+              aria-selected={activeTab === 'eosy'}
               onClick={() => setActiveTab('eosy')}
               disabled={!concludedTabsForSelectedYear.includes('eosy')}
-              className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
+              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 !concludedTabsForSelectedYear.includes('eosy')
                   ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-zinc-600'
                   : activeTab === 'eosy'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs cursor-pointer'
+                  ? 'text-slate-900 dark:text-white cursor-pointer'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white cursor-pointer'
               }`}
               title={!concludedTabsForSelectedYear.includes('eosy') ? '2nd Semester not yet concluded' : 'Concluded 2nd Semester'}
@@ -1080,14 +1107,17 @@ export const AssessmentsArchive: React.FC = () => {
             </button>
 
             <button
+              ref={setArchivePhaseTabRef(2)}
               type="button"
+              role="tab"
+              aria-selected={activeTab === 'summer'}
               onClick={() => setActiveTab('summer')}
               disabled={!concludedTabsForSelectedYear.includes('summer')}
-              className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
+              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 !concludedTabsForSelectedYear.includes('summer')
                   ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-zinc-600'
                   : activeTab === 'summer'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs cursor-pointer'
+                  ? 'text-slate-900 dark:text-white cursor-pointer'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white cursor-pointer'
               }`}
               title={!concludedTabsForSelectedYear.includes('summer') ? 'Summer period not concluded' : 'Concluded Summer'}
@@ -1118,7 +1148,7 @@ export const AssessmentsArchive: React.FC = () => {
           <TableSkeleton rows={8} cols={7} />
         </div>
       ) : (
-        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm overflow-hidden">
+        <div key={activeTab} className="tab-panel-enter rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm overflow-hidden">
           {/* Table Header / Search Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 sm:px-5 py-3 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div className="space-y-1">

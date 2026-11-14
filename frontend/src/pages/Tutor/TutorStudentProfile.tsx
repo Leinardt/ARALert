@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
@@ -40,6 +41,7 @@ import {
 import { ExportStudentQrModal } from '../../components/ExportStudentQrModal';
 import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
+import { SlidingTabBar, SlidingPeriodToggle } from '../../components/SlidingTabs';
 import {
   TrendChart,
   RiskTrendChart,
@@ -841,38 +843,19 @@ export const TutorStudentProfile: React.FC = () => {
       </div>
 
       {/* ── Tab Navigation ─────────────────────────────────────────── */}
-      <div
-        className="flex w-full rounded-md bg-gray-100 dark:bg-[#1A1A1A] p-0.5 no-arrive-animation gap-0.5"
-        role="tablist"
-        aria-label="Student profile view"
-        style={{ animation: 'none', transform: 'none', opacity: 1 }}
-      >
-        {([
-          ['overall', 'Overall'],
-          ['attendance', 'Attendance'],
-          ['score', 'Score'],
-        ] as const).map(([tabKey, label]) => {
-          const isActive = activeTab === tabKey;
-          return (
-            <button
-              key={tabKey}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              onClick={() => setActiveTab(tabKey)}
-              className={`flex-1 rounded-sm py-2 px-2 sm:px-3 text-xs uppercase tracking-wider flex items-center justify-center transition-all cursor-pointer ${isActive
-                ? 'bg-[var(--brand)] text-white font-extrabold shadow-sm'
-                : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 font-bold'
-                }`}
-            >
-              <span>{label}</span>
-            </button>
-          );
-        })}
-      </div>
+      <SlidingTabBar
+        tabs={[
+          { id: 'overall', label: 'Overall' },
+          { id: 'attendance', label: 'Attendance' },
+          { id: 'score', label: 'Score' },
+        ] as const}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        ariaLabel="Student profile view"
+      />
 
       {/* ── Tab Content Panels ─────────────────────────────────────── */}
-      <div className="space-y-4 sm:space-y-6">
+      <div key={activeTab} className="tab-panel-enter space-y-4 sm:space-y-6">
 
         {/* ── 1. OVERALL TAB ───────────────────────────────────────── */}
         {activeTab === 'overall' && (
@@ -926,25 +909,17 @@ export const TutorStudentProfile: React.FC = () => {
                     <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#F59E0B' }} />Moderate Risk</span>
                     <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#22C55E' }} />Low Risk</span>
                   </div>
-                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Risk trend period">
-                    {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                      <button
-                        key={filter}
-                        type="button"
-                        onClick={() => {
-                          setRiskTrendFilter(filter);
-                          setRiskTrendPage(0);
-                        }}
-                        className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] sm:text-[10.5px] uppercase tracking-wider transition-all ${
-                          riskTrendFilter === filter
-                            ? 'bg-[var(--brand)] text-white font-black shadow-sm'
-                            : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'
-                        }`}
-                      >
-                        {filter}
-                      </button>
-                    ))}
-                  </div>
+                  <SlidingPeriodToggle
+                    options={['day', 'week', 'month'] as const}
+                    value={riskTrendFilter}
+                    onChange={(filter) => {
+                      setRiskTrendFilter(filter);
+                      setRiskTrendPage(0);
+                    }}
+                    ariaLabel="Risk trend period"
+                    className="bg-gray-100 dark:bg-[#1A1A1A]"
+                    buttonClassName="px-3 py-1.5 text-[10px] sm:text-[10.5px]"
+                  />
                   {/* Period navigation arrows */}
                   <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Scroll between previous and present risk records">
                     <button
@@ -1080,25 +1055,17 @@ export const TutorStudentProfile: React.FC = () => {
                   <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
                     <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Attendance Rate</span>
                   </div>
-                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Attendance trend period">
-                    {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                      <button
-                        key={filter}
-                        type="button"
-                        onClick={() => {
-                          setAttendanceTrendFilter(filter);
-                          setAttendanceTrendPage(0);
-                        }}
-                        className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] sm:text-[10.5px] uppercase tracking-wider transition-all ${
-                          attendanceTrendFilter === filter
-                            ? 'bg-[var(--brand)] text-white font-black shadow-sm'
-                            : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'
-                        }`}
-                      >
-                        {filter}
-                      </button>
-                    ))}
-                  </div>
+                  <SlidingPeriodToggle
+                    options={['day', 'week', 'month'] as const}
+                    value={attendanceTrendFilter}
+                    onChange={(filter) => {
+                      setAttendanceTrendFilter(filter);
+                      setAttendanceTrendPage(0);
+                    }}
+                    ariaLabel="Attendance trend period"
+                    className="bg-gray-100 dark:bg-[#1A1A1A]"
+                    buttonClassName="px-3 py-1.5 text-[10px] sm:text-[10.5px]"
+                  />
                   {/* Period navigation arrows */}
                   <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Scroll between previous and present attendance records">
                     <button
@@ -1207,25 +1174,17 @@ export const TutorStudentProfile: React.FC = () => {
                   <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
                     <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Average Score Rate</span>
                   </div>
-                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Score trend period">
-                    {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                      <button
-                        key={filter}
-                        type="button"
-                        onClick={() => {
-                          setScoreTrendFilter(filter);
-                          setScoreTrendPage(0);
-                        }}
-                        className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] sm:text-[10.5px] uppercase tracking-wider transition-all ${
-                          scoreTrendFilter === filter
-                            ? 'bg-[var(--brand)] text-white font-black shadow-sm'
-                            : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'
-                        }`}
-                      >
-                        {filter}
-                      </button>
-                    ))}
-                  </div>
+                  <SlidingPeriodToggle
+                    options={['day', 'week', 'month'] as const}
+                    value={scoreTrendFilter}
+                    onChange={(filter) => {
+                      setScoreTrendFilter(filter);
+                      setScoreTrendPage(0);
+                    }}
+                    ariaLabel="Score trend period"
+                    className="bg-gray-100 dark:bg-[#1A1A1A]"
+                    buttonClassName="px-3 py-1.5 text-[10px] sm:text-[10.5px]"
+                  />
                   {/* Period navigation arrows */}
                   <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Scroll between previous and present score records">
                     <button
@@ -1273,8 +1232,9 @@ export const TutorStudentProfile: React.FC = () => {
       </div>
 
       {/* ── ARAL ACTIVITY MODAL ────────────────────────────────────── */}
-      {showActivityModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      {showActivityModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <form onSubmit={handleAddActivity} className="bg-white dark:bg-[#111111] rounded-lg p-4 sm:p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <h3 className="font-bold text-gray-900 dark:text-white text-base">Create ARAL Activity</h3>
@@ -1345,12 +1305,14 @@ export const TutorStudentProfile: React.FC = () => {
               </button>
             </div>
           </form>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
 
       {/* ── RISK ALERTS MODAL ──────────────────────────────────────── */}
-      {showRiskModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      {showRiskModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <form onSubmit={handleAddRisk} className="bg-white dark:bg-[#111111] rounded-lg p-4 sm:p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <h3 className="font-bold text-gray-900 dark:text-white text-base">Log Academic Risk Warning</h3>
@@ -1399,12 +1361,14 @@ export const TutorStudentProfile: React.FC = () => {
               </button>
             </div>
           </form>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
 
       {/* ── ATTENDANCE MODAL ───────────────────────────────────────── */}
-      {showAttendanceModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      {showAttendanceModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <form onSubmit={handlePromptAddAttendance} className="bg-white dark:bg-[#111111] rounded-lg p-4 sm:p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <h3 className="font-bold text-gray-900 dark:text-white text-base">Log Manual Attendance</h3>
@@ -1468,15 +1432,17 @@ export const TutorStudentProfile: React.FC = () => {
               </button>
             </div>
           </form>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
 
       {/* ── Attendance Log Confirmation Modal (Matches Score Entry) ── */}
-      {showAttendanceConfirmModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+      {showAttendanceConfirmModal &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
           style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowAttendanceConfirmModal(false); }}
         >
@@ -1506,12 +1472,14 @@ export const TutorStudentProfile: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
 
       {/* ── STUDENT EDIT MODAL ─────────────────────────────── */}
-      {isEditingStudent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
+      {isEditingStudent &&
+        createPortal(
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
           <form
             onSubmit={handlePromptSaveStudent}
             autoComplete="off"
@@ -1629,15 +1597,17 @@ export const TutorStudentProfile: React.FC = () => {
               </button>
             </div>
           </form>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
 
       {/* ── SAVE STUDENT DETAILS CONFIRMATION MODAL ── */}
-      {showSaveConfirmModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+      {showSaveConfirmModal &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
         >
           <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#222222] rounded-xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 animate-fade-in-scale">
             <div className="flex items-center gap-3 text-[var(--brand)]">
@@ -1697,13 +1667,15 @@ export const TutorStudentProfile: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
 
 
       {/* ── PENDING REQUEST DETAILS MODAL ──────────────────────────── */}
-      {showPendingModal && pendingEditRequest && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      {showPendingModal && pendingEditRequest &&
+        createPortal(
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#111111] rounded-lg p-4 sm:p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <div className="flex items-center gap-2">
@@ -1763,12 +1735,14 @@ export const TutorStudentProfile: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
 
       {/* ── CONFIRMATION MODAL BEFORE WITHDRAWING EDIT REQUEST ── */}
-      {showCancelConfirmModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-60 flex items-center justify-center p-4 animate-fade-in">
+      {showCancelConfirmModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white dark:bg-[#111111] rounded-2xl p-4 sm:p-6 max-w-sm w-full border border-gray-200 dark:border-[#222222] shadow-2xl space-y-4 animate-fade-in-scale">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 flex items-center justify-center shrink-0">
@@ -1803,8 +1777,9 @@ export const TutorStudentProfile: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
 
       {/* ── Student Permanent QR Export Modal ─────────────────── */}
       {/* ── Student Permanent QR Export Modal ─────────────────── */}
@@ -2293,25 +2268,18 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
         {/* Filter controls */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
           {/* View mode toggle styled like QR Attendance */}
-          <div className="flex bg-gray-100 dark:bg-[#111111] rounded-lg sm:rounded-xl p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
-            {(['day', 'week', 'month'] as const).map((mode) => (
-              <button
-                key={mode}
-                id={`student-score-view-${mode}`}
-                type="button"
-                onClick={() => {
-                  setViewMode(mode);
-                  setJumpDate(null);
-                }}
-                className={`rounded-md sm:rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${viewMode === mode && !jumpDate
-                  ? 'bg-[var(--brand)] text-white shadow-sm'
-                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 font-bold'
-                  }`}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
+          <SlidingPeriodToggle
+            options={['day', 'week', 'month'] as const}
+            value={jumpDate ? null : viewMode}
+            onChange={(mode) => {
+              setViewMode(mode);
+              setJumpDate(null);
+            }}
+            ariaLabel="Score history view period"
+            idPrefix="student-score-view"
+            className="bg-gray-100 dark:bg-[#111111]"
+            buttonClassName="px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-[10.5px]"
+          />
 
           {/* Custom Calendar Dropdown Button in Poppins */}
           <div className="relative inline-flex items-center shrink-0">
@@ -2709,25 +2677,18 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
         {/* Filter controls */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
           {/* View mode toggle styled like QR Attendance */}
-          <div className="flex bg-gray-100 dark:bg-[#111111] rounded-lg sm:rounded-xl p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
-            {(['day', 'week', 'month'] as const).map((mode) => (
-              <button
-                key={mode}
-                id={`student-att-view-${mode}`}
-                type="button"
-                onClick={() => {
-                  setViewMode(mode);
-                  setJumpDate(null);
-                }}
-                className={`rounded-md sm:rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${viewMode === mode && !jumpDate
-                  ? 'bg-[var(--brand)] text-white shadow-sm'
-                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 font-bold'
-                  }`}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
+          <SlidingPeriodToggle
+            options={['day', 'week', 'month'] as const}
+            value={jumpDate ? null : viewMode}
+            onChange={(mode) => {
+              setViewMode(mode);
+              setJumpDate(null);
+            }}
+            ariaLabel="Attendance history view period"
+            idPrefix="student-att-view"
+            className="bg-gray-100 dark:bg-[#111111]"
+            buttonClassName="px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-[10.5px]"
+          />
 
           {/* Custom Calendar Dropdown Button in Poppins */}
           <div className="relative inline-flex items-center shrink-0">

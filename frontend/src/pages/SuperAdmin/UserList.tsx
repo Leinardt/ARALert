@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { userService, UserActivityItem, invalidateTutorStudentsCache } from '../../services/userService';
 import type { User } from '../../types';
@@ -1217,26 +1218,6 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
   return (
     <div className="space-y-4 sm:space-y-6" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-      <style>{`
-        @keyframes userTabPanelEnter {
-          from {
-            opacity: 0;
-            transform: translateY(4px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .user-tab-panel-enter {
-          animation: userTabPanelEnter 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .user-tab-panel-enter {
-            animation: none !important;
-          }
-        }
-      `}</style>
       {/* ── Top Navigation Tabs ────────────────────────────────────────── */}
       <div
         className="relative grid w-full rounded-md bg-gray-100 p-1 dark:bg-[#111111] border border-gray-200/70 dark:border-[#1A1A1A] select-none overflow-hidden"
@@ -1285,7 +1266,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
       {/* ── Main Integrated Directory Table Card ──────────────────────── */}
       <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative shadow-sm">
-        <div key={activeTab} className="user-tab-panel-enter">
+        <div key={activeTab} className="tab-panel-enter">
         {/* Table Toolbar (Section Title + Action Buttons & Filters) */}
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-2.5 px-3.5 sm:px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] overflow-visible">
           {/* Left: Title & Counter */}
@@ -2496,68 +2477,71 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
       </div>
 
       {/* ── Deactivate Account / Delete Student Confirmation Modal ──────── */}
-      {deactivateModalUser && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#0A0A0A] rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 dark:border-[#1A1A1A] space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5" />
+      {deactivateModalUser &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-[#0A0A0A] rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 dark:border-[#1A1A1A] space-y-4 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
+                    {deactivateModalUser.role === 'student' ? 'Delete Student' : 'Deactivate Account'}
+                  </h3>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 mt-0.5 truncate">
+                    {deactivateModalUser.full_name || `${deactivateModalUser.first_name} ${deactivateModalUser.last_name}`} (
+                    {deactivateModalUser.role === 'student'
+                      ? deactivateModalUser.lrn || 'Student'
+                      : deactivateModalUser.email || deactivateModalUser.username}
+                    )
+                  </p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
-                  {deactivateModalUser.role === 'student' ? 'Delete Student' : 'Deactivate Account'}
-                </h3>
-                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 mt-0.5 truncate">
-                  {deactivateModalUser.full_name || `${deactivateModalUser.first_name} ${deactivateModalUser.last_name}`} (
+
+              <div className="p-3.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
+                <p className="text-xs font-medium text-amber-900 dark:text-amber-200 leading-relaxed">
                   {deactivateModalUser.role === 'student'
-                    ? deactivateModalUser.lrn || 'Student'
-                    : deactivateModalUser.email || deactivateModalUser.username}
-                  )
+                    ? 'Are you sure you want to delete this student? The student and their associated records will no longer appear in active views, while historical records are preserved in the database.'
+                    : 'Are you sure you want to deactivate this account? Deactivating an account while the user is logged in will forcibly make them logout and locked from entering the system'}
                 </p>
               </div>
-            </div>
 
-            <div className="p-3.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
-              <p className="text-xs font-medium text-amber-900 dark:text-amber-200 leading-relaxed">
-                {deactivateModalUser.role === 'student'
-                  ? 'Are you sure you want to delete this student? The student and their associated records will no longer appear in active views, while historical records are preserved in the database.'
-                  : 'Are you sure you want to deactivate this account? Deactivating an account while the user is logged in will forcibly make them logout and locked from entering the system'}
-              </p>
+              <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
+                <button
+                  type="button"
+                  disabled={isDeactivating}
+                  onClick={() => setDeactivateModalUser(null)}
+                  className="px-4 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-xs font-semibold text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeactivating}
+                  onClick={confirmDeactivate}
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-xs font-bold cursor-pointer disabled:opacity-50 shadow-xs transition-colors"
+                >
+                  {deactivateModalUser.role === 'student'
+                    ? isDeactivating
+                      ? 'Deleting...'
+                      : 'Delete'
+                    : isDeactivating
+                      ? 'Deactivating...'
+                      : 'Deactivate Account'}
+                </button>
+              </div>
             </div>
-
-            <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
-              <button
-                type="button"
-                disabled={isDeactivating}
-                onClick={() => setDeactivateModalUser(null)}
-                className="px-4 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-xs font-semibold text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isDeactivating}
-                onClick={confirmDeactivate}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-xs font-bold cursor-pointer disabled:opacity-50 shadow-xs transition-colors"
-              >
-                {deactivateModalUser.role === 'student'
-                  ? isDeactivating
-                    ? 'Deleting...'
-                    : 'Delete'
-                  : isDeactivating
-                    ? 'Deactivating...'
-                    : 'Deactivate Account'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
 
 
       {/* ── User Login & Logout History Timeline Modal ────────────────── */}
-      {activityModalUser && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      {activityModalUser &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#0A0A0A] rounded-lg p-6 max-w-xl w-full shadow-xl border border-gray-200 dark:border-[#1A1A1A] space-y-4 max-h-[85vh] flex flex-col">
             <div className="flex justify-between items-start border-b border-gray-100 dark:border-[#1A1A1A] pb-4">
               <div>
@@ -2654,8 +2638,9 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
 
       {/* ── Floating Notification Toast ─────────────────────── */}
       {toastNotification.show && (

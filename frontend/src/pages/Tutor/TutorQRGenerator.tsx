@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
@@ -33,7 +34,14 @@ import {
 } from 'lucide-react';
 import { trashbinService } from '../../utils/trashbinService';
 import { Html5Qrcode } from 'html5-qrcode';
-import type { Attendance, User, AttendanceSession } from '../../types';
+import { SlidingTabBar, SlidingPeriodToggle } from '../../components/SlidingTabs';
+import type { Attendance, User, AttendanceSession, SchoolYear } from '../../types';
+import {
+  generateSchoolYearWeeks,
+  getSchoolYearWeekNumberForDate,
+  type SchoolYearWeekOption,
+} from '../../config/academicConfig';
+import { HistoryWeekDropdown } from '../../components/HistoryWeekDropdown';
 import { ExportAttendanceModal } from '../../components/ExportAttendanceModal';
 import { TutorCohortFilter } from '../../components/TutorCohortFilter';
 import {
@@ -836,18 +844,12 @@ const getWeekdaysForMonday = (mondayStr: string, extraDates: string[] = []): str
   return dates.sort();
 };
 
-const computeWeekOfMonth = (dateObj: Date): number => {
-  const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
-  const day = d.getDay();
-  const wedDiff = day === 0 ? 3 : 3 - day;
-  const wednesday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + wedDiff);
-  const firstDay = new Date(wednesday.getFullYear(), wednesday.getMonth(), 1).getDay();
-  return Math.ceil((wednesday.getDate() + (firstDay === 0 ? 6 : firstDay - 1)) / 7);
-};
-
-const getWeekTitle = (mondayStr: string) => {
-  const d = new Date(`${mondayStr}T00:00:00`);
-  const weekNum = computeWeekOfMonth(d);
+const getWeekTitle = (
+  mondayStr: string,
+  schoolYear?: Partial<SchoolYear> | null,
+  recordedDateKeys?: string[]
+) => {
+  const weekNum = getSchoolYearWeekNumberForDate(mondayStr, schoolYear, recordedDateKeys);
   return `WEEK ${weekNum}`;
 };
 
@@ -876,6 +878,10 @@ interface AttendanceHistoryGroupSectionProps {
   onRequestRestore: (dateStr: string) => void;
   userId?: number | string;
   trashVersion: number;
+  schoolYearWeeks?: SchoolYearWeekOption[];
+  selectedWeekKey?: string;
+  recordedWeekKeys?: Set<string>;
+  onSelectWeek?: (weekKey: string) => void;
 }
 
 const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps> = ({
@@ -895,6 +901,10 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
   onRequestRestore,
   userId,
   trashVersion,
+  schoolYearWeeks,
+  selectedWeekKey,
+  recordedWeekKeys,
+  onSelectWeek,
 }) => {
   const datesWithRecords = useMemo(() => {
     return new Set(group.records.map((r) => r.date?.slice(0, 10)));
@@ -912,6 +922,8 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
     if (!selectedDate) return false;
     return groupDates.includes(selectedDate);
   }, [groupDates, selectedDate]);
+
+  const effectiveIsOpen = isOpen || group.records.length === 0;
 
   const displayRecords = useMemo(() => {
     if (!selectedDate || !isOpen) return group.records;
@@ -939,9 +951,20 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
           <div className="flex items-center gap-2 py-0.5 shrink-0">
-            <span className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-slate-100 select-none">
-              {group.title}
-            </span>
+            {!group.isMonthGroup && schoolYearWeeks && schoolYearWeeks.length > 0 && onSelectWeek ? (
+              <HistoryWeekDropdown
+                weeks={schoolYearWeeks}
+                selectedWeekKey={selectedWeekKey || group.weekMonday || group.key}
+                recordedWeekKeys={recordedWeekKeys || new Set()}
+                label={group.title}
+                onSelectWeek={onSelectWeek}
+                ariaLabel="Select school year week for attendance history"
+              />
+            ) : (
+              <span className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-slate-100 select-none">
+                {group.title}
+              </span>
+            )}
           </div>
           <div className={`flex items-center gap-1 sm:gap-1.5 py-0.5 max-w-full ${group.isMonthGroup ? 'overflow-x-auto no-scrollbar' : 'w-full'}`}>
             {groupDates.map((dateStr) => {
@@ -989,7 +1012,7 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
             })}
           </div>
         </div>
-        {isOpen && (
+        {effectiveIsOpen && (
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-normal text-gray-400 dark:text-slate-400">
               <span className="font-bold text-gray-700 dark:text-slate-200">{displayRecords.length}</span> Record{displayRecords.length !== 1 ? 's' : ''}
@@ -997,7 +1020,7 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
           </div>
         )}
       </div>
-      {isOpen && (
+      {effectiveIsOpen && (
         <div className="space-y-2.5">
           {/* While in trashbin: show counter banner on the top part */}
           {isCurrentDateTrashed && (
@@ -1027,7 +1050,17 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
 
           {/* The table entry: deactivated gray color if in trashbin */}
           <div className={isCurrentDateTrashed ? 'grayscale opacity-60 pointer-events-none select-none transition-all duration-200' : ''}>
-            {attendanceSessions.length === 0 ? (
+            {group.records.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-1.5 py-10 text-center rounded-md border border-dashed border-gray-200 dark:border-[#1E1E1E] bg-gray-50/50 dark:bg-[#141414]">
+                <CalendarDays className="w-7 h-7 text-gray-300 dark:text-gray-600" />
+                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">
+                  No attendance records for {group.title}
+                </p>
+                <p className="text-[11px] text-gray-400 dark:text-slate-500">
+                  Select another week from the dropdown or record attendance in a session.
+                </p>
+              </div>
+            ) : attendanceSessions.length === 0 ? (
               <AttendanceTable
                 logs={[]}
                 statusBadge={statusBadge}
@@ -1063,8 +1096,20 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
 };
 
 /* ─────────────────────────── component ─────────────────────────── */
-export const TutorQRGenerator: React.FC = () => {
+interface TutorQRGeneratorProps {
+  pageMode?: 'qr' | 'manual' | 'history';
+}
+
+export const TutorQRGenerator: React.FC<TutorQRGeneratorProps> = ({ pageMode }) => {
   const { user } = useAuth();
+  const location = useLocation();
+  const activePageMode: 'qr' | 'manual' | 'history' =
+    pageMode ??
+    (location.pathname.includes('/history')
+      ? 'history'
+      : location.pathname.includes('/manual')
+      ? 'manual'
+      : 'qr');
 
   // Cohort top filter state (ARAL Level, Subject, Grade - Section) synced across tutor dashboard
   const {
@@ -1127,17 +1172,13 @@ export const TutorQRGenerator: React.FC = () => {
 
   // ── Attendance history view state ─────────────────────────────────
   // viewMode: how records are displayed / grouped
-  // jumpDate: when set, filters the view to exactly that date
   type ViewMode = 'week' | 'month';
   const [viewMode, setViewMode] = useState<ViewMode>('week');
-  const [jumpDate, setJumpDate] = useState<string | null>(null);
-  const [showCalendarPopover, setShowCalendarPopover] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
   const [sessionLaunchTimes, setSessionLaunchTimes] = useState<Record<string, string>>(() => getStoredSessionTimes());
   const [successToast, setSuccessToast] = useState<{ title: string; message: string; type?: 'success' | 'error' } | null>(null);
 
   // ── Manual Attendance Mode State ─────────────────────────────────
-  const [attendanceMode, setAttendanceMode] = useState<'qr' | 'manual'>('qr');
   const [manualDate, setManualDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [showManualCalendar, setShowManualCalendar] = useState<boolean>(false);
   const [manualPickerPosition, setManualPickerPosition] = useState({ top: 0, left: 0 });
@@ -1488,7 +1529,7 @@ export const TutorQRGenerator: React.FC = () => {
 
   // Tutor Camera scanner effect
   useEffect(() => {
-    if (!isTutorScanning) {
+    if (!isTutorScanning || activePageMode !== 'qr') {
       void stopTutorScanner();
       setTutorCameraError(null);
       return;
@@ -1565,7 +1606,7 @@ export const TutorQRGenerator: React.FC = () => {
       clearTimeout(timer);
       void stopTutorScanner();
     };
-  }, [isTutorScanning]);
+  }, [isTutorScanning, activePageMode]);
 
   // Clean up scanner on unmount
   useEffect(() => {
@@ -1611,8 +1652,16 @@ export const TutorQRGenerator: React.FC = () => {
     }
   }, []);
 
+  const [currentSchoolYear, setCurrentSchoolYear] = useState<SchoolYear | null>(null);
+
   useEffect(() => {
     fetchAttendanceHistory();
+    academicService
+      .getCurrentSchoolYear()
+      .then((sy) => {
+        if (sy) setCurrentSchoolYear(sy);
+      })
+      .catch(() => {});
   }, [fetchAttendanceHistory]);
 
   const handleUpdateAttendance = async (id: number, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>) => {
@@ -2000,35 +2049,6 @@ export const TutorQRGenerator: React.FC = () => {
     [attendanceHistory, filteredStudentIds]
   );
 
-  const filteredHistory = useMemo(() => {
-    let list = sortedHistory.filter((log) =>
-      matchesSearch(studentSearch, log.user_name, log.user_lrn)
-    );
-    if (jumpDate) {
-      return list.filter((log) => log.date === jumpDate);
-    }
-    return list;
-  }, [sortedHistory, studentSearch, jumpDate]);
-
-  const activeHistoryRecords = filteredHistory;
-
-  const mostRecentDateWithEntry = useMemo(() => {
-    if (activeHistoryRecords.length === 0) return null;
-    return activeHistoryRecords[0].date?.slice(0, 10) || null;
-  }, [activeHistoryRecords]);
-
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (jumpDate) {
-      setSelectedDate(jumpDate);
-    } else if (mostRecentDateWithEntry) {
-      setSelectedDate(mostRecentDateWithEntry);
-    } else {
-      setSelectedDate(null);
-    }
-  }, [jumpDate, mostRecentDateWithEntry, viewMode, studentSearch]);
-
   // Group by week key "YYYY-MM-DD" (Local Monday)
   const getWeekKey = (dateStr: string) => {
     const d = new Date(dateStr + 'T00:00:00');
@@ -2045,17 +2065,111 @@ export const TutorQRGenerator: React.FC = () => {
     return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
   };
 
+  const filteredHistory = useMemo(
+    () =>
+      sortedHistory.filter((log) =>
+        matchesSearch(studentSearch, log.user_name, log.user_lrn)
+      ),
+    [sortedHistory, studentSearch]
+  );
+
+  const recordedAttendanceDateKeys = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          sortedHistory
+            .map((l) => l.date?.slice(0, 10))
+            .filter(Boolean) as string[]
+        )
+      ),
+    [sortedHistory]
+  );
+
+  const recordedAttendanceWeekKeys = useMemo(
+    () => new Set(recordedAttendanceDateKeys.map((d) => getWeekKey(d))),
+    [recordedAttendanceDateKeys]
+  );
+
+  const schoolYearWeeks = useMemo(
+    () => generateSchoolYearWeeks(currentSchoolYear, recordedAttendanceDateKeys),
+    [currentSchoolYear, recordedAttendanceDateKeys]
+  );
+
+  const mostRecentDateWithEntry = useMemo(() => {
+    if (filteredHistory.length === 0) return null;
+    return filteredHistory[0].date?.slice(0, 10) || null;
+  }, [filteredHistory]);
+
+  const [selectedWeekMonday, setSelectedWeekMonday] = useState<string>('');
+
+  useEffect(() => {
+    if (schoolYearWeeks.length === 0) return;
+    setSelectedWeekMonday((prev) => {
+      if (prev && schoolYearWeeks.some((w) => w.weekKey === prev)) {
+        return prev;
+      }
+      if (mostRecentDateWithEntry) {
+        const recentMon = getWeekKey(mostRecentDateWithEntry);
+        if (schoolYearWeeks.some((w) => w.weekKey === recentMon)) {
+          return recentMon;
+        }
+      }
+      const todayMon = getWeekKey(new Date().toLocaleDateString('en-CA'));
+      if (schoolYearWeeks.some((w) => w.weekKey === todayMon)) {
+        return todayMon;
+      }
+      return schoolYearWeeks[schoolYearWeeks.length - 1].weekKey;
+    });
+  }, [schoolYearWeeks, mostRecentDateWithEntry]);
+
+  const selectedWeekOption = useMemo(
+    () =>
+      schoolYearWeeks.find((w) => w.weekKey === selectedWeekMonday) ||
+      schoolYearWeeks[schoolYearWeeks.length - 1] ||
+      null,
+    [schoolYearWeeks, selectedWeekMonday]
+  );
+
+  const activeHistoryRecords = useMemo(() => {
+    if (viewMode === 'week' && selectedWeekOption) {
+      return filteredHistory.filter(
+        (log) => log.date && getWeekKey(log.date.slice(0, 10)) === selectedWeekOption.weekKey
+      );
+    }
+    return filteredHistory;
+  }, [filteredHistory, viewMode, selectedWeekOption]);
+
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (viewMode === 'week' && selectedWeekOption) {
+      const firstMatchInWeek = filteredHistory.find(
+        (log) => log.date && getWeekKey(log.date.slice(0, 10)) === selectedWeekOption.weekKey
+      );
+      setSelectedDate(
+        firstMatchInWeek
+          ? firstMatchInWeek.date.slice(0, 10)
+          : selectedWeekOption.weekKey
+      );
+    } else if (mostRecentDateWithEntry) {
+      setSelectedDate(mostRecentDateWithEntry);
+    } else {
+      setSelectedDate(null);
+    }
+  }, [mostRecentDateWithEntry, viewMode, studentSearch, selectedWeekOption, filteredHistory]);
+
   // Build grouped structure for weekly / monthly views
   const groupedHistory = useMemo((): AttendanceTableGroup[] => {
-    if (jumpDate) {
+    if (viewMode === 'week' && selectedWeekOption) {
       return [{
-        key: jumpDate,
-        title: viewMode === 'week' ? getWeekTitle(getWeekKey(jumpDate)) : getMonthTitle(getMonthKey(jumpDate)),
-        weekMonday: getWeekKey(jumpDate),
-        isMonthGroup: viewMode === 'month',
+        key: selectedWeekOption.weekKey,
+        title: selectedWeekOption.label.toUpperCase(),
+        weekMonday: selectedWeekOption.weekKey,
+        isMonthGroup: false,
         records: activeHistoryRecords,
       }];
     }
+
     const grouped = new Map<string, typeof sortedHistory>();
     for (const log of activeHistoryRecords) {
       const dateKey = log.date?.slice(0, 10) || log.date;
@@ -2069,12 +2183,12 @@ export const TutorQRGenerator: React.FC = () => {
       .sort(([a], [b]) => (b > a ? 1 : -1))
       .map(([key, records]) => ({
         key,
-        title: viewMode === 'week' ? getWeekTitle(key) : getMonthTitle(key),
+        title: viewMode === 'week' ? getWeekTitle(key, currentSchoolYear, recordedAttendanceDateKeys) : getMonthTitle(key),
         weekMonday: viewMode === 'week' ? key : undefined,
         isMonthGroup: viewMode === 'month',
         records,
       }));
-  }, [activeHistoryRecords, jumpDate, viewMode]);
+  }, [activeHistoryRecords, viewMode, selectedWeekOption, currentSchoolYear, recordedAttendanceDateKeys]);
 
 
   const statusBadge = (status: string, display: string) => {
@@ -2336,46 +2450,22 @@ export const TutorQRGenerator: React.FC = () => {
         onSelectClass={(level, subject, cohort) =>
           setSelectedCohortFilter({ aral_level: level, subject, cohort })
         }
-        title="CURRENT CLASS FOR ATTENDANCE"
+        title={activePageMode === 'history' ? 'CURRENT CLASS FOR ATTENDANCE HISTORY' : 'CURRENT CLASS FOR ATTENDANCE'}
       />
 
-      {/* ── Attendance Mode Segmented Toggle ── */}
-      <div
-        className="flex w-full rounded-md bg-gray-100 p-0.5 gap-0.5 dark:bg-[#111111]"
-        role="tablist"
-        aria-label="Attendance session mode"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={attendanceMode === 'qr'}
-          onClick={() => setAttendanceMode('qr')}
-          className={`flex-1 h-8 rounded-sm px-2 sm:px-4 flex items-center justify-center text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-            attendanceMode === 'qr'
-              ? 'bg-[var(--brand)] text-white font-extrabold shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-white/5'
-          }`}
-        >
-          <span className="sm:hidden">QR ATTENDANCE</span>
-          <span className="hidden sm:inline">QR ATTENDANCE SESSION</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={attendanceMode === 'manual'}
-          onClick={() => setAttendanceMode('manual')}
-          className={`flex-1 h-8 rounded-sm px-2 sm:px-4 flex items-center justify-center text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-            attendanceMode === 'manual'
-              ? 'bg-[var(--brand)] text-white font-extrabold shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-white/5'
-          }`}
-        >
-          <span className="sm:hidden">MANUAL ATTENDANCE</span>
-          <span className="hidden sm:inline">MANUAL ATTENDANCE SESSION</span>
-        </button>
-      </div>
+      {/* ── Attendance Module Switcher (QR Session / Manual Session / View Attendance History) ── */}
+      <SlidingTabBar
+        tabs={[
+          { id: 'qr', label: 'QR ATTENDANCE SESSION', shortLabel: 'QR SESSION', to: '/tutor/attendance/generate' },
+          { id: 'manual', label: 'MANUAL ATTENDANCE SESSION', shortLabel: 'MANUAL', to: '/tutor/attendance/manual' },
+          { id: 'history', label: 'VIEW ATTENDANCE HISTORY', shortLabel: 'HISTORY', to: '/tutor/attendance/history' },
+        ] as const}
+        activeTab={activePageMode}
+        ariaLabel="Attendance module view"
+      />
 
-      {attendanceMode === 'qr' ? (
+      <div key={activePageMode} className="tab-panel-enter">
+      {activePageMode === 'qr' ? (
         /* ── Main Grid ───────────────────────────────────────────── */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-6">
 
@@ -2746,7 +2836,7 @@ export const TutorQRGenerator: React.FC = () => {
           </div>
         </div>
       </div>
-      ) : (
+      ) : activePageMode === 'manual' ? (
         /* ── Manual Attendance Entry (Mirrors Score Entry Layout) ── */
         <div className="flex flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm w-full min-w-0 max-w-full sm:h-[600px] sm:min-h-[500px] sm:overflow-hidden">
           {/* Card Header (Matches Score Entry header) */}
@@ -3212,10 +3302,9 @@ export const TutorQRGenerator: React.FC = () => {
           document.body
         )}
       </div>
-    )}
-
-      {/* ── Attendance History ───────────────────────────────────── */}
-      <div className="mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+    ) : (
+      /* ── Attendance History ───────────────────────────────────── */
+      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
         {/* Section header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -3243,49 +3332,15 @@ export const TutorQRGenerator: React.FC = () => {
             </label>
 
             {/* View mode toggle styled like TutorHome trend filter */}
-            <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
-              {(['week', 'month'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  id={`qr-view-${mode}`}
-                  type="button"
-                  onClick={() => { setViewMode(mode); setJumpDate(null); }}
-                  className={`rounded-sm px-2 sm:px-3 py-1 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${viewMode === mode && !jumpDate
-                    ? 'bg-[var(--brand)] text-white'
-                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                    }`}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
-
-            {/* Custom Calendar Dropdown Button in Poppins */}
-            <div className="relative inline-flex items-center shrink-0">
-              <button
-                type="button"
-                id="qr-attendance-calendar-btn"
-                onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`p-1.5 sm:p-2 rounded-md border transition-all flex items-center justify-center cursor-pointer ${jumpDate
-                  ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
-                  : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)]'
-                  }`}
-                title="Select a specific date from calendar"
-                aria-label="Open Calendar"
-              >
-                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
-
-              {showCalendarPopover && (
-                <CustomCalendarDropdown
-                  selectedDate={jumpDate}
-                  onSelectDate={(d) => setJumpDate(d)}
-                  onClear={() => setJumpDate(null)}
-                  onClose={() => setShowCalendarPopover(false)}
-                  loggedDates={new Set(attendanceHistory.map((l) => l.date))}
-                />
-              )}
-            </div>
+            <SlidingPeriodToggle
+              options={['week', 'month'] as const}
+              value={viewMode}
+              onChange={(mode) => { setViewMode(mode); }}
+              ariaLabel="Attendance history view period"
+              idPrefix="qr-view"
+              className="bg-gray-100 dark:bg-[#1A1A1A]"
+              buttonClassName="px-2 sm:px-3 py-1 text-[9px] sm:text-[10px]"
+            />
 
             {/* Export Attendance Sheet button */}
             <button
@@ -3298,22 +3353,6 @@ export const TutorQRGenerator: React.FC = () => {
             </button>
           </div>
         </div>
-
-        {/* Jump-to-date active chip */}
-        {jumpDate && (
-          <div className="flex items-center gap-2 px-6 py-2 border-b border-gray-100 dark:border-[#1A1A1A] bg-emerald-50/60 dark:bg-emerald-950/20">
-            <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-              {new Date(jumpDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-            </span>
-            <button
-              onClick={() => setJumpDate(null)}
-              className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline transition-colors"
-            >
-              <X className="w-3 h-3" /> Clear
-            </button>
-          </div>
-        )}
 
         {/* Content */}
         <div className="p-4 sm:p-6">
@@ -3332,21 +3371,17 @@ export const TutorQRGenerator: React.FC = () => {
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
               {attendanceHistoryError}
             </div>
-          ) : activeHistoryRecords.length === 0 ? (
+          ) : (activeHistoryRecords.length === 0 && !(viewMode === 'week' && groupedHistory.length > 0)) ? (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
               <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
               <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">
                 {studentSearch.trim()
                   ? 'No matching attendance records'
-                  : jumpDate
-                  ? 'No records for this date'
                   : 'No attendance records yet'}
               </p>
               <p className="text-xs text-gray-400 dark:text-slate-500">
                 {studentSearch.trim()
                   ? 'Try a different student name or LRN'
-                  : jumpDate
-                  ? 'Try a different date or clear the filter'
                   : 'Records will appear once students start scanning'}
               </p>
             </div>
@@ -3367,6 +3402,13 @@ export const TutorQRGenerator: React.FC = () => {
                   onRequestRestore={handleRequestRestore}
                   userId={user?.id}
                   trashVersion={trashVersion}
+                  schoolYearWeeks={schoolYearWeeks}
+                  selectedWeekKey={selectedWeekOption?.weekKey}
+                  recordedWeekKeys={recordedAttendanceWeekKeys}
+                  onSelectWeek={(weekKey) => {
+                    setSelectedWeekMonday(weekKey);
+                    setViewMode('week');
+                  }}
                   statusBadge={statusBadge}
                   avatarColor={avatarColor}
                   formatDateString={formatDateString}
@@ -3379,6 +3421,8 @@ export const TutorQRGenerator: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
+      )}
       </div>
 
       <ExportAttendanceModal
@@ -3397,7 +3441,7 @@ export const TutorQRGenerator: React.FC = () => {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
           style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
           onClick={(e) => { if (e.target === e.currentTarget) setConfirmAction((prev) => ({ ...prev, isOpen: false })); }}
         >
@@ -3439,7 +3483,7 @@ export const TutorQRGenerator: React.FC = () => {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
           style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowSaveConfirmation(false); }}
         >

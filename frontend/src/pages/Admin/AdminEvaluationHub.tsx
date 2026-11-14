@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search, X, Lock, Unlock, AlertCircle,
   ChevronUp, ChevronDown, ChevronRight, ArrowUpDown
@@ -14,6 +15,7 @@ import { StudentProfileHistoryModal } from '../../components/StudentProfileHisto
 import { TableSkeleton } from '../../components/SkeletonLoader';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { matchesSearch } from '../../utils/searchHelpers';
+import { useSlidingIndicator } from '../../components/SlidingTabs';
 import {
   COMPOSITE_WEIGHTS,
   PASSING_SCORE_RATIO,
@@ -404,6 +406,9 @@ export const AdminEvaluationHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'mosy' | 'eosy' | 'summer'>(getInitialTab);
   const [currentSY, setCurrentSY] = useState<SchoolYear | null>(null);
   const [activeSystemSem, setActiveSystemSem] = useState(() => getActiveSystemSemester());
+  const phaseTabs = ['mosy', 'eosy', 'summer'] as const;
+  const { containerRef: phaseTabsRef, setItemRef: setPhaseTabRef, pillStyle: phasePillStyle } =
+    useSlidingIndicator(phaseTabs.indexOf(activeTab), [activeSystemSem, currentSY?.current_semester]);
   const [isSettingSemester, setIsSettingSemester] = useState<boolean>(false);
   const [isWindowOpen, setIsWindowOpen] = useState<boolean>(() => isAssessmentWindowOpen(getActiveSystemSemester()));
   const [isAssessmentWindowConfirmOpen, setIsAssessmentWindowConfirmOpen] = useState<boolean>(false);
@@ -1007,13 +1012,33 @@ export const AdminEvaluationHub: React.FC = () => {
           </div>
 
           {/* Phase Switcher Tabs */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 w-full sm:w-auto">
+          <div
+            ref={phaseTabsRef}
+            role="tablist"
+            aria-label="Evaluation phase"
+            className="relative flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 w-full sm:w-auto select-none overflow-hidden"
+          >
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute top-1 bottom-1 left-0 rounded-lg bg-white dark:bg-zinc-800 shadow-xs will-change-transform motion-reduce:transition-none ${
+                phasePillStyle.animate
+                  ? 'transition-[transform,width,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]'
+                  : ''
+              } ${phasePillStyle.ready ? 'opacity-100' : 'opacity-0'}`}
+              style={{
+                width: `${phasePillStyle.width}px`,
+                transform: `translate3d(${phasePillStyle.left}px, 0, 0)`,
+              }}
+            />
             <button
+              ref={setPhaseTabRef(0)}
               type="button"
+              role="tab"
+              aria-selected={activeTab === 'mosy'}
               onClick={() => setActiveTab('mosy')}
-              className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-2 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial justify-center ${
+              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 activeTab === 'mosy'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
+                  ? 'text-slate-900 dark:text-white'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -1027,11 +1052,14 @@ export const AdminEvaluationHub: React.FC = () => {
             </button>
 
             <button
+              ref={setPhaseTabRef(1)}
               type="button"
+              role="tab"
+              aria-selected={activeTab === 'eosy'}
               onClick={() => setActiveTab('eosy')}
-              className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-2 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial justify-center ${
+              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 activeTab === 'eosy'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
+                  ? 'text-slate-900 dark:text-white'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -1045,11 +1073,14 @@ export const AdminEvaluationHub: React.FC = () => {
             </button>
 
             <button
+              ref={setPhaseTabRef(2)}
               type="button"
+              role="tab"
+              aria-selected={activeTab === 'summer'}
               onClick={() => setActiveTab('summer')}
-              className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-2 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial justify-center ${
+              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 activeTab === 'summer'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
+                  ? 'text-slate-900 dark:text-white'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -1162,7 +1193,7 @@ export const AdminEvaluationHub: React.FC = () => {
           <TableSkeleton rows={8} cols={3} />
         </div>
       ) : (
-        <div className="space-y-6">
+        <div key={activeTab} className="tab-panel-enter space-y-6">
           {/* ── Assessment Status Card Container ──────────────────────────────────── */}
           <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-4 sm:p-6 space-y-4 sm:space-y-5 shadow-sm">
             {/* 1. Header Row: Bold Evaluation Status Label on Left with Active Badge & Transition Button on Top Right */}
@@ -1472,14 +1503,15 @@ export const AdminEvaluationHub: React.FC = () => {
         }}
       />
 
-      {isAssessmentWindowConfirmOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="assessment-window-confirm-title"
-          onClick={() => !isTogglingWindow && setIsAssessmentWindowConfirmOpen(false)}
-        >
+      {isAssessmentWindowConfirmOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="assessment-window-confirm-title"
+            onClick={() => !isTogglingWindow && setIsAssessmentWindowConfirmOpen(false)}
+          >
           <div
             className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#222222] rounded-xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col"
             style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
@@ -1572,8 +1604,9 @@ export const AdminEvaluationHub: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
     </div>
   );
 };

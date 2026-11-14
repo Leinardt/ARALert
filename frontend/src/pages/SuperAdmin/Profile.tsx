@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../../hooks/useAuth';
 import type { User, StudentEditRequest } from '../../types';
 import { userService } from '../../services/userService';
@@ -852,8 +853,9 @@ export const Profile: React.FC = () => {
       )}
 
       {/* ── STUDENT EDIT REQUEST MODAL ─────────────────────────────── */}
-      {isEditingStudent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      {isEditingStudent &&
+        createPortal(
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
           <form onSubmit={handleStudentFormSubmit} className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-4 sm:p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <div>
@@ -947,12 +949,14 @@ export const Profile: React.FC = () => {
               </button>
             </div>
           </form>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
 
       {/* ── CONFIRMATION MODAL BEFORE SUBMISSION ───────────────────── */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+      {showConfirmModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-4 sm:p-6 max-w-sm w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 animate-fade-in-scale">
             <div>
               <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-slate-100">
@@ -982,12 +986,14 @@ export const Profile: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
 
       {/* ── PENDING REQUEST DETAILS MODAL ──────────────────────────── */}
-      {showPendingModal && pendingEditRequest && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+      {showPendingModal && pendingEditRequest &&
+        createPortal(
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-4 sm:p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <div className="flex items-center gap-2.5">
@@ -1053,12 +1059,14 @@ export const Profile: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
 
       {/* ── CONFIRMATION MODAL BEFORE WITHDRAWING EDIT REQUEST ── */}
-      {showCancelConfirmModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-60 flex items-center justify-center p-4 animate-fade-in">
+      {showCancelConfirmModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-6 max-w-sm w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 animate-fade-in-scale">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 flex items-center justify-center shrink-0">
@@ -1093,8 +1101,9 @@ export const Profile: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
     </div>
   );
 };

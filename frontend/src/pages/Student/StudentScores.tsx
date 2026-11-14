@@ -23,6 +23,7 @@ import {
 } from '../../utils/sessionDescriptionHelpers';
 import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
+import { SlidingPeriodToggle } from '../../components/SlidingTabs';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
 import {
   PASSING_SCORE_RATIO,
@@ -1324,24 +1325,16 @@ export const StudentScores: React.FC = () => {
 
           {/* 3. View mode toggle (WEEK / MONTH) + School Year Week Dropdown + Calendar Button */}
           <div className="order-2 sm:order-3 flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
-              {(['week', 'month'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => {
-                    setViewMode(mode);
-                    setJumpDate(null);
-                  }}
-                  className={`h-7 whitespace-nowrap rounded-sm px-1.5 sm:px-3 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
-                    ? 'bg-[var(--brand)] text-white'
-                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                    }`}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
+            <SlidingPeriodToggle
+              options={['week', 'month'] as const}
+              value={jumpDate ? null : viewMode}
+              onChange={(mode) => {
+                setViewMode(mode);
+                setJumpDate(null);
+              }}
+              ariaLabel="Score records view period"
+              buttonClassName="h-7 px-1.5 sm:px-3 text-[9px] sm:text-[10px]"
+            />
 
             {viewMode === 'week' && schoolYearWeeks.length > 0 && (
               <div ref={weekDropdownRef} className="relative z-40">

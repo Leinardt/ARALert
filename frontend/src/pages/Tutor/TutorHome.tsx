@@ -23,6 +23,7 @@ import {
   setActiveSystemSemester,
 } from '../../utils/sessionDescriptionHelpers';
 import { TutorCohortFilter } from '../../components/TutorCohortFilter';
+import { SlidingPeriodToggle } from '../../components/SlidingTabs';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { useTutorCohortFilter, isStudentInCohort, getTutorClassViewLabel, getCachedTutorStudents } from '../../utils/tutorCohortHelpers';
 
@@ -1071,22 +1072,16 @@ export const TutorHome: React.FC = () => {
                       <span className="truncate max-w-[120px] whitespace-nowrap">{tutorMilestone}</span>
                     </div>
                   </div>
-                  <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap" aria-label="Tutor performance trend period">
-                    {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                      <button
-                        key={filter}
-                        type="button"
-                        onClick={() => {
-                          setTrendFilter(filter);
-                          setTrendPage(0);
-                        }}
-                        className={`rounded-sm px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${trendFilter === filter ? 'bg-[var(--brand)] text-white shadow-xs' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                          }`}
-                      >
-                        {filter}
-                      </button>
-                    ))}
-                  </div>
+                  <SlidingPeriodToggle
+                    options={['day', 'week', 'month'] as const}
+                    value={trendFilter}
+                    onChange={(filter) => {
+                      setTrendFilter(filter);
+                      setTrendPage(0);
+                    }}
+                    ariaLabel="Tutor performance trend period"
+                    buttonClassName="px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px]"
+                  />
                   {/* Period navigation arrows */}
                   <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present records">
                     <button
@@ -1235,8 +1230,11 @@ export const TutorHome: React.FC = () => {
                       <Link
                         to={`/tutor/students/${s.student.id}`}
                         state={{ from: 'dashboard' }}
-                        className={`group relative block rounded-sm border px-3 py-2 min-h-[44px] flex flex-col justify-center transition-all duration-150 ease-out cursor-pointer hover:z-10 hover:scale-[1.018] hover:-translate-y-0.5 hover:shadow-md ${isHighRisk ? 'risk-card-high' : 'risk-card-medium'
-                          }`}
+                        className={`group relative flex flex-col justify-center rounded-sm border px-3 py-2 min-h-[44px] bg-white dark:bg-[#0A0A0A] transition-all duration-150 ease-out cursor-pointer hover:z-10 hover:scale-[1.018] hover:-translate-y-0.5 hover:shadow-md ${
+                          isHighRisk
+                            ? 'border-[var(--risk-high-border)] hover:border-[var(--risk-high)]'
+                            : 'border-[var(--risk-medium-border)] hover:border-[var(--risk-medium)]'
+                        }`}
                       >
                         <div className="min-w-0">
                           <div className="flex items-center justify-between gap-1.5">

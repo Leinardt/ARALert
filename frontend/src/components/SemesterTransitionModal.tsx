@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, AlertCircle } from 'lucide-react';
 
 interface SemesterTransitionModalProps {
@@ -22,8 +23,8 @@ export const SemesterTransitionModal: React.FC<SemesterTransitionModalProps> = (
 }) => {
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
       <div
         className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#222222] rounded-xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col"
         style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
@@ -101,6 +102,7 @@ export const SemesterTransitionModal: React.FC<SemesterTransitionModalProps> = (
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

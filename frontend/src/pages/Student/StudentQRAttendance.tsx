@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { ExportStudentQrModal } from '../../components/ExportStudentQrModal';
+import { SlidingPeriodToggle } from '../../components/SlidingTabs';
 import {
   exportStudentQrToJpeg,
   exportStudentQrToPdf,
@@ -936,26 +937,17 @@ export const StudentQRAttendance: React.FC = () => {
           {/* Controls */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
             {/* View Mode Toggle */}
-            <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
-              {(['week', 'month'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  id={`student-att-view-${mode}`}
-                  type="button"
-                  onClick={() => {
-                    setViewMode(mode);
-                    setJumpDate(null);
-                  }}
-                  className={`h-7.5 sm:h-7 whitespace-nowrap rounded-sm px-2 sm:px-3 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer ${
-                    viewMode === mode && !jumpDate
-                      ? 'bg-[var(--brand)] text-white'
-                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                  }`}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
+            <SlidingPeriodToggle
+              options={['week', 'month'] as const}
+              value={jumpDate ? null : viewMode}
+              onChange={(mode) => {
+                setViewMode(mode);
+                setJumpDate(null);
+              }}
+              ariaLabel="Attendance history view period"
+              idPrefix="student-att-view"
+              buttonClassName="h-7.5 sm:h-7 px-2 sm:px-3 text-[9px] sm:text-[10px]"
+            />
 
             {/* Custom Calendar Dropdown Button */}
             <div className="relative inline-flex items-center shrink-0">

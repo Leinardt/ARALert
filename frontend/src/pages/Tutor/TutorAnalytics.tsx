@@ -32,6 +32,7 @@ import {
 import { matchesSearch } from '../../utils/searchHelpers';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { TutorCohortFilter } from '../../components/TutorCohortFilter';
+import { SlidingTabBar, SlidingPeriodToggle } from '../../components/SlidingTabs';
 import {
   useTutorCohortFilter,
   isStudentInCohort,
@@ -2266,32 +2267,17 @@ export const TutorAnalytics: React.FC = () => {
       />
 
       {/* ── View Tab Switcher ── */}
-      <div
-        className="flex w-full rounded-md bg-gray-100 p-0.5 gap-0.5 dark:bg-[#111111]"
-        role="tablist"
-        aria-label="Analytics view"
-      >
-        {([
-          ['overall', 'Overall'],
-          ['attendance', 'Attendance'],
-          ['score', 'Score'],
-        ] as const).map(([tab, label]) => (
-          <button
-            key={tab}
-            type="button"
-            role="tab"
-            aria-selected={activeAnalyticsTab === tab}
-            onClick={() => setActiveAnalyticsTab(tab)}
-            className={`flex-1 h-8 rounded-sm px-4 flex items-center justify-center text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-              activeAnalyticsTab === tab
-                ? 'bg-[var(--brand)] text-white font-extrabold shadow-sm'
-                : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-white/5'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <SlidingTabBar
+        tabs={[
+          { id: 'overall', label: 'Overall' },
+          { id: 'attendance', label: 'Attendance' },
+          { id: 'score', label: 'Score' },
+        ] as const}
+        activeTab={activeAnalyticsTab}
+        onChange={setActiveAnalyticsTab}
+        ariaLabel="Analytics view"
+      />
+      <div key={activeAnalyticsTab} className="tab-panel-enter space-y-4 sm:space-y-6">
           {/* ── Overall Tab Content ── */}
           {activeAnalyticsTab === 'overall' && (
             <>
@@ -2359,21 +2345,16 @@ export const TutorAnalytics: React.FC = () => {
                         }}
                       />
                     </div>
-                    <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Filter risk chart by time period">
-                      {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                        <button
-                          key={filter}
-                          type="button"
-                          onClick={() => {
-                            setRiskTrendFilter(filter);
-                            setRiskTrendPage(0);
-                          }}
-                          className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all ${riskTrendFilter === filter ? 'bg-[var(--brand)] text-white font-black shadow-sm' : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'}`}
-                        >
-                          {filter}
-                        </button>
-                      ))}
-                    </div>
+                    <SlidingPeriodToggle
+                      options={['day', 'week', 'month'] as const}
+                      value={riskTrendFilter}
+                      onChange={(filter) => {
+                        setRiskTrendFilter(filter);
+                        setRiskTrendPage(0);
+                      }}
+                      ariaLabel="Filter risk chart by time period"
+                      buttonClassName="px-3 py-1.5 text-[10px]"
+                    />
                     {/* Period navigation arrows to scroll between previous and present records */}
                     <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present risk records">
                       <button
@@ -2790,21 +2771,16 @@ export const TutorAnalytics: React.FC = () => {
                         }}
                       />
                     </div>
-                    <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Attendance trend period">
-                      {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                        <button
-                          key={filter}
-                          type="button"
-                          onClick={() => {
-                            setAttendanceFilter(filter);
-                            setAttendanceTrendPage(0);
-                          }}
-                          className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all ${attendanceFilter === filter ? 'bg-[var(--brand)] text-white font-black shadow-sm' : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'}`}
-                        >
-                          {filter}
-                        </button>
-                      ))}
-                    </div>
+                    <SlidingPeriodToggle
+                      options={['day', 'week', 'month'] as const}
+                      value={attendanceFilter}
+                      onChange={(filter) => {
+                        setAttendanceFilter(filter);
+                        setAttendanceTrendPage(0);
+                      }}
+                      ariaLabel="Attendance trend period"
+                      buttonClassName="px-3 py-1.5 text-[10px]"
+                    />
                     {/* Period navigation arrows */}
                     <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present attendance records">
                       <button
@@ -3045,21 +3021,16 @@ export const TutorAnalytics: React.FC = () => {
                         }}
                       />
                     </div>
-                    <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Score trend period">
-                      {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                        <button
-                          key={filter}
-                          type="button"
-                          onClick={() => {
-                            setScoreFilter(filter);
-                            setScoreTrendPage(0);
-                          }}
-                          className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all ${scoreFilter === filter ? 'bg-[var(--brand)] text-white font-black shadow-sm' : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'}`}
-                        >
-                          {filter}
-                        </button>
-                      ))}
-                    </div>
+                    <SlidingPeriodToggle
+                      options={['day', 'week', 'month'] as const}
+                      value={scoreFilter}
+                      onChange={(filter) => {
+                        setScoreFilter(filter);
+                        setScoreTrendPage(0);
+                      }}
+                      ariaLabel="Score trend period"
+                      buttonClassName="px-3 py-1.5 text-[10px]"
+                    />
                     {/* Period navigation arrows */}
                     <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present score records">
                       <button
@@ -3291,6 +3262,7 @@ export const TutorAnalytics: React.FC = () => {
               </div>
             </>
           )}
+      </div>
     </div>
   );
 };

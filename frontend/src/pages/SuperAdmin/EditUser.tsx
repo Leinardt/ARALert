@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -53,7 +54,7 @@ const editUserSchema = z.object({
   lrn: z.string().optional(),
   grade_level_grade: z.string().optional(),
   grade_level_section: z.string().optional(),
-  is_active: z.boolean(),
+  is_active: z.boolean().optional(),
   assigned_tutor: z.string().optional().nullable(),
   aral_level: z.string().optional(),
   subject: z.string().optional(),
@@ -395,6 +396,8 @@ export const EditUser: React.FC = () => {
         payload.assigned_tutor = null;
         payload.parent_guardian_name = '';
         payload.contact_number = '';
+      } else {
+        delete payload.is_active;
       }
       if (data.role !== 'tutor' && data.role !== 'student') {
         payload.subject = null;
@@ -506,26 +509,28 @@ export const EditUser: React.FC = () => {
   const onSubmit = async (data: EditUserFields) => {
     if (!id) return;
 
-    if (isSelf && data.is_active === false) {
-      setErrorToast({
-        title: 'Action Not Allowed',
-        message: 'You cannot deactivate your own account.',
-      });
-      return;
-    }
+    if (data.role !== 'student') {
+      if (isSelf && data.is_active === false) {
+        setErrorToast({
+          title: 'Action Not Allowed',
+          message: 'You cannot deactivate your own account.',
+        });
+        return;
+      }
 
-    if (isRootSuperAdminEmail(data.email) && data.is_active === false) {
-      setErrorToast({
-        title: 'Action Protected',
-        message: 'The Primary Root SuperAdmin account is protected and cannot be deactivated.',
-      });
-      return;
-    }
+      if (isRootSuperAdminEmail(data.email) && data.is_active === false) {
+        setErrorToast({
+          title: 'Action Protected',
+          message: 'The Primary Root SuperAdmin account is protected and cannot be deactivated.',
+        });
+        return;
+      }
 
-    if (userInitialData?.is_active && data.is_active === false) {
-      setPendingSubmitData(data);
-      setShowDeactivateConfirmModal(true);
-      return;
+      if (userInitialData?.is_active && data.is_active === false) {
+        setPendingSubmitData(data);
+        setShowDeactivateConfirmModal(true);
+        return;
+      }
     }
 
     await performSave(data);
@@ -994,25 +999,27 @@ export const EditUser: React.FC = () => {
             </div>
           )}
 
-          {isRootSuperAdminEmail(watch('email')) ? (
-            <div className="flex items-center pt-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              <ShieldCheck className="w-4 h-4 mr-1.5 shrink-0" />
-              <span>Primary Root SuperAdmin (Account Status Protected)</span>
-            </div>
-          ) : isSelf ? (
-            <div className="flex items-center pt-2 text-xs font-semibold text-blue-600 dark:text-blue-400">
-              <ShieldCheck className="w-4 h-4 mr-1.5 shrink-0" />
-              <span>Your Own Account (Cannot be deactivated)</span>
-            </div>
-          ) : (
-            <div className="flex items-center pt-2">
-              <input id="is_active" type="checkbox" {...register('is_active')}
-                className="h-4 w-4 text-[var(--brand)] focus:ring-[var(--brand)] border-gray-300 rounded cursor-pointer"
-              />
-              <label htmlFor="is_active" className="ml-2 block text-xs font-semibold text-gray-900 dark:text-slate-200 cursor-pointer">
-                Account Status (Active)
-              </label>
-            </div>
+          {selectedRole !== 'student' && (
+            isRootSuperAdminEmail(watch('email')) ? (
+              <div className="flex items-center pt-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                <ShieldCheck className="w-4 h-4 mr-1.5 shrink-0" />
+                <span>Primary Root SuperAdmin (Account Status Protected)</span>
+              </div>
+            ) : isSelf ? (
+              <div className="flex items-center pt-2 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                <ShieldCheck className="w-4 h-4 mr-1.5 shrink-0" />
+                <span>Your Own Account (Cannot be deactivated)</span>
+              </div>
+            ) : (
+              <div className="flex items-center pt-2">
+                <input id="is_active" type="checkbox" {...register('is_active')}
+                  className="h-4 w-4 text-[var(--brand)] focus:ring-[var(--brand)] border-gray-300 rounded cursor-pointer"
+                />
+                <label htmlFor="is_active" className="ml-2 block text-xs font-semibold text-gray-900 dark:text-slate-200 cursor-pointer">
+                  Account Status (Active)
+                </label>
+              </div>
+            )
           )}
 
           <div className="flex justify-end pt-4 space-x-3">
@@ -1027,8 +1034,9 @@ export const EditUser: React.FC = () => {
       </div>
 
       {/* ── Deactivate Account / Delete Student Confirmation Modal ──────── */}
-      {showDeactivateConfirmModal && pendingSubmitData && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      {showDeactivateConfirmModal && pendingSubmitData &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#0A0A0A] rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 dark:border-[#1A1A1A] space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
@@ -1082,8 +1090,9 @@ export const EditUser: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
 
       {/* ── Saved Changes Floating Notification Toast (Matches TutorScores Score Success Notification) ── */}
       {showSuccessToast && (

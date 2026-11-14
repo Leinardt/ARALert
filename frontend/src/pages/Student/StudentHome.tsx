@@ -19,6 +19,7 @@ import {
   setActiveSystemSemester,
 } from '../../utils/sessionDescriptionHelpers';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
+import { SlidingPeriodToggle } from '../../components/SlidingTabs';
 
 // ─── Chart Types & Interactive Bézier Chart ──────────────────────────────────
 
@@ -1023,24 +1024,16 @@ export const StudentHome: React.FC = () => {
                     <span className="whitespace-nowrap">{studentMilestone}</span>
                   </div>
                 </div>
-                <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap" aria-label="Student performance trend period">
-                  {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                    <button
-                      key={filter}
-                      type="button"
-                      onClick={() => {
-                        setTrendFilter(filter);
-                        setTrendPage(0);
-                      }}
-                      className={`rounded-sm px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${trendFilter === filter
-                          ? 'bg-[var(--brand)] text-white shadow-xs'
-                          : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                        }`}
-                    >
-                      {filter}
-                    </button>
-                  ))}
-                </div>
+                <SlidingPeriodToggle
+                  options={['day', 'week', 'month'] as const}
+                  value={trendFilter}
+                  onChange={(filter) => {
+                    setTrendFilter(filter);
+                    setTrendPage(0);
+                  }}
+                  ariaLabel="Student performance trend period"
+                  buttonClassName="px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px]"
+                />
                 {/* Period navigation arrows */}
                 <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present records">
                   <button

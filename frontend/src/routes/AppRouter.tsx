@@ -165,7 +165,10 @@ export const AppRouter: React.FC = () => {
           }
         >
           <Route path="/tutor" element={<TutorHome />} />
-          <Route path="/tutor/attendance/generate" element={<TutorQRGenerator />} />
+          <Route path="/tutor/attendance" element={<TutorQRGenerator pageMode="qr" />} />
+          <Route path="/tutor/attendance/generate" element={<TutorQRGenerator pageMode="qr" />} />
+          <Route path="/tutor/attendance/manual" element={<TutorQRGenerator pageMode="manual" />} />
+          <Route path="/tutor/attendance/history" element={<TutorQRGenerator pageMode="history" />} />
           <Route path="/tutor/analytics" element={<TutorAnalytics />} />
           <Route path="/tutor/students" element={<TutorStudentDirectory />} />
           <Route path="/tutor/archive" element={<TutorArchive />} />

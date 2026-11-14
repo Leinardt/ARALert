@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
@@ -12,7 +12,9 @@ import {
   getSchoolYearWeekNumberForDate,
   isNotTakenGrade,
   computeAssessmentRemark,
+  type SchoolYearWeekOption,
 } from '../../config/academicConfig';
+import { HistoryWeekDropdown } from '../../components/HistoryWeekDropdown';
 import { ExportScoreModal } from '../../components/ExportScoreModal';
 import { TutorCohortFilter } from '../../components/TutorCohortFilter';
 import {
@@ -33,6 +35,7 @@ import {
 } from '../../utils/sessionDescriptionHelpers';
 import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
+import { SlidingTabBar, SlidingPeriodToggle } from '../../components/SlidingTabs';
 import { matchesSearch } from '../../utils/searchHelpers';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
 import {
@@ -1123,6 +1126,10 @@ type ScoreHistoryGroupSectionProps = Omit<ScoreEntryTableProps, 'rows'> & {
   onRequestRestore: (dateStr: string) => void;
   userId?: number | string;
   trashVersion: number;
+  schoolYearWeeks?: SchoolYearWeekOption[];
+  selectedWeekKey?: string;
+  recordedWeekKeys?: Set<string>;
+  onSelectWeek?: (weekKey: string) => void;
 };
 
 const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
@@ -1135,6 +1142,10 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
   onRequestRestore,
   userId,
   trashVersion,
+  schoolYearWeeks,
+  selectedWeekKey,
+  recordedWeekKeys,
+  onSelectWeek,
   ...tableProps
 }) => {
   const datesWithRecords = useMemo(() => {
@@ -1211,9 +1222,20 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
           <div className="flex items-center gap-2 py-0.5 shrink-0">
-            <span className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-slate-100 select-none">
-              {tableGroup.title}
-            </span>
+            {!tableGroup.isMonthGroup && schoolYearWeeks && schoolYearWeeks.length > 0 && onSelectWeek ? (
+              <HistoryWeekDropdown
+                weeks={schoolYearWeeks}
+                selectedWeekKey={selectedWeekKey || tableGroup.weekMonday || tableGroup.key}
+                recordedWeekKeys={recordedWeekKeys || new Set()}
+                label={tableGroup.title}
+                onSelectWeek={onSelectWeek}
+                ariaLabel="Select school year week for score history"
+              />
+            ) : (
+              <span className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-slate-100 select-none">
+                {tableGroup.title}
+              </span>
+            )}
           </div>
           <div className={`flex items-center gap-1 sm:gap-1.5 py-0.5 max-w-full ${tableGroup.isMonthGroup ? 'overflow-x-auto no-scrollbar' : 'w-full'}`}>
             {groupDates.map((dateStr) => {
@@ -1549,8 +1571,6 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
 
   type ViewMode = 'week' | 'month';
   const [viewMode, setViewMode] = useState<ViewMode>('week');
-  const [jumpDate, setJumpDate] = useState<string | null>(null);
-  const [showCalendarPopover, setShowCalendarPopover] = useState(false);
   const [showEntryCalendarPopover, setShowEntryCalendarPopover] = useState(false);
   const [entryPickerPosition, setEntryPickerPosition] = useState({ top: 0, left: 0 });
   const entryPickerAnchorRef = useRef<HTMLButtonElement | null>(null);
@@ -2297,12 +2317,7 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
       .filter((batch) => batch.grades.length > 0);
   }, [batchRows, scoreStudentSearch, studentsById]);
 
-  const visibleBatchRows = useMemo(() => {
-    if (jumpDate) {
-      return searchedBatchRows.filter((batch) => batch.dateStr === jumpDate);
-    }
-    return searchedBatchRows;
-  }, [searchedBatchRows, jumpDate]);
+  const visibleBatchRows = searchedBatchRows;
 
   const visibleScoreRows = useMemo(() => visibleBatchRows.flatMap((batch) => batch.grades), [visibleBatchRows]);
 
@@ -2334,19 +2349,12 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
     [currentSchoolYear, recordedScoreDateKeys]
   );
 
-  const [selectedWeekMonday, setSelectedWeekMonday] = useState<string>('');
-  const [showWeekDropdown, setShowWeekDropdown] = useState(false);
-  const weekDropdownRef = useRef<HTMLDivElement | null>(null);
+  const recordedScoreWeekKeys = useMemo(
+    () => new Set(recordedScoreDateKeys.map((d) => getWeekKey(d))),
+    [recordedScoreDateKeys]
+  );
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (weekDropdownRef.current && !weekDropdownRef.current.contains(e.target as Node)) {
-        setShowWeekDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const [selectedWeekMonday, setSelectedWeekMonday] = useState<string>('');
 
   useEffect(() => {
     if (schoolYearWeeks.length === 0) return;
@@ -2376,9 +2384,7 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
-    if (jumpDate) {
-      setSelectedDate(jumpDate);
-    } else if (viewMode === 'week' && selectedWeekOption) {
+    if (viewMode === 'week' && selectedWeekOption) {
       const firstMatchInWeek = visibleScoreRows.find(
         (g) => getWeekKey(g.date_logged.slice(0, 10)) === selectedWeekOption.weekKey
       );
@@ -2388,32 +2394,22 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
     } else {
       setSelectedDate(null);
     }
-  }, [jumpDate, mostRecentDateWithEntry, viewMode, scoreStudentSearch, selectedWeekOption, visibleScoreRows]);
+  }, [mostRecentDateWithEntry, viewMode, scoreStudentSearch, selectedWeekOption, visibleScoreRows]);
 
   useEffect(() => {
     setHasAttemptedSave(false);
   }, [selectedDate]);
 
   const displayedScoreRows = useMemo(() => {
-    if (viewMode === 'week' && !jumpDate && selectedWeekOption) {
+    if (viewMode === 'week' && selectedWeekOption) {
       return visibleScoreRows.filter(
         (grade) => getWeekKey(grade.date_logged.slice(0, 10)) === selectedWeekOption.weekKey
       );
     }
     return visibleScoreRows;
-  }, [viewMode, jumpDate, selectedWeekOption, visibleScoreRows]);
+  }, [viewMode, selectedWeekOption, visibleScoreRows]);
 
   const scoreTableGroups = useMemo((): ScoreTableGroup[] => {
-    if (jumpDate) {
-      return [{
-        key: jumpDate,
-        title: viewMode === 'week' ? getWeekTitle(getWeekKey(jumpDate), currentSchoolYear, recordedScoreDateKeys) : getMonthTitle(getMonthKey(jumpDate)),
-        weekMonday: getWeekKey(jumpDate),
-        isMonthGroup: viewMode === 'month',
-        rows: visibleScoreRows,
-      }];
-    }
-
     if (viewMode === 'week' && selectedWeekOption) {
       return [{
         key: selectedWeekOption.weekKey,
@@ -2440,7 +2436,7 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
         isMonthGroup: viewMode === 'month',
         rows,
       }));
-  }, [jumpDate, viewMode, visibleScoreRows, displayedScoreRows, selectedWeekOption, currentSchoolYear, recordedScoreDateKeys]);
+  }, [viewMode, visibleScoreRows, displayedScoreRows, selectedWeekOption, currentSchoolYear, recordedScoreDateKeys]);
   const sortedStudents = useMemo(
     () => [...cohortStudents]
       .filter((student) => matchesSearch(studentSearch, student.full_name, student.first_name, student.last_name, student.middle_name, student.lrn))
@@ -2500,33 +2496,16 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
       />
 
       {/* ── Submodule Navigation Switcher (Score Entry / View Student Score History) ── */}
-      <div className="flex w-full rounded-md bg-gray-100 p-0.5 gap-0.5 dark:bg-[#111111]" role="tablist" aria-label="Score module view">
-        <Link
-          to="/tutor/scores/entry"
-          role="tab"
-          aria-selected={activePageMode === 'entry'}
-          className={`flex-1 h-8 rounded-sm px-4 flex items-center justify-center text-xs font-bold uppercase tracking-wider transition-all ${
-            activePageMode === 'entry'
-              ? 'bg-[var(--brand)] text-white font-extrabold shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-white/5'
-          }`}
-        >
-          Score Entry
-        </Link>
-        <Link
-          to="/tutor/scores/history"
-          role="tab"
-          aria-selected={activePageMode === 'history'}
-          className={`flex-1 h-8 rounded-sm px-4 flex items-center justify-center text-xs font-bold uppercase tracking-wider transition-all ${
-            activePageMode === 'history'
-              ? 'bg-[var(--brand)] text-white font-extrabold shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-white/5'
-          }`}
-        >
-          View Student Score History
-        </Link>
-      </div>
+      <SlidingTabBar
+        tabs={[
+          { id: 'entry', label: 'Score Entry', to: '/tutor/scores/entry' },
+          { id: 'history', label: 'View Student Score History', shortLabel: 'Score History', to: '/tutor/scores/history' },
+        ] as const}
+        activeTab={activePageMode}
+        ariaLabel="Score module view"
+      />
 
+      <div key={activePageMode} className="tab-panel-enter">
       {/* ── Score Entry Form ───────────────────────────────────────── */}
       {activePageMode === 'entry' && (
         <div className="order-1 flex flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm w-full min-w-0 max-w-full sm:h-[600px] sm:min-h-[500px] sm:overflow-hidden">
@@ -2991,98 +2970,18 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
                 className="h-8 sm:h-8.5 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-8 pr-2.5 text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
               />
             </label>
-            <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
-              {(['week', 'month'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => { setViewMode(mode); setJumpDate(null); }}
-                  className={`h-7 whitespace-nowrap rounded-sm px-3 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate ? 'bg-[var(--brand)] text-white' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
-            {viewMode === 'week' && schoolYearWeeks.length > 0 && (
-              <div ref={weekDropdownRef} className="relative z-30">
-                <button
-                  type="button"
-                  onClick={() => setShowWeekDropdown((prev) => !prev)}
-                  aria-label="Select school year week"
-                  aria-expanded={showWeekDropdown}
-                  className="inline-flex h-8 items-center justify-between gap-2 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-3 text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-gray-100 dark:hover:bg-[#222222] focus:border-[var(--brand)] cursor-pointer whitespace-nowrap"
-                >
-                  <span>{selectedWeekOption ? selectedWeekOption.label : 'Week 1'}</span>
-                  <ChevronDown
-                    className={`h-3.5 w-3.5 shrink-0 opacity-75 transition-transform duration-150 ${
-                      showWeekDropdown ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-                {showWeekDropdown && (
-                  <div className="absolute right-0 top-full mt-1.5 z-50 w-56 max-h-72 overflow-y-auto flex flex-col gap-0.5 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-1.5 shadow-xl">
-                    {schoolYearWeeks.map((week) => {
-                      const isSelected = !jumpDate && selectedWeekOption?.weekKey === week.weekKey;
-                      const weekHasRecords = recordedScoreDateKeys.some(
-                        (d) => getWeekKey(d) === week.weekKey
-                      );
-                      return (
-                        <button
-                          key={week.weekKey}
-                          type="button"
-                          onClick={() => {
-                            setSelectedWeekMonday(week.weekKey);
-                            setJumpDate(null);
-                            setViewMode('week');
-                            setShowWeekDropdown(false);
-                          }}
-                          className={`flex items-center justify-between w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
-                            isSelected
-                              ? 'bg-[var(--brand-light)] text-[var(--brand)] font-bold dark:bg-blue-950/50 dark:text-blue-300'
-                              : 'text-gray-700 dark:text-slate-200 font-medium hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-                          }`}
-                        >
-                          <span className="truncate">{week.label}</span>
-                          {weekHasRecords && (
-                            <span
-                              className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] shrink-0 ml-2"
-                              title="Has recorded scores"
-                            />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="relative inline-flex items-center z-30">
-              <button
-                type="button"
-                onClick={() => setShowCalendarPopover((previous) => !previous)}
-                className={`flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border p-0 transition-all ${jumpDate ? 'border-[var(--brand)] bg-[var(--brand)] text-white' : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)]'}`}
-                aria-label="Open score calendar"
-                title="Select a specific date from calendar"
-              >
-                <Calendar className="w-4 h-4" />
-              </button>
-              {showCalendarPopover && (
-                <ScoreCalendarDropdown
-                  selectedDate={jumpDate}
-                  onSelectDate={setJumpDate}
-                  onClear={() => setJumpDate(null)}
-                  onClose={() => setShowCalendarPopover(false)}
-                  loggedDates={loggedScoreDates}
-                  align="right"
-                />
-              )}
-            </div>
+            <SlidingPeriodToggle
+              options={['week', 'month'] as const}
+              value={viewMode}
+              onChange={(mode) => { setViewMode(mode); }}
+              ariaLabel="Score history view period"
+              className="bg-gray-100 dark:bg-[#1A1A1A]"
+              buttonClassName="h-7 px-3 text-[10px]"
+            />
             <button
               type="button"
               onClick={() => {
-                if (jumpDate) {
-                  setExportModalConfig({ isOpen: true, mode: 'daily', targetKey: jumpDate });
-                } else if (viewMode === 'month') {
+                if (viewMode === 'month') {
                   const monthStr = new Date().toLocaleDateString('en-CA').slice(0, 7);
                   setExportModalConfig({ isOpen: true, mode: 'monthly', targetKey: monthStr });
                 } else {
@@ -3101,18 +3000,6 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
           </div>
         </div>
 
-        {jumpDate && (
-          <div className="flex items-center gap-2 px-5 py-2 border-b border-gray-100 dark:border-[#1A1A1A] bg-emerald-50/60 dark:bg-emerald-950/30">
-            <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-              {new Date(`${jumpDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-            </span>
-            <button type="button" onClick={() => setJumpDate(null)} className="ml-auto flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 cursor-pointer">
-              <X className="w-3 h-3" /> Clear
-            </button>
-          </div>
-        )}
-
         <div className="p-4 sm:p-5">
           {gradesLoading ? (
             <div className="space-y-2">
@@ -3120,22 +3007,18 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
                 <div key={i} className="h-10 bg-gray-100 rounded-md animate-pulse" />
               ))}
             </div>
-          ) : (displayedScoreRows.length === 0 && !(viewMode === 'week' && !jumpDate && scoreTableGroups.length > 0)) ? (
+          ) : (displayedScoreRows.length === 0 && !(viewMode === 'week' && scoreTableGroups.length > 0)) ? (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
               <BookOpen className="w-8 h-8 text-gray-200" />
               <p className="text-xs font-semibold text-gray-500">
                 {scoreStudentSearch.trim()
                   ? 'No matching score records'
-                  : jumpDate
-                    ? 'No records for this date'
-                    : 'No score records yet'}
+                  : 'No score records yet'}
               </p>
               <p className="text-[11px] text-gray-400">
                 {scoreStudentSearch.trim()
                   ? 'Try a different student name or subject'
-                  : jumpDate
-                    ? 'Try a different date or clear the filter'
-                    : 'Records will appear after logging scores'}
+                  : 'Records will appear after logging scores'}
               </p>
             </div>
           ) : (
@@ -3155,6 +3038,13 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
                   onRequestRestore={(d) => setConfirmRestoreModal({ date: d })}
                   userId={user?.id}
                   trashVersion={trashVersion}
+                  schoolYearWeeks={schoolYearWeeks}
+                  selectedWeekKey={selectedWeekOption?.weekKey}
+                  recordedWeekKeys={recordedScoreWeekKeys}
+                  onSelectWeek={(weekKey) => {
+                    setSelectedWeekMonday(weekKey);
+                    setViewMode('week');
+                  }}
                   lastSavedBatchId={lastSavedBatchId}
                   lastRowRef={lastRowRef}
                   editingGradeId={editingGradeId}
@@ -3188,6 +3078,7 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
         </div>
       </div>
       )}
+      </div>
 
       <ExportScoreModal
         isOpen={exportModalConfig.isOpen}
@@ -3207,7 +3098,7 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
           style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowMilestoneConfirmation(false); }}
         >
@@ -3245,7 +3136,7 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
           style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowSaveConfirmation(false); }}
         >
@@ -3394,7 +3285,7 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
           style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
           onClick={(e) => { if (e.target === e.currentTarget) setConfirmTrashModal(null); }}
         >
@@ -3438,7 +3329,7 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
           style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
           onClick={(e) => { if (e.target === e.currentTarget) setConfirmRestoreModal(null); }}
         >

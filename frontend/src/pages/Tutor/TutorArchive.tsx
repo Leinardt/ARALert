@@ -9,6 +9,7 @@ import type { SchoolYear, Grade, Attendance, User, TutorCohortHistoryData } from
 import { matchesSearch } from '../../utils/searchHelpers';
 import { formatSessionLabel, getScoreDescription } from '../../utils/sessionDescriptionHelpers';
 import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
+import { SlidingPeriodToggle } from '../../components/SlidingTabs';
 
 /* ─── Date & Week Helper Functions (Mirrors TutorScores & TutorQRGenerator) ── */
 const computeWeekOfMonth = (dateObj: Date): number => {
@@ -1013,25 +1014,17 @@ export const TutorArchive: React.FC = () => {
             {/* View Mode Toggle and Calendar in a clean row on mobile */}
             <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
               {/* View Mode Toggle: WEEK / MONTH */}
-              <div className="flex h-8 shrink-0 items-center gap-0.5 rounded-md bg-gray-100 dark:bg-[#1A1A1A] p-0.5">
-                {(['week', 'month'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => {
-                      setViewMode(mode);
-                      setJumpDate(null);
-                    }}
-                    className={`h-7 whitespace-nowrap rounded-sm px-3 text-[10.5px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
-                      viewMode === mode && !jumpDate
-                        ? 'bg-[var(--brand)] text-white shadow-xs'
-                        : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 font-bold'
-                    }`}
-                  >
-                    {mode}
-                  </button>
-                ))}
-              </div>
+              <SlidingPeriodToggle
+                options={['week', 'month'] as const}
+                value={jumpDate ? null : viewMode}
+                onChange={(mode) => {
+                  setViewMode(mode);
+                  setJumpDate(null);
+                }}
+                ariaLabel="Archive records view period"
+                className="h-8 bg-gray-100 dark:bg-[#1A1A1A]"
+                buttonClassName="h-7 px-3 text-[10.5px] font-extrabold"
+              />
 
               {/* Calendar Popover */}
               <div className="relative inline-flex items-center shrink-0">

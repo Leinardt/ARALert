@@ -325,7 +325,7 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
           style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
           onClick={(e) => { if (e.target === e.currentTarget) setGroupToRemove(null); }}
         >

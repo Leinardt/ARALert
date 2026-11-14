@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Check, AlertCircle, AlertTriangle, Search } from 'lucide-react';
 import { academicService } from '../services/academicService';
 import type { AvailableTutorItem, AssignmentQueueItem, BulkAssignResult } from '../types';
@@ -124,8 +125,8 @@ export const BulkAssignCohortModal: React.FC<BulkAssignCohortModalProps> = ({
 
   if (!isOpen || selectedStudents.length === 0) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
       <div className="bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-md overflow-hidden">
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between shrink-0 bg-white dark:bg-zinc-950">
@@ -319,6 +320,7 @@ export const BulkAssignCohortModal: React.FC<BulkAssignCohortModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

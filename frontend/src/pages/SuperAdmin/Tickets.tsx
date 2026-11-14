@@ -16,6 +16,7 @@ import { ticketService, SupportTicketItem } from '../../services/ticketService';
 import { TablePagination } from '../../components/TablePagination';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { matchesSearch } from '../../utils/searchHelpers';
+import { useSlidingIndicator } from '../../components/SlidingTabs';
 
 type TicketFilterTab = 'all' | 'under_review' | 'in_progress' | 'resolved' | 'dismissed';
 
@@ -301,6 +302,13 @@ export const Tickets: React.FC = () => {
     { id: 'dismissed', label: 'CLOSED', count: counts.dismissed },
   ];
 
+  const activeTabIndex = Math.max(
+    0,
+    tabs.findIndex((t) => t.id === activeTab)
+  );
+  const { containerRef: tabsRef, setItemRef: setTabRef, pillStyle: tabPillStyle } =
+    useSlidingIndicator(activeTabIndex, [counts.total, counts.underReview, counts.inProgress, counts.resolved, counts.dismissed]);
+
   const activeRoleLabel = roleOptions.find((r) => r.value === roleFilter)?.label || 'ALL ROLES';
 
   return (
@@ -379,28 +387,42 @@ export const Tickets: React.FC = () => {
 
       {/* ── Top Status Navigation Tabs ──────────────────────────────────── */}
       <div
-        className="flex w-full rounded-md bg-gray-100 p-0.5 gap-0.5 dark:bg-[#111111] overflow-x-auto no-scrollbar"
+        ref={tabsRef}
+        className="relative flex w-full rounded-md bg-gray-100 p-1 gap-0.5 dark:bg-[#111111] border border-gray-200/70 dark:border-[#1A1A1A] overflow-x-auto no-scrollbar select-none"
         role="tablist"
         aria-label="Ticket status tabs"
       >
-        {tabs.map((tab) => {
+        <div
+          aria-hidden="true"
+          className={`pointer-events-none absolute top-1 bottom-1 left-0 rounded-sm bg-[var(--brand)] shadow-xs will-change-transform motion-reduce:transition-none ${
+            tabPillStyle.animate
+              ? 'transition-[transform,width,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]'
+              : ''
+          } ${tabPillStyle.ready ? 'opacity-100' : 'opacity-0'}`}
+          style={{
+            width: `${tabPillStyle.width}px`,
+            transform: `translate3d(${tabPillStyle.left}px, 0, 0)`,
+          }}
+        />
+        {tabs.map((tab, index) => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
+              ref={setTabRef(index)}
               type="button"
               role="tab"
               aria-selected={isActive}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 h-8 rounded-sm px-2.5 sm:px-4 flex items-center justify-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-tight sm:tracking-wider transition-colors duration-150 cursor-pointer whitespace-nowrap select-none ${
+              className={`relative z-10 flex-1 h-8 rounded-sm px-2.5 sm:px-4 flex items-center justify-center gap-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-tight sm:tracking-wider transition-colors duration-200 cursor-pointer whitespace-nowrap select-none ${
                 isActive
-                  ? 'bg-[var(--brand)] text-white'
-                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-200/60 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-[#1A1A1A]'
+                  ? 'text-white'
+                  : 'text-gray-500 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200'
               }`}
             >
               <span>{tab.label}</span>
               <span
-                className={`px-1.5 py-0.2 rounded-full text-[9px] font-extrabold leading-tight ${
+                className={`px-1.5 py-0.2 rounded-full text-[9px] font-extrabold leading-tight transition-colors duration-200 ${
                   isActive
                     ? 'bg-white/20 text-white'
                     : 'bg-gray-200 dark:bg-[#222222] text-gray-600 dark:text-slate-300'
@@ -503,6 +525,7 @@ export const Tickets: React.FC = () => {
         </div>
 
         {/* Checklist Items Body */}
+        <div key={activeTab} className="tab-panel-enter">
         {isLoading ? (
           <div className="divide-y divide-gray-100 dark:divide-[#1A1A1A]">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -896,6 +919,7 @@ export const Tickets: React.FC = () => {
           onPageChange={setPage}
           itemLabel="tickets"
         />
+        </div>
       </div>
 
       {/* Floating Notification Toast */}

@@ -5,8 +5,8 @@ import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import {
   LayoutDashboard, Users, User as UserIcon, UserCheck, LogOut, QrCode, Scan,
-  Award, Bell, ChevronDown, ChevronUp, Shield, BookOpen, X, FileText, Moon, Sun,
-  PanelLeftClose, PanelLeftOpen, Menu, AlertTriangle, Calendar, Check, HelpCircle,
+  Award, Bell, ChevronDown, ChevronUp, ChevronLeft, Shield, BookOpen, X, FileText, Moon, Sun,
+  Menu, AlertTriangle, Calendar, Check, HelpCircle,
   Clock, CheckCircle2, XCircle, AlertCircle, RefreshCw, Archive, History,
 } from 'lucide-react';
 import { userService } from '../services/userService';
@@ -1464,7 +1464,7 @@ export const DashboardLayout: React.FC = () => {
             <Link
               to="/tutor/attendance/generate"
               onClick={onItemClick}
-              className={navLinkClass(isActive('/tutor/attendance/generate'), collapsed)}
+              className={navLinkClass(isActivePrefix('/tutor/attendance'), collapsed)}
               title="QR Attendance"
             >
               <AssetSidebarIcon
@@ -1472,7 +1472,7 @@ export const DashboardLayout: React.FC = () => {
                 darkActiveSrc={qrDarkActive}
                 lightSrc={qrLightDefault}
                 lightActiveSrc={qrLightActive}
-                active={isActive('/tutor/attendance/generate')}
+                active={isActivePrefix('/tutor/attendance')}
                 alt="QR Attendance"
                 size={18}
                 theme={theme}
@@ -1658,14 +1658,29 @@ export const DashboardLayout: React.FC = () => {
           flexDirection: 'column',
           flexShrink: 0,
           borderRight: '1px solid var(--slate-200)',
-          zIndex: 20,
+          zIndex: 25,
           position: 'relative',
-          overflow: 'hidden',
+          overflow: 'visible',
         }}
       >
+        {/* Folder-Tab Sidebar Toggle (centered vertically on the sidebar right edge) */}
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          className="group/tab hidden lg:flex items-center justify-center absolute top-1/2 left-full -translate-y-1/2 z-30 w-[18px] h-12 rounded-r-lg border border-l-0 border-slate-200 bg-[var(--sidebar-bg)] text-slate-400 dark:text-zinc-500 hover:text-[var(--brand)] dark:hover:text-white shadow-[2px_0_6px_-2px_rgba(15,23,42,0.08)] dark:shadow-none transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+          title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-expanded={!isSidebarCollapsed}
+        >
+          <ChevronLeft
+            size={14}
+            strokeWidth={2.25}
+            className={`transition-transform duration-200 ${isSidebarCollapsed ? 'rotate-180' : ''}`}
+          />
+        </button>
+
         {/* Brand Header */}
         <div
-          className="group/header"
           style={{
             padding: isSidebarCollapsed ? '0 0.5rem' : '0 1rem 0 1.25rem',
             minHeight: '64px',
@@ -1675,16 +1690,20 @@ export const DashboardLayout: React.FC = () => {
             justifyContent: isSidebarCollapsed ? 'center' : 'space-between',
             flexShrink: 0,
             position: 'relative',
+            overflow: 'hidden',
             transition: 'padding 0.25s ease',
           }}
         >
           {isSidebarCollapsed ? (
-            /* Collapsed State: Show the ARALert logo. On hover, expand button smoothly overlays/replaces it in that same position */
-            <div className="relative w-10 h-10 flex items-center justify-center">
-              {/* ARALert logo image (shown when collapsed) */}
+            /* Collapsed State: Show centered ARALert logo */
+            <Link
+              to={user?.is_superuser ? '/superadmin' : user?.role ? `/${user.role}` : '/'}
+              className="group/brand flex items-center justify-center w-10 h-10 no-underline"
+              title={`ARALert / ${getRoleLabel()}`}
+            >
               <div
                 id="sidebar-brand-logo-collapsed"
-                className="w-8 h-8 flex items-center justify-center select-none transition-all duration-200 ease-in-out opacity-100 scale-100 group-hover/header:opacity-0 group-hover/header:scale-75 pointer-events-none"
+                className="w-8 h-8 flex items-center justify-center select-none transition-transform duration-200 group-hover/brand:scale-105"
               >
                 <img
                   src={aralertLogo}
@@ -1693,21 +1712,10 @@ export const DashboardLayout: React.FC = () => {
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                 />
               </div>
-
-              {/* Expand sidebar button (smoothly replaces logo on hover in original position) */}
-              <button
-                type="button"
-                onClick={toggleSidebar}
-                className="absolute inset-0 flex items-center justify-center rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800 text-slate-600 hover:text-[var(--brand)] dark:text-slate-300 dark:hover:text-blue-400 shadow-xs transition-all duration-200 ease-in-out opacity-0 scale-75 group-hover/header:opacity-100 group-hover/header:scale-100 cursor-pointer focus:outline-none focus:opacity-100 focus:scale-100"
-                title="Expand sidebar"
-                aria-label="Expand sidebar"
-              >
-                <PanelLeftOpen size={18} strokeWidth={2.1} />
-              </button>
-            </div>
+            </Link>
           ) : (
-            /* Expanded State: Show ARALert logo + brand text; collapse button on the right in its original position, smoothly revealed on hover */
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            /* Expanded State: Show ARALert logo + brand text */
+            <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
               <Link
                 to={user?.is_superuser ? '/superadmin' : user?.role ? `/${user.role}` : '/'}
                 className="group/brand flex items-center gap-1.5 no-underline min-w-0"
@@ -1756,17 +1764,6 @@ export const DashboardLayout: React.FC = () => {
                   )}
                 </div>
               </Link>
-
-              {/* Collapse button in original right-side position; smoothly appears on hover without layout shift */}
-              <button
-                type="button"
-                onClick={toggleSidebar}
-                className="p-1.5 rounded-md border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-opacity duration-200 opacity-0 group-hover/header:opacity-100 focus:opacity-100 cursor-pointer shrink-0"
-                title="Collapse sidebar"
-                aria-label="Collapse sidebar"
-              >
-                <PanelLeftClose size={16} />
-              </button>
             </div>
           )}
         </div>
@@ -1776,6 +1773,7 @@ export const DashboardLayout: React.FC = () => {
           style={{
             flex: 1,
             overflowY: 'auto',
+            overflowX: 'hidden',
             padding: isSidebarCollapsed ? '0.875rem 0.35rem' : '0.875rem 0.75rem',
             display: 'flex',
             flexDirection: 'column',
@@ -1884,8 +1882,20 @@ export const DashboardLayout: React.FC = () => {
         style={{
           background: 'var(--sidebar-bg)',
           borderRight: '1px solid var(--slate-200)',
+          overflow: 'visible',
         }}
       >
+        {/* Mobile Folder-Tab Close Button (centered vertically on the drawer right edge) */}
+        <button
+          type="button"
+          onClick={() => setIsMobileDrawerOpen(false)}
+          className={`flex lg:hidden items-center justify-center absolute top-1/2 left-full -translate-y-1/2 z-30 w-[18px] h-12 rounded-r-lg border border-l-0 border-slate-200 bg-[var(--sidebar-bg)] text-slate-400 dark:text-zinc-500 hover:text-[var(--brand)] dark:hover:text-white shadow-[2px_0_6px_-2px_rgba(15,23,42,0.08)] dark:shadow-none transition-all duration-150 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${isMobileDrawerOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+          title="Close navigation"
+          aria-label="Close navigation"
+        >
+          <ChevronLeft size={14} strokeWidth={2.25} />
+        </button>
+
         {/* Mobile Drawer Header */}
         <div
           style={{
@@ -1893,9 +1903,9 @@ export const DashboardLayout: React.FC = () => {
             borderBottom: '1px solid var(--slate-100)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
             padding: '0 1rem 0 1.25rem',
             flexShrink: 0,
+            overflow: 'hidden',
           }}
         >
           <Link
@@ -1961,15 +1971,6 @@ export const DashboardLayout: React.FC = () => {
               )}
             </div>
           </Link>
-
-          <button
-            type="button"
-            onClick={() => setIsMobileDrawerOpen(false)}
-            className="p-1.5 rounded-md border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-            aria-label="Close navigation"
-          >
-            <X size={18} />
-          </button>
         </div>
 
         {/* Mobile Navigation */}
@@ -1977,6 +1978,7 @@ export const DashboardLayout: React.FC = () => {
           style={{
             flex: 1,
             overflowY: 'auto',
+            overflowX: 'hidden',
             padding: '0.875rem 0.75rem',
             display: 'flex',
             flexDirection: 'column',
