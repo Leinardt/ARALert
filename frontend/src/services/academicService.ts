@@ -1,4 +1,6 @@
 import api from '../api/axios';
+import { syncProgramConfigFromSchoolYear } from '../config/academicConfig';
+import { setActiveSystemSemester } from '../utils/sessionDescriptionHelpers';
 import type {
   Grade,
   AralActivity,
@@ -381,13 +383,51 @@ export const academicService = {
     return response.data;
   },
 
-  getCurrentSchoolYear: async (): Promise<SchoolYear> => {
-    const response = await api.get<SchoolYear>('/academics/school-years/current/');
+  saveSchoolYear: async (payload: {
+    school_year: string;
+    is_active?: boolean;
+    current_semester?: '1st' | '2nd' | 'summer';
+    start_date?: string | null;
+    end_date?: string | null;
+    attendance_weight_pct?: number;
+    score_weight_pct?: number;
+    low_min_composite?: number;
+    moderate_min_composite?: number;
+    high_attendance_gate?: number;
+  }): Promise<SchoolYear> => {
+    const response = await api.post<SchoolYear>('/academics/school-years/', payload);
+    syncProgramConfigFromSchoolYear(response.data);
+    if (response.data?.current_semester) {
+      setActiveSystemSemester(response.data.current_semester);
+    }
     return response.data;
   },
 
-  setActiveSemester: async (semester: '1st' | '2nd' | 'summer'): Promise<{ message: string; school_year: SchoolYear }> => {
-    const response = await api.post<{ message: string; school_year: SchoolYear }>('/academics/school-years/current/', { semester });
+  getCurrentSchoolYear: async (): Promise<SchoolYear> => {
+    const response = await api.get<SchoolYear>('/academics/school-years/current/');
+    syncProgramConfigFromSchoolYear(response.data);
+    if (response.data?.current_semester) {
+      setActiveSystemSemester(response.data.current_semester);
+    }
+    return response.data;
+  },
+
+  setActiveSemester: async (
+    semester: '1st' | '2nd' | 'summer',
+    programConfig?: {
+      attendance_weight_pct?: number;
+      score_weight_pct?: number;
+      low_min_composite?: number;
+      moderate_min_composite?: number;
+      high_attendance_gate?: number;
+    }
+  ): Promise<{ message: string; school_year: SchoolYear }> => {
+    const response = await api.post<{ message: string; school_year: SchoolYear }>(
+      '/academics/school-years/current/',
+      { semester, ...(programConfig || {}) }
+    );
+    syncProgramConfigFromSchoolYear(response.data as any);
+    setActiveSystemSemester(semester);
     return response.data;
   },
 

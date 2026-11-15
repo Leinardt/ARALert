@@ -20,7 +20,8 @@ import {
   Users,
 } from 'lucide-react';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
-import { getRecentSchoolWeekdays, compareNamesByLastName } from '../../utils/studentFormatters';
+import { RISK_THRESHOLDS } from '../../config/academicConfig';
+import { getRecentSchoolWeekdays, compareNamesByLastName, formatChartPeriodRange } from '../../utils/studentFormatters';
 import { matchesSearch } from '../../utils/searchHelpers';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { SlidingPeriodToggle } from '../../components/SlidingTabs';
@@ -1318,9 +1319,9 @@ export const AdminHome: React.FC = () => {
               className={`text-xs sm:text-sm font-extrabold shrink-0 ${
                 overallCompositeScore === 0
                   ? 'text-gray-400 dark:text-slate-500'
-                  : overallCompositeScore >= 81
+                  : overallCompositeScore >= RISK_THRESHOLDS.lowMinComposite
                   ? 'text-risk-low'
-                  : overallCompositeScore >= 75
+                  : overallCompositeScore >= RISK_THRESHOLDS.moderateMinComposite
                   ? 'text-risk-moderate'
                   : 'text-risk-high'
               }`}
@@ -1370,6 +1371,9 @@ export const AdminHome: React.FC = () => {
                   >
                     <ChevronLeft size={14} className="stroke-[2.5]" />
                   </button>
+                  <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                    {formatChartPeriodRange(trendFilter, trendPage)}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setTrendPage((p) => Math.max(0, p - 1))}
@@ -1404,56 +1408,60 @@ export const AdminHome: React.FC = () => {
                 </button>
                 {isTutorMenuOpen && (
                   <div
-                    className="absolute left-0 top-full z-50 mt-1 max-h-60 w-56 sm:w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl"
-                    role="listbox"
+                    className="absolute left-0 top-full z-50 mt-1 w-56 sm:w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-xl overflow-hidden"
                   >
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={selectedTutorId === 'all'}
-                      onClick={() => {
-                        setSelectedTutorId('all');
-                        setTrendPage(0);
-                        setIsTutorMenuOpen(false);
-                      }}
-                      className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
-                        selectedTutorId === 'all'
-                          ? 'bg-[var(--brand)] text-white'
-                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-                      }`}
+                    <div
+                      className="max-h-60 overflow-y-auto dropdown-scroll p-1.5"
+                      role="listbox"
                     >
-                      ALL TUTORS
-                    </button>
-                    {[...tutors]
-                      .sort((a, b) => {
-                        const nameA = (a.full_name || `${a.first_name} ${a.last_name}`).trim().toUpperCase();
-                        const nameB = (b.full_name || `${b.first_name} ${b.last_name}`).trim().toUpperCase();
-                        return nameA.localeCompare(nameB);
-                      })
-                      .map((tutor) => {
-                        const isSel = String(selectedTutorId) === String(tutor.id);
-                        const fullName = (tutor.full_name || `${tutor.first_name} ${tutor.last_name}`).trim().toUpperCase();
-                        return (
-                          <button
-                            key={tutor.id}
-                            type="button"
-                            role="option"
-                            aria-selected={isSel}
-                            onClick={() => {
-                              setSelectedTutorId(String(tutor.id));
-                              setTrendPage(0);
-                              setIsTutorMenuOpen(false);
-                            }}
-                            className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
-                              isSel
-                                ? 'bg-[var(--brand)] text-white'
-                                : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-                            }`}
-                          >
-                            {fullName}
-                          </button>
-                        );
-                      })}
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={selectedTutorId === 'all'}
+                        onClick={() => {
+                          setSelectedTutorId('all');
+                          setTrendPage(0);
+                          setIsTutorMenuOpen(false);
+                        }}
+                        className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                          selectedTutorId === 'all'
+                            ? 'bg-[var(--brand)] text-white'
+                            : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                        }`}
+                      >
+                        ALL TUTORS
+                      </button>
+                      {[...tutors]
+                        .sort((a, b) => {
+                          const nameA = (a.full_name || `${a.first_name} ${a.last_name}`).trim().toUpperCase();
+                          const nameB = (b.full_name || `${b.first_name} ${b.last_name}`).trim().toUpperCase();
+                          return nameA.localeCompare(nameB);
+                        })
+                        .map((tutor) => {
+                          const isSel = String(selectedTutorId) === String(tutor.id);
+                          const fullName = (tutor.full_name || `${tutor.first_name} ${tutor.last_name}`).trim().toUpperCase();
+                          return (
+                            <button
+                              key={tutor.id}
+                              type="button"
+                              role="option"
+                              aria-selected={isSel}
+                              onClick={() => {
+                                setSelectedTutorId(String(tutor.id));
+                                setTrendPage(0);
+                                setIsTutorMenuOpen(false);
+                              }}
+                              className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                                isSel
+                                  ? 'bg-[var(--brand)] text-white'
+                                  : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                              }`}
+                            >
+                              {fullName}
+                            </button>
+                          );
+                        })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1476,9 +1484,12 @@ export const AdminHome: React.FC = () => {
                 </button>
                 {isClassMenuOpen && (
                   <div
-                    className="absolute right-0 sm:left-0 top-full z-50 mt-1 max-h-60 w-56 sm:w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl"
-                    role="listbox"
+                    className="absolute right-0 sm:left-0 top-full z-50 mt-1 w-56 sm:w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-xl overflow-hidden"
                   >
+                    <div
+                      className="max-h-60 overflow-y-auto dropdown-scroll p-1.5"
+                      role="listbox"
+                    >
                     <button
                       type="button"
                       role="option"
@@ -1519,6 +1530,7 @@ export const AdminHome: React.FC = () => {
                         </button>
                       );
                     })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1621,9 +1633,9 @@ export const AdminHome: React.FC = () => {
             </div>
 
             {/* Tutors Status List */}
-            <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5 flex flex-col">
+            <div className="mt-2 flex-1 min-h-0 overflow-y-auto space-y-2 -mx-1 px-1 py-1 flex flex-col">
               {filteredTutorStatusList.length === 0 ? (
-                <div className="flex-1 min-h-[200px] flex flex-col items-center justify-center p-6 text-center select-none bg-gray-50/50 dark:bg-[#111111]/40 border border-dashed border-gray-200 dark:border-[#1E1E1E] rounded-lg">
+                <div className="risk-card-cascade flex-1 min-h-[200px] flex flex-col items-center justify-center p-6 text-center select-none bg-gray-50/50 dark:bg-[#111111]/40 border border-dashed border-gray-200 dark:border-[#1E1E1E] rounded-lg">
                   <Users className="w-8 h-8 text-gray-200 dark:text-gray-700 mb-2" />
                   <p className="text-xs font-semibold text-gray-400 dark:text-slate-500">
                     {tutors.length === 0 ? 'No tutors enrolled in ARAL Program' : 'No tutors matching search'}
@@ -1635,32 +1647,38 @@ export const AdminHome: React.FC = () => {
                   </p>
                 </div>
               ) : (
-                filteredTutorStatusList.map((item) => {
+                filteredTutorStatusList.map((item, idx) => {
                   const tutorName = item.tutor.full_name || `${item.tutor.first_name} ${item.tutor.last_name}`;
+                  const cascadeDelay = Math.min(idx * 50, 500);
 
                   return (
-                    <Link
+                    <div
                       key={item.tutor.id}
-                      to={evaluationPath}
-                      className="block p-2.5 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111]/70 hover:bg-gray-100/60 dark:hover:bg-white/[0.03] hover:border-gray-300 dark:hover:border-zinc-700 transition-colors group cursor-pointer shadow-xs"
-                      title={`View evaluation management for ${tutorName}`}
+                      className="risk-card-cascade"
+                      style={{ animationDelay: `${cascadeDelay}ms` }}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-gray-900 dark:text-slate-100 group-hover:text-[var(--brand)] transition-colors truncate">
-                            {tutorName}
-                          </p>
-                          <p className="text-[10.5px] text-gray-400 dark:text-slate-500 mt-0.5">
-                            {item.assignedCount} assigned student{item.assignedCount === 1 ? '' : 's'}
-                          </p>
+                      <Link
+                        to={evaluationPath}
+                        className="group relative block p-2.5 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111]/70 hover:bg-gray-100/60 dark:hover:bg-white/[0.03] hover:border-gray-300 dark:hover:border-zinc-700 transition-all duration-150 ease-out cursor-pointer shadow-xs hover:z-10 hover:scale-[1.018] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
+                        title={`View evaluation management for ${tutorName}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-gray-900 dark:text-slate-100 group-hover:text-[var(--brand)] transition-colors truncate">
+                              {tutorName}
+                            </p>
+                            <p className="text-[10.5px] text-gray-400 dark:text-slate-500 mt-0.5">
+                              {item.assignedCount} assigned student{item.assignedCount === 1 ? '' : 's'}
+                            </p>
+                          </div>
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-bold border shrink-0 transition-transform duration-150 group-hover:scale-105 ${item.badgeClass}`}
+                          >
+                            {item.label}
+                          </span>
                         </div>
-                        <span
-                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-bold border shrink-0 ${item.badgeClass}`}
-                        >
-                          {item.label}
-                        </span>
-                      </div>
-                    </Link>
+                      </Link>
+                    </div>
                   );
                 })
               )}

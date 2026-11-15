@@ -10,8 +10,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
-import { isNotTakenGrade } from '../../config/academicConfig';
-import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
+import { isNotTakenGrade, RISK_THRESHOLDS } from '../../config/academicConfig';
+import { getRecentSchoolWeekdays, formatChartPeriodRange } from '../../utils/studentFormatters';
 import {
   getCurrentSemesterMilestone,
   getActiveSystemMilestone,
@@ -625,20 +625,6 @@ export const StudentHome: React.FC = () => {
   // Student Risk Tier
   const studentRiskTier = studentStat?.riskTier || (profile?.computed_risk_level === 'high' ? 'High' : (profile?.computed_risk_level === 'moderate' || profile?.computed_risk_level === 'medium') ? 'Moderate' : 'Low');
 
-  // Student Risk Level Remark
-  const studentRiskRemark = useMemo(() => {
-    switch (studentRiskTier?.toLowerCase()) {
-      case 'high':
-        return 'Needs Immediate Intervention';
-      case 'moderate':
-      case 'medium':
-        return 'Moderate Standing (Needs Monitoring)';
-      case 'low':
-      default:
-        return 'On Track (Safe Standing)';
-    }
-  }, [studentRiskTier]);
-
   // ── Performance Trend Data (10 days / 6 weeks / 6 months) ───────────────────
   const last4WeeksData = useMemo(() => {
     const assessmentGrades = currentStudentGrades.filter(
@@ -903,15 +889,15 @@ export const StudentHome: React.FC = () => {
     <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3 data-loaded-content w-full min-w-0 max-w-full">
       {/* ── KPI Cards — hero left, 3 secondaries stacked right ──────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3 shrink-0 w-full min-w-0 max-w-full">
-        {/* Hero: Risk Level (Swapped with Composite Rating, dynamically themed like Data Analytics) */}
+        {/* Hero: Risk Level (Swapped with Composite Rating, outline-only consistent with analytics cards) */}
         <Link
           to="/student/analytics"
-          className={`rounded-md border p-4 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] flex flex-col justify-between w-full min-w-0 max-w-full shadow-sm hover:opacity-95 ${
+          className={`rounded-md border bg-white dark:bg-[#111111] p-4 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] flex flex-col justify-between w-full min-w-0 max-w-full shadow-sm ${
             studentRiskTier === 'High'
-              ? 'risk-card-high'
+              ? 'border-rose-500 dark:border-rose-500 hover:border-rose-600 dark:hover:border-rose-400'
               : (studentRiskTier === 'Moderate' || studentRiskTier === 'Medium')
-                ? 'risk-card-moderate'
-                : 'risk-card-low'
+                ? 'border-amber-500 dark:border-amber-500 hover:border-amber-600 dark:hover:border-amber-400'
+                : 'border-emerald-500 dark:border-emerald-500 hover:border-emerald-600 dark:hover:border-emerald-400'
           }`}
         >
           <div>
@@ -930,9 +916,54 @@ export const StudentHome: React.FC = () => {
               {studentRiskTier ? `${studentRiskTier === 'Medium' ? 'MODERATE' : studentRiskTier.toUpperCase()} RISK` : 'LOW RISK'}
             </p>
           </div>
-          <p className="mt-2 text-[11px] font-semibold text-gray-600 dark:text-slate-300">
-            {studentRiskRemark}
-          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {studentRiskTier === 'High' ? (
+              <>
+                {studentStat && studentStat.compositeScore >= RISK_THRESHOLDS.moderateMinComposite && studentStat.attendanceRate <= RISK_THRESHOLDS.highAttendanceGate && (
+                  <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-200 leading-snug">
+                    Despite current composite rating, student is marked high risk due to the attendance rate being {RISK_THRESHOLDS.highAttendanceGate}% or less.
+                  </span>
+                )}
+                {(studentStat?.neededPresentAttendance ?? 0) > 0 && (
+                  <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-300">
+                    Need +{studentStat?.neededPresentAttendance} more Present records to improve risk level
+                  </span>
+                )}
+                {(studentStat?.neededPassedScores ?? 0) > 0 && (
+                  <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300">
+                    Need +{studentStat?.neededPassedScores} more Passed records to improve risk level
+                  </span>
+                )}
+                {(studentStat?.neededPresentAttendance ?? 0) === 0 && (studentStat?.neededPassedScores ?? 0) === 0 && (
+                  <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300">
+                    Need +1 more Passed record to improve risk level
+                  </span>
+                )}
+              </>
+            ) : (studentRiskTier === 'Moderate' || studentRiskTier === 'Medium') ? (
+              <>
+                {(studentStat?.neededPresentAttendance ?? 0) > 0 && (
+                  <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                    Need +{studentStat?.neededPresentAttendance} more Present records to improve risk level
+                  </span>
+                )}
+                {(studentStat?.neededPassedScores ?? 0) > 0 && (
+                  <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                    Need +{studentStat?.neededPassedScores} more Passed records to improve risk level
+                  </span>
+                )}
+                {(studentStat?.neededPresentAttendance ?? 0) === 0 && (studentStat?.neededPassedScores ?? 0) === 0 && (
+                  <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                    Moderate Standing (On Track)
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="inline-flex items-center rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900/40 dark:text-emerald-300">
+                On Track (Safe Standing)
+              </span>
+            )}
+          </div>
         </Link>
 
         {/* 3 Secondary metrics stacked */}
@@ -989,9 +1020,9 @@ export const StudentHome: React.FC = () => {
             <p
               className={`text-base sm:text-xl font-black shrink-0 tracking-tight ${!hasCompositeData
                   ? 'text-gray-400 dark:text-slate-500'
-                  : compositeRating >= 81
+                  : compositeRating >= RISK_THRESHOLDS.lowMinComposite
                     ? 'text-risk-low'
-                    : compositeRating >= 70
+                    : compositeRating >= RISK_THRESHOLDS.moderateMinComposite
                       ? 'text-risk-moderate'
                       : 'text-risk-high'
                 }`}
@@ -1046,6 +1077,9 @@ export const StudentHome: React.FC = () => {
                   >
                     <ChevronLeft size={14} className="stroke-[2.5]" />
                   </button>
+                  <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                    {formatChartPeriodRange(trendFilter, trendPage)}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setTrendPage((p) => Math.max(0, p - 1))}

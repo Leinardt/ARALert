@@ -1186,6 +1186,14 @@ class AuditLogListView(APIView):
                         raw_target_name = cand.split('@')[0].replace('.', ' ').replace('_', ' ').strip().upper()
                     elif log.details.get('target_lrn') or log.details.get('lrn'):
                         raw_target_name = f"STUDENT {log.details.get('target_lrn') or log.details.get('lrn')}"
+                    elif log.action == 'PROGRAM_CONFIGURATION_UPDATED':
+                        sy_lbl = log.details.get('school_year') or ''
+                        att_p = log.details.get('attendance_weight_pct')
+                        scr_p = log.details.get('score_weight_pct')
+                        if att_p is not None and scr_p is not None:
+                            raw_target_name = f"SY {sy_lbl} ({att_p}/{scr_p})".strip()
+                        else:
+                            raw_target_name = 'ARAL Program Config'
 
                 if raw_target_name:
                     clean_name = re.sub(r'\s*\[.*?\]$', '', str(raw_target_name)).strip()

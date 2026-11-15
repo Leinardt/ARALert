@@ -513,6 +513,13 @@ export const AdminEvaluationHub: React.FC = () => {
     const handleSemChange = (e: any) => {
       const newSem = e?.detail?.semester || getActiveSystemSemester();
       setActiveSystemSem(newSem);
+      if (newSem === '2nd') {
+        setActiveTab('eosy');
+      } else if (newSem === 'summer') {
+        setActiveTab('summer');
+      } else {
+        setActiveTab('mosy');
+      }
     };
 
     window.addEventListener('system_semester_changed', handleSemChange);
@@ -1035,14 +1042,22 @@ export const AdminEvaluationHub: React.FC = () => {
               type="button"
               role="tab"
               aria-selected={activeTab === 'mosy'}
-              onClick={() => setActiveTab('mosy')}
-              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial justify-center ${
+              disabled={currentActiveSemester !== '1st'}
+              onClick={() => {
+                if (currentActiveSemester === '1st') setActiveTab('mosy');
+              }}
+              title={
+                currentActiveSemester === '1st'
+                  ? 'MOSY • Middle of School Year Assessment (1st Semester • Q1 & Q2)'
+                  : 'Inactive semester — switch active semester in Settings to view'
+              }
+              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 activeTab === 'mosy'
-                  ? 'text-slate-900 dark:text-white'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'text-slate-900 dark:text-white cursor-default'
+                  : 'text-slate-400 dark:text-zinc-600 opacity-50 cursor-not-allowed'
               }`}
             >
-              <span>MOSY<span className="hidden sm:inline"> (Q1 & Q2)</span></span>
+              <span>MOSY<span className="hidden xl:inline"> &bull; Middle of School Year</span><span className="hidden sm:inline"> (Q1 & Q2)</span></span>
               {currentActiveSemester === '1st' && (
                 <span className="px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60 leading-none inline-flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -1056,14 +1071,22 @@ export const AdminEvaluationHub: React.FC = () => {
               type="button"
               role="tab"
               aria-selected={activeTab === 'eosy'}
-              onClick={() => setActiveTab('eosy')}
-              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial justify-center ${
+              disabled={currentActiveSemester !== '2nd'}
+              onClick={() => {
+                if (currentActiveSemester === '2nd') setActiveTab('eosy');
+              }}
+              title={
+                currentActiveSemester === '2nd'
+                  ? 'EOSY • End of School Year Assessment (2nd Semester • Q3 & Q4)'
+                  : 'Inactive semester — switch active semester in Settings to view'
+              }
+              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 activeTab === 'eosy'
-                  ? 'text-slate-900 dark:text-white'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'text-slate-900 dark:text-white cursor-default'
+                  : 'text-slate-400 dark:text-zinc-600 opacity-50 cursor-not-allowed'
               }`}
             >
-              <span>EOSY<span className="hidden sm:inline"> (Q3 & Q4)</span></span>
+              <span>EOSY<span className="hidden xl:inline"> &bull; End of School Year</span><span className="hidden sm:inline"> (Q3 & Q4)</span></span>
               {currentActiveSemester === '2nd' && (
                 <span className="px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60 leading-none inline-flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -1077,11 +1100,19 @@ export const AdminEvaluationHub: React.FC = () => {
               type="button"
               role="tab"
               aria-selected={activeTab === 'summer'}
-              onClick={() => setActiveTab('summer')}
-              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial justify-center ${
+              disabled={currentActiveSemester !== 'summer'}
+              onClick={() => {
+                if (currentActiveSemester === 'summer') setActiveTab('summer');
+              }}
+              title={
+                currentActiveSemester === 'summer'
+                  ? 'Summer Remediation Assessment (Midyear)'
+                  : 'Inactive semester — switch active semester in Settings to view'
+              }
+              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 activeTab === 'summer'
-                  ? 'text-slate-900 dark:text-white'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'text-slate-900 dark:text-white cursor-default'
+                  : 'text-slate-400 dark:text-zinc-600 opacity-50 cursor-not-allowed'
               }`}
             >
               <span>SUMMER<span className="hidden sm:inline"> (Midyear)</span></span>
@@ -1231,7 +1262,7 @@ export const AdminEvaluationHub: React.FC = () => {
                       ? 'bg-[#0052B7] text-white hover:bg-[#004194] border-[#0052B7] shadow-xs cursor-pointer'
                       : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 border-slate-200 dark:border-zinc-700 cursor-not-allowed opacity-60'
                   }`}
-                  title={!isAllTutorsComplete ? 'All tutors must complete MOSY evaluation before starting the next semester' : 'Start New Semester'}
+                  title={!isAllTutorsComplete ? 'All tutors must complete MOSY (Middle of School Year) evaluation before starting the next semester' : 'Start New Semester'}
                 >
                   {isProcessingMosy ? (
                     'Processing MOSY...'
@@ -1262,7 +1293,7 @@ export const AdminEvaluationHub: React.FC = () => {
                       ? 'bg-[#0052B7] text-white hover:bg-[#004194] border-[#0052B7] shadow-xs cursor-pointer'
                       : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 border-slate-200 dark:border-zinc-700 cursor-not-allowed opacity-60'
                   }`}
-                  title={!isAllTutorsComplete ? 'All tutors must complete EOSY evaluation before starting summer semester' : 'Start Summer Semester'}
+                  title={!isAllTutorsComplete ? 'All tutors must complete EOSY (End of School Year) evaluation before starting summer semester' : 'Start Summer Semester'}
                 >
                   {isProcessingEosy ? (
                     'Starting Summer...'

@@ -165,9 +165,9 @@ export const BulkAssignCohortModal: React.FC<BulkAssignCohortModalProps> = ({
               onChange={(e) => setSelectedPeriod(e.target.value)}
               className="px-2 py-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-xs font-semibold text-slate-800 dark:text-zinc-200"
             >
-              <option value="MOSY">MOSY (Q3/Q4)</option>
-              <option value="EOSY">EOSY</option>
-              <option value="SUMMER">Summer</option>
+              <option value="MOSY">MOSY — 1st Semester (Q1 & Q2 • Middle of School Year)</option>
+              <option value="EOSY">EOSY — 2nd Semester (Q3 & Q4 • End of School Year)</option>
+              <option value="SUMMER">Summer Remediation (Midyear)</option>
               <option value="FULL_YEAR">Full School Year</option>
             </select>
           </div>
@@ -230,7 +230,7 @@ export const BulkAssignCohortModal: React.FC<BulkAssignCohortModalProps> = ({
                 No compatible tutors found.
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto dropdown-scroll pr-1.5">
                 {filteredTutors.map((tutor) => {
                   const isSelected = selectedTutorId === tutor.id;
                   const availableSlots = tutor.available_slots ?? 25;

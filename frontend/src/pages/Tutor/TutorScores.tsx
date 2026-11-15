@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
@@ -70,9 +70,24 @@ type ScoreEntryKind = 'daily' | 'mosy' | 'eosy' | 'endline';
 type ScorePeriod = 'ARAL Summer Assessment' | 'MOSY' | 'EOSY';
 
 const semesterScoreEntry: Record<ScorePeriod, { kind: ScoreEntryKind; buttonLabel: string; title: string; subject: string }> = {
-  MOSY: { kind: 'mosy', buttonLabel: 'Add MOSY Score', title: 'MOSY Assessment Score (Q1/Q2)', subject: 'MOSY Assessment' },
-  EOSY: { kind: 'eosy', buttonLabel: 'Add EOSY Score', title: 'EOSY Assessment Score (Q3/Q4)', subject: 'EOSY Assessment' },
-  'ARAL Summer Assessment': { kind: 'endline', buttonLabel: 'Add ARAL Summer Assessment', title: 'ARAL Summer Assessment', subject: 'ARAL Summer Assessment' },
+  MOSY: {
+    kind: 'mosy',
+    buttonLabel: 'Add MOSY Score',
+    title: 'MOSY Assessment Score — Middle of School Year (Q1 & Q2)',
+    subject: 'MOSY Assessment',
+  },
+  EOSY: {
+    kind: 'eosy',
+    buttonLabel: 'Add EOSY Score',
+    title: 'EOSY Assessment Score — End of School Year (Q3 & Q4)',
+    subject: 'EOSY Assessment',
+  },
+  'ARAL Summer Assessment': {
+    kind: 'endline',
+    buttonLabel: 'Add ARAL Summer Assessment',
+    title: 'ARAL Summer Assessment Score (Midyear)',
+    subject: 'ARAL Summer Assessment',
+  },
 };
 
 const generateUuid = () =>
@@ -1378,6 +1393,7 @@ export interface TutorScoresProps {
 export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const activePageMode: 'entry' | 'history' =
     pageMode ?? (location.pathname.includes('/history') ? 'history' : 'entry');
 
@@ -2476,6 +2492,14 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
     </div>
   );
 
+  const handleNavigateToScoreHistory = () => {
+    handleDismissSuccessModal();
+    if (logDate) {
+      setSelectedWeekMonday(getWeekKey(logDate));
+    }
+    navigate('/tutor/scores/history');
+  };
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto data-loaded-content">
       {/* ── Tutor Multi-Cohort Filter (ARAL Level, Subject, Grade - Section) ── */}
@@ -2528,7 +2552,15 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
                 type="button"
                 onClick={handleMilestoneEntryClick}
                 disabled={!isWindowOpen}
-                title={!isWindowOpen ? `The ${assignedPeriod} assessment window is closed by administration.` : undefined}
+                title={
+                  !isWindowOpen
+                    ? `The ${assignedPeriod} (${assignedPeriod === 'MOSY' ? 'Middle of School Year • Q1 & Q2' : assignedPeriod === 'EOSY' ? 'End of School Year • Q3 & Q4' : 'Summer Midyear Assessment'}) window is closed by administration.`
+                    : assignedPeriod === 'MOSY'
+                    ? 'Add MOSY Score (Middle of School Year • Q1 & Q2)'
+                    : assignedPeriod === 'EOSY'
+                    ? 'Add EOSY Score (End of School Year • Q3 & Q4)'
+                    : 'Add ARAL Summer Assessment Score (Midyear)'
+                }
                 className={`inline-flex min-h-[38px] sm:min-h-0 sm:h-8 w-full sm:w-auto shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 sm:px-3 text-[11px] sm:text-xs font-bold transition ${!isWindowOpen
                     ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-500'
                     : entryKind !== 'daily'
@@ -2541,7 +2573,23 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
                 ) : (
                   <Plus className="w-3.5 h-3.5" />
                 )}
-                <span className="truncate">{assignedPeriod === 'ARAL Summer Assessment' ? 'ARAL Summer Assessment' : `Add ${assignedPeriod} Score`}</span>
+                <span className="truncate">
+                  {assignedPeriod === 'ARAL Summer Assessment' ? (
+                    'ARAL Summer Assessment'
+                  ) : assignedPeriod === 'MOSY' ? (
+                    <>
+                      <span>Add MOSY Score</span>
+                      <span className="hidden md:inline font-normal opacity-90"> (Q1 & Q2 &bull; Middle of School Year)</span>
+                    </>
+                  ) : assignedPeriod === 'EOSY' ? (
+                    <>
+                      <span>Add EOSY Score</span>
+                      <span className="hidden md:inline font-normal opacity-90"> (Q3 & Q4 &bull; End of School Year)</span>
+                    </>
+                  ) : (
+                    `Add ${assignedPeriod} Score`
+                  )}
+                </span>
               </button>
             </div>
           </div>
@@ -3179,18 +3227,25 @@ export const TutorScores: React.FC<TutorScoresProps> = ({ pageMode }) => {
             aria-live="polite"
             className="fixed top-20 right-4 sm:right-6 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
           >
-            <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-white dark:bg-[#111111] dark:border-emerald-800 p-3.5 shadow-xl">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400">
+            <div
+              onClick={handleNavigateToScoreHistory}
+              className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-white dark:bg-[#111111] dark:border-emerald-800 p-3.5 shadow-xl hover:border-emerald-400 dark:hover:border-emerald-600 transition-all cursor-pointer group"
+              title="Click to view in Score History"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400 group-hover:scale-105 transition-transform">
                 <CheckCircle2 className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                  <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
                     {successModalTitle || 'Scores Saved Successfully'}
                   </h3>
                   <button
                     type="button"
-                    onClick={handleDismissSuccessModal}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDismissSuccessModal();
+                    }}
                     className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
                     aria-label="Close notification"
                   >

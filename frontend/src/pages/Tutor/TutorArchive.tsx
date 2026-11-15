@@ -10,17 +10,9 @@ import { matchesSearch } from '../../utils/searchHelpers';
 import { formatSessionLabel, getScoreDescription } from '../../utils/sessionDescriptionHelpers';
 import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
 import { SlidingPeriodToggle } from '../../components/SlidingTabs';
+import { computeWeekOfMonth } from '../../config/academicConfig';
 
 /* ─── Date & Week Helper Functions (Mirrors TutorScores & TutorQRGenerator) ── */
-const computeWeekOfMonth = (dateObj: Date): number => {
-  const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
-  const day = d.getDay();
-  const wedDiff = day === 0 ? 3 : 3 - day;
-  const wednesday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + wedDiff);
-  const firstDay = new Date(wednesday.getFullYear(), wednesday.getMonth(), 1).getDay();
-  return Math.ceil((wednesday.getDate() + (firstDay === 0 ? 6 : firstDay - 1)) / 7);
-};
-
 const getWeekTitle = (mondayStr: string): string => {
   const d = new Date(`${mondayStr}T00:00:00`);
   const weekNum = computeWeekOfMonth(d);
@@ -447,20 +439,20 @@ export const TutorArchive: React.FC = () => {
 
     if (!isSelectedYearActive) {
       return [
-        { id: '1st', label: '1st Semester (MOSY)' },
-        { id: '2nd', label: '2nd Semester (EOSY)' },
-        { id: 'summer', label: 'Summer Remediation' },
+        { id: '1st', label: '1st Semester — MOSY (Q1 & Q2 • Middle of School Year)' },
+        { id: '2nd', label: '2nd Semester — EOSY (Q3 & Q4 • End of School Year)' },
+        { id: 'summer', label: 'Summer Remediation (Midyear)' },
       ];
     }
 
     const curSem = currentSchoolYear?.current_semester || '2nd';
     if (curSem === '2nd') {
-      return [{ id: '1st', label: '1st Semester (MOSY)' }];
+      return [{ id: '1st', label: '1st Semester — MOSY (Q1 & Q2 • Middle of School Year)' }];
     }
     if (curSem === 'summer') {
       return [
-        { id: '1st', label: '1st Semester (MOSY)' },
-        { id: '2nd', label: '2nd Semester (EOSY)' },
+        { id: '1st', label: '1st Semester — MOSY (Q1 & Q2 • Middle of School Year)' },
+        { id: '2nd', label: '2nd Semester — EOSY (Q3 & Q4 • End of School Year)' },
       ];
     }
     return [];
@@ -976,9 +968,21 @@ export const TutorArchive: React.FC = () => {
                   ? 'bg-[var(--brand)] text-white shadow-xs'
                   : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 font-bold'
               }`}
-              title={assessmentFilterName}
+              title={
+                selectedSemester === '1st'
+                  ? 'MOSY Assessment (Middle of School Year • Q1 & Q2)'
+                  : selectedSemester === '2nd'
+                  ? 'EOSY Assessment (End of School Year • Q3 & Q4)'
+                  : 'Summer Assessment (Midyear)'
+              }
             >
-              <span className="hidden min-[400px]:inline">{assessmentFilterName}</span>
+              <span className="hidden min-[400px]:inline">
+                {selectedSemester === '1st'
+                  ? 'MOSY ASSESSMENT (Q1 & Q2)'
+                  : selectedSemester === '2nd'
+                  ? 'EOSY ASSESSMENT (Q3 & Q4)'
+                  : assessmentFilterName}
+              </span>
               <span className="min-[400px]:hidden">{assessmentFilterName.replace(' ASSESSMENT', '')}</span>
             </button>
           </div>

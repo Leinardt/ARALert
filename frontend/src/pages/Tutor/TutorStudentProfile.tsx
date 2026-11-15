@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
+import { getCompositeWeights, getRiskThresholds } from '../../config/academicConfig';
+import { formatChartPeriodRange } from '../../utils/studentFormatters';
 import type { StudentAcademicProfile, Grade, Attendance, StudentEditRequest, User as UserType } from '../../types';
 import {
   ArrowLeft,
@@ -174,7 +176,10 @@ export const TutorStudentProfile: React.FC = () => {
 
   const { attendanceRate, scoreAvg, compositeScore, riskTier } = useMemo(() => {
     if (!profile) return { attendanceRate: 100, scoreAvg: 100, compositeScore: 100, riskTier: 'Low' };
+    const weights = getCompositeWeights();
+    const thresholds = getRiskThresholds();
     const attRate = profile.attendance ? Number(profile.attendance.attendance_rate ?? 100) : 100;
+    const hasAttRecords = Number(profile.attendance?.total_days ?? 0) > 0;
     let scAvg = 100;
     if (profile.gpa !== null && profile.gpa !== undefined) {
       scAvg = Number(profile.gpa);
@@ -182,8 +187,15 @@ export const TutorStudentProfile: React.FC = () => {
       const sum = profile.grade_details.reduce((acc, g) => acc + (g.final_grade || 0), 0);
       scAvg = sum / profile.grade_details.length;
     }
-    const compScore = Number(((attRate * 0.4) + (scAvg * 0.6)).toFixed(2));
-    const tier = compScore >= 86 ? 'Low' : compScore >= 70 ? 'Moderate' : 'High';
+    const compScore = Number(((attRate * weights.attendance) + (scAvg * weights.score)).toFixed(2));
+    const tier =
+      hasAttRecords && attRate <= thresholds.highAttendanceGate
+        ? 'High'
+        : compScore >= thresholds.lowMinComposite
+        ? 'Low'
+        : compScore >= thresholds.moderateMinComposite
+        ? 'Moderate'
+        : 'High';
     return {
       attendanceRate: Number(attRate.toFixed(2)),
       scoreAvg: Number(scAvg.toFixed(2)),
@@ -312,15 +324,19 @@ export const TutorStudentProfile: React.FC = () => {
   }, [attendanceRate]);
 
   const effectiveCompositeScore = useMemo(() => {
-    const comp = Number(((effectiveAttendanceRate * 0.4) + (effectiveScoreAvg * 0.6)).toFixed(2));
+    const weights = getCompositeWeights();
+    const comp = Number(((effectiveAttendanceRate * weights.attendance) + (effectiveScoreAvg * weights.score)).toFixed(2));
     return !isNaN(comp) ? comp : 100;
   }, [effectiveAttendanceRate, effectiveScoreAvg]);
 
   const effectiveRiskTier = useMemo(() => {
-    if (effectiveCompositeScore >= 86) return 'Low';
-    if (effectiveCompositeScore >= 70) return 'Moderate';
+    const thresholds = getRiskThresholds();
+    const hasAttRecords = studentAttendance.length > 0 || Number(profile?.attendance?.total_days ?? 0) > 0;
+    if (hasAttRecords && effectiveAttendanceRate <= thresholds.highAttendanceGate) return 'High';
+    if (effectiveCompositeScore >= thresholds.lowMinComposite) return 'Low';
+    if (effectiveCompositeScore >= thresholds.moderateMinComposite) return 'Moderate';
     return 'High';
-  }, [effectiveCompositeScore]);
+  }, [effectiveCompositeScore, effectiveAttendanceRate, studentAttendance.length, profile]);
 
   const scoreMood = useMemo(() => {
     // No-data state: neutral grey — not orange, which would imply a known medium risk
@@ -932,6 +948,9 @@ export const TutorStudentProfile: React.FC = () => {
                     >
                       <ChevronLeft size={14} className="stroke-[2.5]" />
                     </button>
+                    <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                      {formatChartPeriodRange(riskTrendFilter, riskTrendPage)}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setRiskTrendPage((p) => Math.max(0, p - 1))}
@@ -1078,6 +1097,9 @@ export const TutorStudentProfile: React.FC = () => {
                     >
                       <ChevronLeft size={14} className="stroke-[2.5]" />
                     </button>
+                    <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                      {formatChartPeriodRange(attendanceTrendFilter, attendanceTrendPage)}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setAttendanceTrendPage((p) => Math.max(0, p - 1))}
@@ -1197,6 +1219,9 @@ export const TutorStudentProfile: React.FC = () => {
                     >
                       <ChevronLeft size={14} className="stroke-[2.5]" />
                     </button>
+                    <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                      {formatChartPeriodRange(scoreTrendFilter, scoreTrendPage)}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setScoreTrendPage((p) => Math.max(0, p - 1))}

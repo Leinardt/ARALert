@@ -1,8 +1,8 @@
 import type { Attendance, Grade, User } from '../types';
 import {
-  COMPOSITE_WEIGHTS,
   PASSING_SCORE_PERCENTAGE,
-  RISK_THRESHOLDS,
+  getCompositeWeights,
+  getRiskThresholds,
   isNotTakenGrade,
 } from '../config/academicConfig';
 
@@ -22,8 +22,9 @@ export interface StudentRiskRow {
 }
 
 export const getRiskTier = (score: number) => {
-  if (score >= RISK_THRESHOLDS.lowMinComposite) return 'Low';
-  if (score >= RISK_THRESHOLDS.moderateMinComposite) return 'Moderate';
+  const thresholds = getRiskThresholds();
+  if (score >= thresholds.lowMinComposite) return 'Low';
+  if (score >= thresholds.moderateMinComposite) return 'Moderate';
   return 'High';
 };
 
@@ -161,20 +162,23 @@ export const computeStudentRiskRows = (
     const totalScorePercent = scoreData?.totalPercent || 0;
     const scoreAvg = scoreCount > 0 ? Number((totalScorePercent / scoreCount).toFixed(2)) : 100;
 
+    const weights = getCompositeWeights();
+    const thresholds = getRiskThresholds();
     const compositeScore = Number(
       (
-        attendanceRate * COMPOSITE_WEIGHTS.attendance +
-        scoreAvg * COMPOSITE_WEIGHTS.score
+        attendanceRate * weights.attendance +
+        scoreAvg * weights.score
       ).toFixed(2)
     );
     const baseRiskTier = getRiskTier(compositeScore);
-    // Attendance Safety Gate: attendance <= 75% automatically overrides and classifies student as High Risk
-    const isAttendanceOverridden = totalDays > 0 && attendanceRate <= RISK_THRESHOLDS.highAttendanceGate;
+    // Attendance Safety Gate: attendance <= threshold automatically overrides and classifies student as High Risk
+    const isAttendanceOverridden = totalDays > 0 && attendanceRate <= thresholds.highAttendanceGate;
     const riskTier = isAttendanceOverridden ? 'High' : baseRiskTier;
 
-    // Number of consecutive present sessions needed to reach > 75% attendance rate (exit High Risk override)
-    const neededPresentAttendance = isAttendanceOverridden
-      ? Math.max(0, Math.floor((0.75 * totalDays - presentDays) / 0.25) + 1)
+    // Number of consecutive present sessions needed to reach > gate% attendance rate (exit High Risk override)
+    const gateRatio = thresholds.highAttendanceGate / 100;
+    const neededPresentAttendance = isAttendanceOverridden && gateRatio < 1
+      ? Math.max(0, Math.floor((gateRatio * totalDays - presentDays) / (1 - gateRatio)) + 1)
       : 0;
 
     // Number of passed scores (assuming 100% or passing score mastery) needed to raise score average to >= 75%

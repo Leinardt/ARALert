@@ -1701,11 +1701,13 @@ class StudentAcademicProfileView(APIView):
         absent_days  = att_logs.filter(status__iexact='absent').count()
         att_rate     = round(present_days / total_days * 100, 2) if total_days > 0 else 100.0
 
-        # Unified 60% Academic Score / 40% Attendance Rate
+        # Active Program Configuration (default 60% Academic Score / 40% Attendance Rate)
         # Milestone assessments carry 0% weight in running grades; used solely for pass/retention evaluation.
+        from utilities.helpers import get_active_program_config
+        prog_cfg  = get_active_program_config()
         w_assess  = 0
-        w_tasks   = 60
-        w_attend  = 40
+        w_tasks   = prog_cfg['score_weight_pct']
+        w_attend  = prog_cfg['attendance_weight_pct']
 
         # Grades (optimized from 64 queries to 1 query) — exclude Not Taken records from score averages
         grades = ApiGrade.objects.filter(student=student).exclude(remarks__iexact='Not Taken')
@@ -1727,7 +1729,7 @@ class StudentAcademicProfileView(APIView):
             avg_assess = float(row['avg_assess'] or 0)
             avg_task   = float(row['avg_task'] or 0)
             academic_avg = avg_task if avg_task > 0 else avg_assess
-            final = round((academic_avg * 0.60) + (att_rate * 0.40), 2)
+            final = round((academic_avg * prog_cfg['score_weight']) + (att_rate * prog_cfg['attendance_weight']), 2)
             grade_summary.append({
                 'subject':         subject,
                 'quarter':         quarter,

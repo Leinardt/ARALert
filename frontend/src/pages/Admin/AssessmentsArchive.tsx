@@ -490,32 +490,36 @@ const SchoolYearDropdown: React.FC<{
         <div
           className={`absolute ${
             menuAlign === 'right' ? 'right-0' : 'left-0'
-          } top-full z-50 mt-1 max-h-60 w-44 sm:w-48 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl`}
-          role="listbox"
-          aria-label="Select School Year"
+          } top-full z-50 mt-1 w-44 sm:w-48 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-xl overflow-hidden`}
         >
-          {options.map((opt) => {
-            const isSel = opt.value === value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                role="option"
-                aria-selected={isSel}
-                onClick={() => {
-                  onChange(opt.value);
-                  setIsOpen(false);
-                }}
-                className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase transition cursor-pointer ${
-                  isSel
-                    ? 'bg-[var(--brand)] text-white'
-                    : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-                }`}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
+          <div
+            className="max-h-60 overflow-y-auto dropdown-scroll p-1.5"
+            role="listbox"
+            aria-label="Select School Year"
+          >
+            {options.map((opt) => {
+              const isSel = opt.value === value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="option"
+                  aria-selected={isSel}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setIsOpen(false);
+                  }}
+                  className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase transition cursor-pointer ${
+                    isSel
+                      ? 'bg-[var(--brand)] text-white'
+                      : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -1070,9 +1074,9 @@ export const AssessmentsArchive: React.FC = () => {
                   ? 'text-slate-900 dark:text-white cursor-pointer'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white cursor-pointer'
               }`}
-              title={!concludedTabsForSelectedYear.includes('mosy') ? '1st Semester not yet concluded' : 'Concluded 1st Semester'}
+              title={!concludedTabsForSelectedYear.includes('mosy') ? '1st Semester (MOSY • Middle of School Year • Q1 & Q2) not yet concluded' : 'Concluded 1st Semester (MOSY • Middle of School Year • Q1 & Q2)'}
             >
-              <span>MOSY<span className="hidden sm:inline"> (Q1 & Q2)</span></span>
+              <span>MOSY<span className="hidden xl:inline"> &bull; Middle of School Year</span><span className="hidden sm:inline"> (Q1 & Q2)</span></span>
               {currentSchoolYear?.current_semester === '1st' && (
                 <span className="text-[9px] sm:text-[10px] font-normal text-slate-400 dark:text-zinc-500">
                   <span className="sm:hidden">(Active)</span>
@@ -1095,9 +1099,9 @@ export const AssessmentsArchive: React.FC = () => {
                   ? 'text-slate-900 dark:text-white cursor-pointer'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white cursor-pointer'
               }`}
-              title={!concludedTabsForSelectedYear.includes('eosy') ? '2nd Semester not yet concluded' : 'Concluded 2nd Semester'}
+              title={!concludedTabsForSelectedYear.includes('eosy') ? '2nd Semester (EOSY • End of School Year • Q3 & Q4) not yet concluded' : 'Concluded 2nd Semester (EOSY • End of School Year • Q3 & Q4)'}
             >
-              <span>EOSY<span className="hidden sm:inline"> (Q3 & Q4)</span></span>
+              <span>EOSY<span className="hidden xl:inline"> &bull; End of School Year</span><span className="hidden sm:inline"> (Q3 & Q4)</span></span>
               {currentSchoolYear?.current_semester === '2nd' && (
                 <span className="text-[9px] sm:text-[10px] font-normal text-slate-400 dark:text-zinc-500">
                   <span className="sm:hidden">(Active)</span>

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { computeStudentRiskRows, type StudentRiskRow, getRiskAvatarClass } from '../../utils/analyticsHelpers';
 import { isNotTakenGrade } from '../../config/academicConfig';
-import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
+import { getRecentSchoolWeekdays, formatChartPeriodRange } from '../../utils/studentFormatters';
 import {
   getCurrentSemesterMilestone,
   getActiveSystemMilestone,
@@ -1094,6 +1094,9 @@ export const TutorHome: React.FC = () => {
                     >
                       <ChevronLeft size={14} className="stroke-[2.5]" />
                     </button>
+                    <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                      {formatChartPeriodRange(trendFilter, trendPage)}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setTrendPage((p) => Math.max(0, p - 1))}
@@ -1202,9 +1205,20 @@ export const TutorHome: React.FC = () => {
               >
                 {topAtRiskTitle}
               </h3>
-              <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-950/60 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300">
-                <AnimatedCounter value={atRiskStudents.length} />
-              </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span
+                  className="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-950/60 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300"
+                  title="High Risk Students"
+                >
+                  <AnimatedCounter value={highRiskStudents.length} />
+                </span>
+                <span
+                  className="inline-flex min-w-5 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300"
+                  title="Moderate Risk Students"
+                >
+                  <AnimatedCounter value={moderateRiskStudents.length} />
+                </span>
+              </div>
             </div>
 
             <div
@@ -1230,7 +1244,7 @@ export const TutorHome: React.FC = () => {
                       <Link
                         to={`/tutor/students/${s.student.id}`}
                         state={{ from: 'dashboard' }}
-                        className={`group relative flex flex-col justify-center rounded-sm border px-3 py-2 min-h-[44px] bg-white dark:bg-[#0A0A0A] transition-all duration-150 ease-out cursor-pointer hover:z-10 hover:scale-[1.018] hover:-translate-y-0.5 hover:shadow-md ${
+                        className={`group relative flex flex-col justify-center rounded-sm border px-3 py-2 min-h-[44px] bg-white dark:bg-[#0A0A0A] transition-all duration-150 ease-out cursor-pointer hover:z-10 hover:scale-[1.018] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.5)] ${
                           isHighRisk
                             ? 'border-[var(--risk-high-border)] hover:border-[var(--risk-high)]'
                             : 'border-[var(--risk-medium-border)] hover:border-[var(--risk-medium)]'

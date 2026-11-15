@@ -40,6 +40,7 @@ import {
   groupAttendanceBySession,
 } from '../../utils/sessionDescriptionHelpers';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
+import { computeWeekOfMonth } from '../../config/academicConfig';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 
@@ -107,15 +108,6 @@ const getWeekdaysForMonday = (mondayStr: string, extraDates: string[] = []): str
     if (d && !dates.includes(d)) dates.push(d);
   });
   return dates.sort();
-};
-
-const computeWeekOfMonth = (dateObj: Date): number => {
-  const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
-  const day = d.getDay();
-  const wedDiff = day === 0 ? 3 : 3 - day;
-  const wednesday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + wedDiff);
-  const firstDay = new Date(wednesday.getFullYear(), wednesday.getMonth(), 1).getDay();
-  return Math.ceil((wednesday.getDate() + (firstDay === 0 ? 6 : firstDay - 1)) / 7);
 };
 
 const getWeekKey = (dateStr: string) => {

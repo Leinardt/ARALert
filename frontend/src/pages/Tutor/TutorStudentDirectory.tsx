@@ -182,7 +182,7 @@ export const TutorStudentDirectory: React.FC = () => {
       const isCurrent = key === activeKey;
       const tag = isCurrent ? ' (Active)' : '';
       const syDisplay = `SY ${sy.replace('-', '–')}`;
-      const semDisplay = sem === '1st' ? '1st Semester' : sem === '2nd' ? '2nd Semester' : 'Summer';
+      const semDisplay = sem === '1st' ? '1st Semester (Q1 & Q2)' : sem === '2nd' ? '2nd Semester (Q3 & Q4)' : 'Summer (Midyear)';
 
       options.push({
         key,

@@ -306,6 +306,11 @@ export interface SchoolYear {
   current_period?: string;
   active_milestone?: 'MOSY' | 'EOSY' | 'ARAL Summer Assessment';
   is_assessment_window_open?: boolean;
+  attendance_weight_pct?: number;
+  score_weight_pct?: number;
+  low_min_composite?: number;
+  moderate_min_composite?: number;
+  high_attendance_gate?: number;
   start_date: string | null;
   end_date: string | null;
   created_at: string;
@@ -457,7 +462,7 @@ export interface BasicStudentAssignmentItem {
   mosy_score_pct: number | null;
   previous_tutor: string;
   assignment_status: string;
-  /** e.g. 'Needs Basic Retake (Q3/Q4 or Summer)' | 'Passed MOSY — Awaiting Level-Up' | 'Pending MOSY Evaluation' */
+  /** e.g. 'Needs Basic Retake (Q3/Q4 or Summer)' | 'Passed MOSY â€” Awaiting Level-Up' | 'Pending MOSY Evaluation' */
   status_badge: string;
   /** color hint: 'yellow' | 'green' | 'gray' */
   status_color: string;
@@ -476,7 +481,7 @@ export interface GraduatedStudentItem {
 export interface MosyAssignmentData {
   school_year: string;
   unassigned_plus_students: UnassignedPlusStudent[];
-  /** Unassigned basic students — failed MOSY retake or pending evaluation */
+  /** Unassigned basic students â€” failed MOSY retake or pending evaluation */
   unassigned_basic_students: BasicStudentAssignmentItem[];
   /** Backward-compat alias for unassigned_basic_students */
   basic_students: BasicStudentAssignmentItem[];

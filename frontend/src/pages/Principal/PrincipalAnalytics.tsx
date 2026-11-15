@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../../utils/analyticsHelpers';
-import { isNotTakenGrade, PASSING_SCORE_RATIO } from '../../config/academicConfig';
+import { isNotTakenGrade, PASSING_SCORE_RATIO, getCompositeFormulaDescription, getRiskRangeDescriptions } from '../../config/academicConfig';
 import {
   Check,
   ChevronDown,
@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import type { Attendance, Grade, User } from '../../types';
-import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
+import { getRecentSchoolWeekdays, formatChartPeriodRange } from '../../utils/studentFormatters';
 import { buildTutorClassSections, isStudentInCohort } from '../../utils/tutorCohortHelpers';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { SlidingTabBar, SlidingPeriodToggle } from '../../components/SlidingTabs';
@@ -1513,7 +1513,7 @@ const RiskCalculationInfo: React.FC = () => (
       <Info className="h-3.5 w-3.5" />
     </button>
     <span className="pointer-events-none absolute left-0 top-full mt-2 sm:left-full sm:top-1/2 sm:mt-0 sm:ml-2 z-20 hidden w-72 sm:w-80 max-w-[calc(100vw-2rem)] sm:-translate-y-1/2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-2.5 sm:px-3 sm:py-2 text-left text-xs font-semibold leading-relaxed text-slate-800 dark:text-white shadow-lg group-hover:block group-focus-within:block">
-      Risk level is calculated from the composite rating of a student. Composite Rating = 40% (Attendance Rate) + 60% (Average Score Rate)
+      {getCompositeFormulaDescription()}
     </span>
   </span>
 );
@@ -1579,33 +1579,35 @@ const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; o
         <ChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       {isOpen && (
-        <div className={`absolute ${menuAlign === 'right' ? 'right-0' : 'left-0'} top-full z-50 mt-2 max-h-60 min-w-[200px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl`} role="listbox">
-          <button
-            type="button"
-            role="option"
-            aria-selected={value === 'all'}
-            onClick={() => { onChange('all'); setIsOpen(false); }}
-            className={`block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${value === 'all' ? 'bg-[var(--brand)] text-white' : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'}`}
-          >
-            ALL STUDENTS
-          </button>
-          {sortedRows.map((row) => {
-            const studentValue = String(row.student.id);
-            const isSelected = value === studentValue;
-            const displayName = getStudentDisplayName(row.student);
-            return (
-              <button
-                key={studentValue}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                onClick={() => { onChange(studentValue); setIsOpen(false); }}
-                className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${isSelected ? 'bg-[var(--brand)] text-white' : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'}`}
-              >
-                {displayName}
-              </button>
-            );
-          })}
+        <div className={`absolute ${menuAlign === 'right' ? 'right-0' : 'left-0'} top-full z-50 mt-2 min-w-[200px] max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-xl overflow-hidden`}>
+          <div className="max-h-60 overflow-y-auto dropdown-scroll p-1.5" role="listbox">
+            <button
+              type="button"
+              role="option"
+              aria-selected={value === 'all'}
+              onClick={() => { onChange('all'); setIsOpen(false); }}
+              className={`block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${value === 'all' ? 'bg-[var(--brand)] text-white' : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'}`}
+            >
+              ALL STUDENTS
+            </button>
+            {sortedRows.map((row) => {
+              const studentValue = String(row.student.id);
+              const isSelected = value === studentValue;
+              const displayName = getStudentDisplayName(row.student);
+              return (
+                <button
+                  key={studentValue}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  onClick={() => { onChange(studentValue); setIsOpen(false); }}
+                  className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${isSelected ? 'bg-[var(--brand)] text-white' : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'}`}
+                >
+                  {displayName}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -2287,7 +2289,7 @@ export const PrincipalAnalytics: React.FC = () => {
               </button>
               {isTutorDropdownOpen && (
                 <div
-                  className={`absolute ${tutorMenuAlign === 'right' ? 'right-0' : 'left-0'} top-full z-50 mt-1 max-h-64 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1 shadow-2xl`}
+                  className={`absolute ${tutorMenuAlign === 'right' ? 'right-0' : 'left-0'} top-full z-50 mt-1 max-h-64 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto dropdown-scroll rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1 shadow-2xl`}
                   role="listbox"
                 >
                   <button
@@ -2348,7 +2350,7 @@ export const PrincipalAnalytics: React.FC = () => {
               </button>
               {isClassDropdownOpen && (
                 <div
-                  className={`absolute ${classMenuAlign === 'right' ? 'right-0' : 'left-0'} top-full z-50 mt-1 max-h-64 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1 shadow-2xl`}
+                  className={`absolute ${classMenuAlign === 'right' ? 'right-0' : 'left-0'} top-full z-50 mt-1 max-h-64 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto dropdown-scroll rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1 shadow-2xl`}
                   role="listbox"
                 >
                   <button
@@ -2421,7 +2423,7 @@ export const PrincipalAnalytics: React.FC = () => {
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="relative rounded-md border border-rose-500 dark:border-rose-500 bg-white dark:bg-[#111111] hover:border-rose-600 dark:hover:border-rose-400 transition-colors p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
               <div className="absolute right-3 top-3">
-                <RiskRangeInfo range="Composite rating is 69% and below" />
+                <RiskRangeInfo range={getRiskRangeDescriptions().high} />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1 text-risk-high">
@@ -2436,7 +2438,7 @@ export const PrincipalAnalytics: React.FC = () => {
 
             <div className="relative rounded-md border border-amber-500 dark:border-amber-500 bg-white dark:bg-[#111111] hover:border-amber-600 dark:hover:border-amber-400 transition-colors p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
               <div className="absolute right-3 top-3">
-                <RiskRangeInfo range="Composite rating is between 70% to 85%" />
+                <RiskRangeInfo range={getRiskRangeDescriptions().moderate} />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1 text-risk-moderate">
@@ -2451,7 +2453,7 @@ export const PrincipalAnalytics: React.FC = () => {
 
             <div className="relative rounded-md border border-emerald-500 dark:border-emerald-500 bg-white dark:bg-[#111111] hover:border-emerald-600 dark:hover:border-emerald-400 transition-colors p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
               <div className="absolute right-3 top-3">
-                <RiskRangeInfo range="Composite rating is between 86% to 100%" />
+                <RiskRangeInfo range={getRiskRangeDescriptions().low} />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1 text-risk-low">
@@ -2510,6 +2512,9 @@ export const PrincipalAnalytics: React.FC = () => {
                   >
                     <ChevronLeft size={14} className="stroke-[2.5]" />
                   </button>
+                  <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                    {formatChartPeriodRange(riskTrendFilter, riskTrendPage)}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setRiskTrendPage((p) => Math.max(0, p - 1))}
@@ -2649,6 +2654,9 @@ export const PrincipalAnalytics: React.FC = () => {
                   >
                     <ChevronLeft size={14} className="stroke-[2.5]" />
                   </button>
+                  <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                    {formatChartPeriodRange(attendanceFilter, attendanceTrendPage)}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setAttendanceTrendPage((p) => Math.max(0, p - 1))}
@@ -2784,6 +2792,9 @@ export const PrincipalAnalytics: React.FC = () => {
                   >
                     <ChevronLeft size={14} className="stroke-[2.5]" />
                   </button>
+                  <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                    {formatChartPeriodRange(scoreFilter, scoreTrendPage)}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setScoreTrendPage((p) => Math.max(0, p - 1))}

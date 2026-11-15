@@ -353,32 +353,36 @@ const DirectoryFilterDropdown: React.FC<{
         <div
           className={`animate-fade-in-scale origin-top absolute ${
             menuAlign === 'right' ? 'right-0' : 'left-0'
-          } top-full z-50 mt-1 max-h-60 ${menuWidthClass} max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl`}
-          role="listbox"
-          aria-label={ariaLabel}
+          } top-full z-50 mt-1 ${menuWidthClass} max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-xl overflow-hidden`}
         >
-          {options.map((opt) => {
-            const isSel = opt.value === value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                role="option"
-                aria-selected={isSel}
-                onClick={() => {
-                  onChange(opt.value);
-                  onClose();
-                }}
-                className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase transition cursor-pointer ${
-                  isSel
-                    ? 'bg-[var(--brand)] text-white'
-                    : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-                }`}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
+          <div
+            className="max-h-60 overflow-y-auto dropdown-scroll p-1.5"
+            role="listbox"
+            aria-label={ariaLabel}
+          >
+            {options.map((opt) => {
+              const isSel = opt.value === value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="option"
+                  aria-selected={isSel}
+                  onClick={() => {
+                    onChange(opt.value);
+                    onClose();
+                  }}
+                  className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase transition cursor-pointer ${
+                    isSel
+                      ? 'bg-[var(--brand)] text-white'
+                      : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -1475,11 +1479,13 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                       right: `${dropdownPosition.right}px`,
                       zIndex: 99999,
                     }}
-                    className="w-72 sm:w-80 max-h-72 overflow-y-auto rounded-lg bg-white dark:bg-[#111111] shadow-2xl border border-gray-200 dark:border-[#222222] py-1.5 animate-in fade-in zoom-in-95 duration-100"
+                    className="w-72 sm:w-80 rounded-xl bg-white dark:bg-[#111111] shadow-2xl border border-gray-200 dark:border-[#222222] overflow-hidden animate-in fade-in zoom-in-95 duration-100 flex flex-col"
                   >
-                    <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider border-b border-gray-100 dark:border-[#1E1E1E]">
+                    <div className="px-3 py-2 text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider border-b border-gray-100 dark:border-[#1E1E1E] bg-gray-50/70 dark:bg-zinc-900/50 shrink-0">
                       Select Tutor to Assign ({selectedIds.length} Student{selectedIds.length > 1 ? 's' : ''})
                     </div>
+
+                    <div className="max-h-64 overflow-y-auto dropdown-scroll p-1 flex flex-col">
 
                     {/* TBA Option */}
                     <button
@@ -1530,6 +1536,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                         );
                       })
                     )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -2643,52 +2650,54 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
         )}
 
       {/* ── Floating Notification Toast ─────────────────────── */}
-      {toastNotification.show && (
-        <aside
-          aria-live="polite"
-          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
-        >
-          <div
-            className={`flex items-start gap-3 rounded-lg border p-3.5 shadow-xl bg-white dark:bg-[#111111] ${
-              toastNotification.type === 'error'
-                ? 'border-rose-200 dark:border-rose-800/60'
-                : 'border-emerald-200 dark:border-emerald-800/60'
-            }`}
+      {toastNotification.show &&
+        createPortal(
+          <aside
+            aria-live="polite"
+            className="fixed top-20 right-4 sm:right-6 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
           >
             <div
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${
+              className={`flex items-start gap-3 rounded-lg border p-3.5 shadow-xl bg-white dark:bg-[#111111] ${
                 toastNotification.type === 'error'
-                  ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-800/60'
-                  : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60'
+                  ? 'border-rose-200 dark:border-rose-800/60'
+                  : 'border-emerald-200 dark:border-emerald-800/60'
               }`}
             >
-              {toastNotification.type === 'error' ? (
-                <AlertCircle className="h-4 w-4" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
-                  {toastNotification.title}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setToastNotification((prev) => ({ ...prev, show: false }))}
-                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-white/10 transition cursor-pointer"
-                  aria-label="Close notification"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+              <div
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${
+                  toastNotification.type === 'error'
+                    ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-800/60'
+                    : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60'
+                }`}
+              >
+                {toastNotification.type === 'error' ? (
+                  <AlertCircle className="h-4 w-4" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
               </div>
-              <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
-                {toastNotification.message}
-              </p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                    {toastNotification.title}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setToastNotification((prev) => ({ ...prev, show: false }))}
+                    className="rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-white/10 transition cursor-pointer"
+                    aria-label="Close notification"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                  {toastNotification.message}
+                </p>
+              </div>
             </div>
-          </div>
-        </aside>
-      )}
+          </aside>,
+          document.body
+        )}
 
     </div>
   );

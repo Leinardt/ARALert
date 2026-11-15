@@ -15,13 +15,14 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
+import { getRecentSchoolWeekdays, formatChartPeriodRange } from '../../utils/studentFormatters';
 import {
   getActiveSystemMilestone,
   getActiveSystemSemester,
   SemesterType,
 } from '../../utils/sessionDescriptionHelpers';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
+import { COMPOSITE_WEIGHTS, RISK_THRESHOLDS } from '../../config/academicConfig';
 import { SlidingPeriodToggle } from '../../components/SlidingTabs';
 import {
   getChartAvailableClasses,
@@ -760,7 +761,7 @@ export const PrincipalHome: React.FC = () => {
         }
 
         if (attendanceRate > 0 && averageScore > 0) {
-          compositeScore = Math.round(((attendanceRate * 0.4) + (averageScore * 0.6)) * 10) / 10;
+          compositeScore = Math.round(((attendanceRate * COMPOSITE_WEIGHTS.attendance) + (averageScore * COMPOSITE_WEIGHTS.score)) * 10) / 10;
         } else if (attendanceRate > 0) {
           compositeScore = attendanceRate;
         } else if (averageScore > 0) {
@@ -776,7 +777,7 @@ export const PrincipalHome: React.FC = () => {
           const avgSc = validPoints.reduce((acc, p) => acc + p.average_score, 0) / validPoints.length;
           attendanceRate = Math.round(avgAtt * 10) / 10;
           averageScore = Math.round(avgSc * 10) / 10;
-          compositeScore = Math.round(((attendanceRate * 0.4) + (averageScore * 0.6)) * 10) / 10;
+          compositeScore = Math.round(((attendanceRate * COMPOSITE_WEIGHTS.attendance) + (averageScore * COMPOSITE_WEIGHTS.score)) * 10) / 10;
         }
       }
 
@@ -1264,9 +1265,9 @@ export const PrincipalHome: React.FC = () => {
                   className={`text-xs sm:text-sm font-extrabold shrink-0 ${
                     !hasAttendanceData && !hasScoreData
                       ? 'text-gray-400 dark:text-slate-500'
-                      : overallCompositeScore >= 81
+                      : overallCompositeScore >= RISK_THRESHOLDS.lowMinComposite
                       ? 'text-risk-low'
-                      : overallCompositeScore >= 75
+                      : overallCompositeScore >= RISK_THRESHOLDS.moderateMinComposite
                       ? 'text-risk-moderate'
                       : 'text-risk-high'
                   }`}
@@ -1311,6 +1312,9 @@ export const PrincipalHome: React.FC = () => {
                   >
                     <ChevronLeft size={14} className="stroke-[2.5]" />
                   </button>
+                  <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                    {formatChartPeriodRange(trendFilter, trendPage)}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setTrendPage((p) => Math.max(0, p - 1))}
@@ -1345,51 +1349,55 @@ export const PrincipalHome: React.FC = () => {
                 </button>
                 {isTutorMenuOpen && (
                   <div
-                    className="absolute left-0 top-full z-50 mt-1 max-h-60 w-56 sm:w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl"
-                    role="listbox"
+                    className="absolute left-0 top-full z-50 mt-1 w-56 sm:w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-xl overflow-hidden"
                   >
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={selectedTutorId === 'all'}
-                      onClick={() => {
-                        setSelectedTutorId('all');
-                        setTrendPage(0);
-                        setIsTutorMenuOpen(false);
-                      }}
-                      className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
-                        selectedTutorId === 'all'
-                          ? 'bg-[var(--brand)] text-white'
-                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-                      }`}
+                    <div
+                      className="max-h-60 overflow-y-auto dropdown-scroll p-1.5"
+                      role="listbox"
                     >
-                      ALL TUTORS
-                    </button>
-                    {[...tutors]
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                      .map((tutor) => {
-                        const isSel = String(selectedTutorId) === String(tutor.id);
-                        return (
-                          <button
-                            key={tutor.id}
-                            type="button"
-                            role="option"
-                            aria-selected={isSel}
-                            onClick={() => {
-                              setSelectedTutorId(String(tutor.id));
-                              setTrendPage(0);
-                              setIsTutorMenuOpen(false);
-                            }}
-                            className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
-                              isSel
-                                ? 'bg-[var(--brand)] text-white'
-                                : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-                            }`}
-                          >
-                            {tutor.name.toUpperCase()}
-                          </button>
-                        );
-                      })}
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={selectedTutorId === 'all'}
+                        onClick={() => {
+                          setSelectedTutorId('all');
+                          setTrendPage(0);
+                          setIsTutorMenuOpen(false);
+                        }}
+                        className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                          selectedTutorId === 'all'
+                            ? 'bg-[var(--brand)] text-white'
+                            : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                        }`}
+                      >
+                        ALL TUTORS
+                      </button>
+                      {[...tutors]
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((tutor) => {
+                          const isSel = String(selectedTutorId) === String(tutor.id);
+                          return (
+                            <button
+                              key={tutor.id}
+                              type="button"
+                              role="option"
+                              aria-selected={isSel}
+                              onClick={() => {
+                                setSelectedTutorId(String(tutor.id));
+                                setTrendPage(0);
+                                setIsTutorMenuOpen(false);
+                              }}
+                              className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                                isSel
+                                  ? 'bg-[var(--brand)] text-white'
+                                  : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                              }`}
+                            >
+                              {tutor.name.toUpperCase()}
+                            </button>
+                          );
+                        })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1412,49 +1420,53 @@ export const PrincipalHome: React.FC = () => {
                 </button>
                 {isClassMenuOpen && (
                   <div
-                    className="absolute right-0 sm:left-0 top-full z-50 mt-1 max-h-60 w-56 sm:w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl"
-                    role="listbox"
+                    className="absolute right-0 sm:left-0 top-full z-50 mt-1 w-56 sm:w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-xl overflow-hidden"
                   >
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={selectedClass === 'all'}
-                      onClick={() => {
-                        setSelectedClass('all');
-                        setTrendPage(0);
-                        setIsClassMenuOpen(false);
-                      }}
-                      className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
-                        selectedClass === 'all'
-                          ? 'bg-[var(--brand)] text-white'
-                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-                      }`}
+                    <div
+                      className="max-h-60 overflow-y-auto dropdown-scroll p-1.5"
+                      role="listbox"
                     >
-                      ALL CLASSES
-                    </button>
-                    {chartClasses.map((cls) => {
-                      const isSel = selectedClass === cls;
-                      return (
-                        <button
-                          key={cls}
-                          type="button"
-                          role="option"
-                          aria-selected={isSel}
-                          onClick={() => {
-                            setSelectedClass(cls);
-                            setTrendPage(0);
-                            setIsClassMenuOpen(false);
-                          }}
-                          className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
-                            isSel
-                              ? 'bg-[var(--brand)] text-white'
-                              : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-                          }`}
-                        >
-                          {cls}
-                        </button>
-                      );
-                    })}
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={selectedClass === 'all'}
+                        onClick={() => {
+                          setSelectedClass('all');
+                          setTrendPage(0);
+                          setIsClassMenuOpen(false);
+                        }}
+                        className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                          selectedClass === 'all'
+                            ? 'bg-[var(--brand)] text-white'
+                            : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                        }`}
+                      >
+                        ALL CLASSES
+                      </button>
+                      {chartClasses.map((cls) => {
+                        const isSel = selectedClass === cls;
+                        return (
+                          <button
+                            key={cls}
+                            type="button"
+                            role="option"
+                            aria-selected={isSel}
+                            onClick={() => {
+                              setSelectedClass(cls);
+                              setTrendPage(0);
+                              setIsClassMenuOpen(false);
+                            }}
+                            className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                              isSel
+                                ? 'bg-[var(--brand)] text-white'
+                                : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                            }`}
+                          >
+                            {cls}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1590,9 +1602,9 @@ export const PrincipalHome: React.FC = () => {
             </div>
 
             {/* Ranked Tutors List */}
-            <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5 flex flex-col">
+            <div className="mt-2 flex-1 min-h-0 overflow-y-auto space-y-2 -mx-1 px-1 py-1 flex flex-col">
               {filteredRankedTutors.length === 0 ? (
-                <div className="flex-1 min-h-[200px] flex flex-col items-center justify-center p-6 text-center select-none bg-gray-50/50 dark:bg-[#111111]/40 border border-dashed border-gray-200 dark:border-[#1E1E1E] rounded-lg">
+                <div className="risk-card-cascade flex-1 min-h-[200px] flex flex-col items-center justify-center p-6 text-center select-none bg-gray-50/50 dark:bg-[#111111]/40 border border-dashed border-gray-200 dark:border-[#1E1E1E] rounded-lg">
                   <Users className="w-8 h-8 text-gray-200 dark:text-gray-700 mb-2" />
                   <p className="text-xs font-semibold text-gray-400 dark:text-slate-500">
                     {rankedTutorClasses.length === 0 ? 'No tutor classes found' : 'No tutors matching search'}
@@ -1604,48 +1616,56 @@ export const PrincipalHome: React.FC = () => {
                   </p>
                 </div>
               ) : (
-                filteredRankedTutors.map((item) => (
-                  <div
-                    key={item.tutorId}
-                    onClick={() => navigate(`/principal/analytics?tutorId=${item.tutorId}`)}
-                    className="block p-2.5 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111]/70 hover:bg-gray-100/60 dark:hover:bg-white/[0.03] hover:border-gray-300 dark:hover:border-zinc-700 transition-colors group cursor-pointer shadow-xs"
-                    title={`Click to view data analytics for ${item.tutorName}`}
-                  >
-                    <div className="flex items-center justify-between gap-2.5">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-gray-900 dark:text-slate-100 group-hover:text-[var(--brand)] transition-colors truncate">
-                          {item.tutorName}
-                        </p>
-                        <p
-                          className="text-[10px] font-medium text-gray-400 dark:text-slate-500 truncate mt-0.5"
-                          title={item.classesHandled}
-                        >
-                          {item.classesHandled}
-                        </p>
-                      </div>
+                filteredRankedTutors.map((item, idx) => {
+                  const cascadeDelay = Math.min(idx * 50, 500);
+                  return (
+                    <div
+                      key={item.tutorId}
+                      className="risk-card-cascade"
+                      style={{ animationDelay: `${cascadeDelay}ms` }}
+                    >
+                      <div
+                        onClick={() => navigate(`/principal/analytics?tutorId=${item.tutorId}`)}
+                        className="group relative block p-2.5 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111]/70 hover:bg-gray-100/60 dark:hover:bg-white/[0.03] hover:border-gray-300 dark:hover:border-zinc-700 transition-all duration-150 ease-out cursor-pointer shadow-xs hover:z-10 hover:scale-[1.018] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
+                        title={`Click to view data analytics for ${item.tutorName}`}
+                      >
+                        <div className="flex items-center justify-between gap-2.5">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-gray-900 dark:text-slate-100 group-hover:text-[var(--brand)] transition-colors truncate">
+                              {item.tutorName}
+                            </p>
+                            <p
+                              className="text-[10px] font-medium text-gray-400 dark:text-slate-500 truncate mt-0.5"
+                              title={item.classesHandled}
+                            >
+                              {item.classesHandled}
+                            </p>
+                          </div>
 
-                      {/* Composite Score Pill */}
-                      <div className="text-right shrink-0">
-                        <span
-                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-extrabold border ${
-                            item.compositeScore === 0
-                              ? 'text-gray-400 dark:text-slate-500 border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111]'
-                              : item.compositeScore >= 81
-                              ? 'text-risk-low border-emerald-200 bg-emerald-50 dark:border-emerald-800/80 dark:bg-emerald-950/40'
-                              : item.compositeScore >= 70
-                              ? 'text-risk-moderate border-amber-200 bg-amber-50 dark:border-amber-800/80 dark:bg-amber-950/40'
-                              : 'text-risk-high border-rose-200 bg-rose-50 dark:border-rose-800/80 dark:bg-rose-950/40'
-                          }`}
-                        >
-                          {item.compositeScore === 0 ? '—' : `${item.compositeScore}%`}
-                        </span>
-                        <p className="text-[8.5px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500 mt-0.5 text-right">
-                          COMPOSITE
-                        </p>
+                          {/* Composite Score Pill */}
+                          <div className="text-right shrink-0">
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-extrabold border transition-transform duration-150 group-hover:scale-105 ${
+                                item.compositeScore === 0
+                                  ? 'text-gray-400 dark:text-slate-500 border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111]'
+                                  : item.compositeScore >= RISK_THRESHOLDS.lowMinComposite
+                                  ? 'text-risk-low border-emerald-200 bg-emerald-50 dark:border-emerald-800/80 dark:bg-emerald-950/40'
+                                  : item.compositeScore >= RISK_THRESHOLDS.moderateMinComposite
+                                  ? 'text-risk-moderate border-amber-200 bg-amber-50 dark:border-amber-800/80 dark:bg-amber-950/40'
+                                  : 'text-risk-high border-rose-200 bg-rose-50 dark:border-rose-800/80 dark:bg-rose-950/40'
+                              }`}
+                            >
+                              {item.compositeScore === 0 ? '—' : `${item.compositeScore}%`}
+                            </span>
+                            <p className="text-[8.5px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500 mt-0.5 text-right">
+                              COMPOSITE
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

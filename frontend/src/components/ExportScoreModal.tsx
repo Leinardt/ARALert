@@ -6,7 +6,7 @@ import { userService } from '../services/userService';
 import { academicService } from '../services/academicService';
 import {
   SCHOOL_METADATA_DEFAULTS,
-  getSchoolYearWeekNumberForDate,
+  computeWeekOfMonth,
   isNotTakenGrade,
 } from '../config/academicConfig';
 import {
@@ -556,7 +556,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
       setSelectedWeekKey(targetWeek);
       setSelectedMonthKey(targetWeek.slice(0, 7));
       const [y, m, d] = targetWeek.split('-').map(Number);
-      setWeekNumber(String(getSchoolYearWeekNumberForDate(new Date(y, m - 1, d), currentSchoolYear)));
+      setWeekNumber(String(computeWeekOfMonth(new Date(y, m - 1, d))));
     } else if (effectiveMode === 'monthly') {
       const targetMonth = initialTargetKey ? initialTargetKey.slice(0, 7) : currentMonth;
       setSelectedMonthKey(targetMonth);
@@ -572,7 +572,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
       const ws = new Date(y, m - 1, d);
       const we = new Date(y, m - 1, d + 4);
       setDateStr(`${formatNumericDate(ws)} - ${formatNumericDate(we)}`);
-      setWeekNumber(String(getSchoolYearWeekNumberForDate(ws, currentSchoolYear)));
+      setWeekNumber(String(computeWeekOfMonth(ws)));
     } else if (exportMode === 'monthly' && selectedMonthKey) {
       const [yr, mo] = selectedMonthKey.split('-').map(Number);
       const startOfMonth = new Date(yr, mo - 1, 1);
@@ -1328,7 +1328,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                               setSelectedWeekKey(targetWk);
                               setSelectedMonthKey(currentMonth);
                               const [y, m, d] = targetWk.split('-').map(Number);
-                              setWeekNumber(String(getSchoolYearWeekNumberForDate(new Date(y, m - 1, d), currentSchoolYear)));
+                              setWeekNumber(String(computeWeekOfMonth(new Date(y, m - 1, d))));
                             } else if (mode === 'monthly') {
                               setSelectedMonthKey(currentMonth);
                             }
@@ -1376,7 +1376,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                   onSelectWeek={(wKey) => {
                     setSelectedWeekKey(wKey);
                     const [y, m, d] = wKey.split('-').map(Number);
-                    setWeekNumber(String(getSchoolYearWeekNumberForDate(new Date(y, m - 1, d), currentSchoolYear)));
+                    setWeekNumber(String(computeWeekOfMonth(new Date(y, m - 1, d))));
                     if (exportMode !== 'weekly') setExportMode('weekly');
                   }}
                   onSelectMonth={(mKey) => {

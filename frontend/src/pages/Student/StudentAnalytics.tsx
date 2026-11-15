@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../../utils/analyticsHelpers';
-import { isNotTakenGrade } from '../../config/academicConfig';
+import { isNotTakenGrade, RISK_THRESHOLDS, getCompositeFormulaDescription, getRiskRangeDescriptions } from '../../config/academicConfig';
 import {
   AlertCircle,
   ChevronLeft,
@@ -11,7 +11,7 @@ import {
   Users,
 } from 'lucide-react';
 import type { Attendance, Grade, User } from '../../types';
-import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
+import { getRecentSchoolWeekdays, formatChartPeriodRange } from '../../utils/studentFormatters';
 import { SlidingPeriodToggle } from '../../components/SlidingTabs';
 
 /* ─── Types & Helpers ─────────────────────────────────────────── */
@@ -104,7 +104,7 @@ const RiskCalculationInfo: React.FC = () => (
       <Info className="h-3.5 w-3.5" />
     </button>
     <span className="pointer-events-none absolute left-0 top-full mt-2 sm:left-full sm:top-1/2 sm:mt-0 sm:ml-2 z-20 hidden w-72 sm:w-80 max-w-[calc(100vw-2rem)] sm:-translate-y-1/2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-2.5 sm:px-3 sm:py-2 text-left text-xs font-semibold leading-relaxed text-slate-800 dark:text-white shadow-lg group-hover:block group-focus-within:block">
-      Risk level is calculated from the composite rating of a student. Composite Rating = 40% (Attendance Rate) + 60% (Average Score Rate)
+      {getCompositeFormulaDescription()}
     </span>
   </span>
 );
@@ -1011,7 +1011,7 @@ export const StudentAnalytics: React.FC = () => {
           }`}
         >
           <div className="absolute right-3 top-3">
-            <RiskRangeInfo range="Composite rating is 69% and below" />
+            <RiskRangeInfo range={getRiskRangeDescriptions().high} />
           </div>
           <div className="min-w-0">
             {studentRiskTier === 'High' && (
@@ -1043,7 +1043,7 @@ export const StudentAnalytics: React.FC = () => {
           }`}
         >
           <div className="absolute right-3 top-3">
-            <RiskRangeInfo range="Composite rating is between 70% to 85%" />
+            <RiskRangeInfo range={getRiskRangeDescriptions().moderate} />
           </div>
           <div className="min-w-0">
             {(studentRiskTier === 'Moderate' || studentRiskTier === 'Medium') && (
@@ -1075,7 +1075,7 @@ export const StudentAnalytics: React.FC = () => {
           }`}
         >
           <div className="absolute right-3 top-3">
-            <RiskRangeInfo range="Composite rating is between 86% to 100%" />
+            <RiskRangeInfo range={getRiskRangeDescriptions().low} />
           </div>
           <div className="min-w-0">
             {studentRiskTier === 'Low' && (
@@ -1152,6 +1152,9 @@ export const StudentAnalytics: React.FC = () => {
                 >
                   <ChevronLeft size={14} className="stroke-[2.5]" />
                 </button>
+                <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                  {formatChartPeriodRange(trendFilter, trendPage)}
+                </span>
                 <button
                   type="button"
                   onClick={() => setTrendPage((p) => Math.max(0, p - 1))}
@@ -1258,9 +1261,9 @@ export const StudentAnalytics: React.FC = () => {
                       <td className="px-4 py-3 align-middle">
                         {row.riskTier === 'High' ? (
                           <div className="flex flex-wrap items-center gap-1.5">
-                            {row.compositeScore >= 70 && row.attendanceRate <= 75 && (
+                            {row.compositeScore >= RISK_THRESHOLDS.moderateMinComposite && row.attendanceRate <= RISK_THRESHOLDS.highAttendanceGate && (
                               <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[10.5px] font-medium text-amber-900 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-200 leading-snug">
-                                Despite current composite rating, student is marked high risk due to the attendace rate being 75% or less.
+                                Despite current composite rating, student is marked high risk due to the attendance rate being {RISK_THRESHOLDS.highAttendanceGate}% or less.
                               </span>
                             )}
                             {row.neededPresentAttendance > 0 && (

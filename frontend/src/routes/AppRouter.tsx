@@ -138,7 +138,6 @@ export const AppRouter: React.FC = () => {
           <Route path="/admin/evaluations" element={<AdminEvaluationHub />} />
           <Route path="/admin/archive" element={<AssessmentsArchive />} />
           <Route path="/admin/audit-logs" element={<AuditLog />} />
-          <Route path="/admin/tickets" element={<Tickets />} />
           <Route path="/admin/profile" element={<Profile />} />
           <Route path="/admin/settings" element={<Settings />} />
         </Route>

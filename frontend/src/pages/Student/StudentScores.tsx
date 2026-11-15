@@ -28,7 +28,7 @@ import { AnimatedCounter } from '../../components/AnimatedCounter';
 import {
   PASSING_SCORE_RATIO,
   generateSchoolYearWeeks,
-  getSchoolYearWeekNumberForDate,
+  computeWeekOfMonth,
   isNotTakenGrade,
 } from '../../config/academicConfig';
 
@@ -210,8 +210,8 @@ const getWeekKey = (dateStr: string) => {
   return mon.toLocaleDateString('en-CA');
 };
 
-const getWeekTitle = (mondayStr: string, schoolYear?: Partial<SchoolYear> | null, recordedDateKeys?: string[]) => {
-  const weekNum = getSchoolYearWeekNumberForDate(mondayStr, schoolYear, recordedDateKeys);
+const getWeekTitle = (mondayStr: string, _schoolYear?: Partial<SchoolYear> | null, _recordedDateKeys?: string[]) => {
+  const weekNum = computeWeekOfMonth(mondayStr);
   return `WEEK ${weekNum}`;
 };
 
@@ -975,7 +975,7 @@ export const StudentScores: React.FC = () => {
       const isCurrent = key === activeKey;
       const tag = isCurrent ? ' (Active)' : '';
       const syDisplay = `SY ${sy.replace('-', '–')}`;
-      const semDisplay = sem === '1st' ? '1st Semester' : sem === '2nd' ? '2nd Semester' : 'Summer';
+      const semDisplay = sem === '1st' ? '1st Semester (Q1 & Q2)' : sem === '2nd' ? '2nd Semester (Q3 & Q4)' : 'Summer (Midyear)';
 
       const tutor = resolveTutorForPeriod(sy, sem, studentHistory) || (isCurrent ? studentHistory?.current_tutor : null);
       const tutorSuffix = tutor ? ` — ${tutor}` : '';
@@ -1353,38 +1353,40 @@ export const StudentScores: React.FC = () => {
                   />
                 </button>
                 {showWeekDropdown && (
-                  <div className="absolute right-0 top-full mt-1.5 z-50 w-52 max-h-72 overflow-y-auto flex flex-col gap-0.5 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-1.5 shadow-xl">
-                    {schoolYearWeeks.map((week) => {
-                      const isSelected = !jumpDate && selectedWeekOption?.weekKey === week.weekKey;
-                      const weekHasRecords = recordedDateKeys.some(
-                        (d) => getWeekKey(d) === week.weekKey
-                      );
-                      return (
-                        <button
-                          key={week.weekKey}
-                          type="button"
-                          onClick={() => {
-                            setSelectedWeekMonday(week.weekKey);
-                            setJumpDate(null);
-                            setViewMode('week');
-                            setShowWeekDropdown(false);
-                          }}
-                          className={`flex items-center justify-between w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
-                            isSelected
-                              ? 'bg-[var(--brand-light)] text-[var(--brand)] font-bold dark:bg-blue-950/50 dark:text-blue-300'
-                              : 'text-gray-700 dark:text-slate-200 font-medium hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-                          }`}
-                        >
-                          <span className="truncate">{week.label}</span>
-                          {weekHasRecords && (
-                            <span
-                              className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] shrink-0 ml-2"
-                              title="Has recorded scores"
-                            />
-                          )}
-                        </button>
-                      );
-                    })}
+                  <div className="absolute right-0 top-full mt-1.5 z-50 w-52 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-xl overflow-hidden">
+                    <div className="max-h-72 overflow-y-auto dropdown-scroll p-1.5 flex flex-col gap-0.5">
+                      {schoolYearWeeks.map((week) => {
+                        const isSelected = !jumpDate && selectedWeekOption?.weekKey === week.weekKey;
+                        const weekHasRecords = recordedDateKeys.some(
+                          (d) => getWeekKey(d) === week.weekKey
+                        );
+                        return (
+                          <button
+                            key={week.weekKey}
+                            type="button"
+                            onClick={() => {
+                              setSelectedWeekMonday(week.weekKey);
+                              setJumpDate(null);
+                              setViewMode('week');
+                              setShowWeekDropdown(false);
+                            }}
+                            className={`flex items-center justify-between w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                              isSelected
+                                ? 'bg-[var(--brand-light)] text-[var(--brand)] font-bold dark:bg-blue-950/50 dark:text-blue-300'
+                                : 'text-gray-700 dark:text-slate-200 font-medium hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                            }`}
+                          >
+                            <span className="truncate">{week.label}</span>
+                            {weekHasRecords && (
+                              <span
+                                className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] shrink-0 ml-2"
+                                title="Has recorded scores"
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>

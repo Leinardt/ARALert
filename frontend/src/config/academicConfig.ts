@@ -5,16 +5,292 @@ export const PASSING_SCORE_RATIO = 0.7;
 export const DEFAULT_MILESTONE_TOTAL_SCORE = 40;
 export const DEFAULT_MILESTONE_PASSING_SCORE = 28;
 
-export const COMPOSITE_WEIGHTS = {
+export const DEFAULT_COMPOSITE_WEIGHTS = {
   attendance: 0.4,
   score: 0.6,
 } as const;
 
-export const RISK_THRESHOLDS = {
+export const DEFAULT_RISK_THRESHOLDS = {
   lowMinComposite: 86,
   moderateMinComposite: 70,
   highAttendanceGate: 75,
 } as const;
+
+const WEIGHTS_STORAGE_KEY = 'aralert_composite_weights';
+const THRESHOLDS_STORAGE_KEY = 'aralert_risk_thresholds';
+const SCHOOL_YEAR_STORAGE_KEY = 'aralert_active_school_year';
+
+export interface CompositeWeightsConfig {
+  attendance: number;
+  score: number;
+}
+
+export interface RiskThresholdsConfig {
+  lowMinComposite: number;
+  moderateMinComposite: number;
+  highAttendanceGate: number;
+}
+
+export const getCompositeWeights = (): CompositeWeightsConfig => {
+  if (typeof window === 'undefined') return { ...DEFAULT_COMPOSITE_WEIGHTS };
+  try {
+    const raw = window.localStorage.getItem(WEIGHTS_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_COMPOSITE_WEIGHTS };
+    const parsed = JSON.parse(raw);
+    const att = Number(parsed?.attendance);
+    const scr = Number(parsed?.score);
+    if (
+      Number.isFinite(att) &&
+      Number.isFinite(scr) &&
+      att >= 0 &&
+      scr >= 0 &&
+      Math.abs(att + scr - 1) < 0.01
+    ) {
+      return { attendance: Number(att.toFixed(4)), score: Number(scr.toFixed(4)) };
+    }
+  } catch {
+    // ignore storage read errors
+  }
+  return { ...DEFAULT_COMPOSITE_WEIGHTS };
+};
+
+export const setCompositeWeights = (weights: CompositeWeightsConfig): CompositeWeightsConfig => {
+  const att = Math.max(0, Math.min(1, Number(weights.attendance)));
+  const scr = Math.max(0, Math.min(1, Number((1 - att).toFixed(4))));
+  const normalized: CompositeWeightsConfig = { attendance: Number(att.toFixed(4)), score: scr };
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(WEIGHTS_STORAGE_KEY, JSON.stringify(normalized));
+      window.dispatchEvent(new CustomEvent('aralert:weights-changed', { detail: { weights: normalized } }));
+    } catch {
+      // ignore storage write errors
+    }
+  }
+  return normalized;
+};
+
+export const getRiskThresholds = (): RiskThresholdsConfig => {
+  if (typeof window === 'undefined') return { ...DEFAULT_RISK_THRESHOLDS };
+  try {
+    const raw = window.localStorage.getItem(THRESHOLDS_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_RISK_THRESHOLDS };
+    const parsed = JSON.parse(raw);
+    const lowMin = Number(parsed?.lowMinComposite);
+    const modMin = Number(parsed?.moderateMinComposite);
+    const gate = Number(parsed?.highAttendanceGate);
+    if (
+      Number.isFinite(lowMin) &&
+      Number.isFinite(modMin) &&
+      Number.isFinite(gate) &&
+      lowMin > modMin &&
+      modMin >= 0 &&
+      lowMin <= 100 &&
+      gate >= 0 &&
+      gate <= 100
+    ) {
+      return {
+        lowMinComposite: lowMin,
+        moderateMinComposite: modMin,
+        highAttendanceGate: gate,
+      };
+    }
+  } catch {
+    // ignore storage read errors
+  }
+  return { ...DEFAULT_RISK_THRESHOLDS };
+};
+
+export const setRiskThresholds = (thresholds: RiskThresholdsConfig): RiskThresholdsConfig => {
+  const normalized: RiskThresholdsConfig = {
+    lowMinComposite: Math.max(1, Math.min(100, Number(thresholds.lowMinComposite))),
+    moderateMinComposite: Math.max(0, Math.min(99, Number(thresholds.moderateMinComposite))),
+    highAttendanceGate: Math.max(0, Math.min(100, Number(thresholds.highAttendanceGate))),
+  };
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(THRESHOLDS_STORAGE_KEY, JSON.stringify(normalized));
+      window.dispatchEvent(new CustomEvent('aralert:weights-changed', { detail: { thresholds: normalized } }));
+    } catch {
+      // ignore storage write errors
+    }
+  }
+  return normalized;
+};
+
+export const resetWeightsAndThresholds = (): {
+  weights: CompositeWeightsConfig;
+  thresholds: RiskThresholdsConfig;
+} => {
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.removeItem(WEIGHTS_STORAGE_KEY);
+      window.localStorage.removeItem(THRESHOLDS_STORAGE_KEY);
+      window.dispatchEvent(
+        new CustomEvent('aralert:weights-changed', {
+          detail: {
+            weights: { ...DEFAULT_COMPOSITE_WEIGHTS },
+            thresholds: { ...DEFAULT_RISK_THRESHOLDS },
+          },
+        })
+      );
+    } catch {
+      // ignore
+    }
+  }
+  return {
+    weights: { ...DEFAULT_COMPOSITE_WEIGHTS },
+    thresholds: { ...DEFAULT_RISK_THRESHOLDS },
+  };
+};
+
+export const COMPOSITE_WEIGHTS = {
+  get attendance(): number {
+    return getCompositeWeights().attendance;
+  },
+  get score(): number {
+    return getCompositeWeights().score;
+  },
+};
+
+export const RISK_THRESHOLDS = {
+  get lowMinComposite(): number {
+    return getRiskThresholds().lowMinComposite;
+  },
+  get moderateMinComposite(): number {
+    return getRiskThresholds().moderateMinComposite;
+  },
+  get highAttendanceGate(): number {
+    return getRiskThresholds().highAttendanceGate;
+  },
+};
+
+export const getActiveSchoolYearLabel = (): string => {
+  if (typeof window === 'undefined') return '2026-2027';
+  try {
+    const raw = (window.localStorage.getItem(SCHOOL_YEAR_STORAGE_KEY) || '').trim();
+    if (/^\d{4}\D+\d{4}$/.test(raw)) return raw;
+  } catch {
+    // ignore
+  }
+  return '2026-2027';
+};
+
+export const setActiveSchoolYearLabel = (schoolYear?: string | null): string => {
+  const clean = (schoolYear || '').trim();
+  const normalized = /^\d{4}\D+\d{4}$/.test(clean) ? clean : '2026-2027';
+  if (typeof window !== 'undefined') {
+    try {
+      const prev = window.localStorage.getItem(SCHOOL_YEAR_STORAGE_KEY);
+      if (prev !== normalized) {
+        window.localStorage.setItem(SCHOOL_YEAR_STORAGE_KEY, normalized);
+        window.dispatchEvent(
+          new CustomEvent('aralert:school-year-changed', {
+            detail: { school_year: normalized },
+          })
+        );
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return normalized;
+};
+
+export const syncProgramConfigFromSchoolYear = (sy?: Partial<SchoolYear> | null): void => {
+  if (!sy || typeof window === 'undefined') return;
+
+  if (sy.school_year) {
+    setActiveSchoolYearLabel(sy.school_year);
+  }
+
+  let weightsChanged = false;
+  let thresholdsChanged = false;
+
+  if (
+    typeof sy.attendance_weight_pct === 'number' &&
+    typeof sy.score_weight_pct === 'number' &&
+    sy.attendance_weight_pct + sy.score_weight_pct === 100
+  ) {
+    const currentW = getCompositeWeights();
+    const nextAtt = Number((sy.attendance_weight_pct / 100).toFixed(4));
+    const nextScr = Number((sy.score_weight_pct / 100).toFixed(4));
+    if (
+      Math.abs(currentW.attendance - nextAtt) > 0.0001 ||
+      Math.abs(currentW.score - nextScr) > 0.0001
+    ) {
+      try {
+        window.localStorage.setItem(
+          WEIGHTS_STORAGE_KEY,
+          JSON.stringify({ attendance: nextAtt, score: nextScr })
+        );
+        weightsChanged = true;
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  if (
+    typeof sy.low_min_composite === 'number' &&
+    typeof sy.moderate_min_composite === 'number' &&
+    typeof sy.high_attendance_gate === 'number' &&
+    sy.low_min_composite > sy.moderate_min_composite
+  ) {
+    const currentT = getRiskThresholds();
+    if (
+      currentT.lowMinComposite !== sy.low_min_composite ||
+      currentT.moderateMinComposite !== sy.moderate_min_composite ||
+      currentT.highAttendanceGate !== sy.high_attendance_gate
+    ) {
+      try {
+        window.localStorage.setItem(
+          THRESHOLDS_STORAGE_KEY,
+          JSON.stringify({
+            lowMinComposite: sy.low_min_composite,
+            moderateMinComposite: sy.moderate_min_composite,
+            highAttendanceGate: sy.high_attendance_gate,
+          })
+        );
+        thresholdsChanged = true;
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  if (weightsChanged || thresholdsChanged) {
+    window.dispatchEvent(
+      new CustomEvent('aralert:weights-changed', {
+        detail: {
+          weights: getCompositeWeights(),
+          thresholds: getRiskThresholds(),
+        },
+      })
+    );
+  }
+};
+
+export const getCompositeFormulaDescription = (): string => {
+  const weights = getCompositeWeights();
+  const attPct = Math.round(weights.attendance * 100);
+  const scrPct = Math.round(weights.score * 100);
+  return `Risk level is calculated from the composite rating of a student. Composite Rating = ${attPct}% (Attendance Rate) + ${scrPct}% (Average Score Rate)`;
+};
+
+export const getRiskRangeDescriptions = (): {
+  high: string;
+  moderate: string;
+  low: string;
+} => {
+  const t = getRiskThresholds();
+  const highMax = Math.max(0, t.moderateMinComposite - 1);
+  const modMax = Math.max(t.moderateMinComposite, t.lowMinComposite - 1);
+  return {
+    high: `Composite rating is ${highMax}% and below`,
+    moderate: `Composite rating is between ${t.moderateMinComposite}% to ${modMax}%`,
+    low: `Composite rating is between ${t.lowMinComposite}% to 100%`,
+  };
+};
 
 export const GRADE_LEVEL_OPTIONS = [
   'GRADE 7',
@@ -93,8 +369,10 @@ export const SCHOOL_METADATA_DEFAULTS = {
   district: 'PALANAS NORTH DISTRICT',
   schoolName: 'PALANAS NATIONAL AGRICULTURE HIGH SCHOOL',
   schoolAddress: 'Sta. Cruz, Palanas, Masbate',
-  defaultSchoolYear: '2026-2027',
-} as const;
+  get defaultSchoolYear(): string {
+    return getActiveSchoolYearLabel();
+  },
+};
 
 export const getSubjectsForAralLevel = (level?: string | null) => {
   const normalized = (level || 'basic').trim().toLowerCase();
@@ -201,8 +479,12 @@ export const computeAssessmentRemark = (
 
 export interface SchoolYearWeekOption {
   weekNumber: number;
+  monthWeekNumber?: number;
+  monthLabel?: string;
+  monthShortLabel?: string;
   weekKey: string; // YYYY-MM-DD (Monday)
-  label: string; // "Week 1", "Week 2", ...
+  label: string; // "Week 1", "Week 2", ... (month-relative)
+  fullLabel?: string; // "Aug • Week 1"
   dateRangeLabel: string; // e.g. "Aug 3 - Aug 7, 2026"
   mondayDate: string; // YYYY-MM-DD
   fridayDate: string; // YYYY-MM-DD
@@ -242,6 +524,23 @@ export const getMondayKeyOfDate = (dateOrKey: Date | string): string => {
   return formatDateKeyLocal(getMondayOfDate(dateOrKey));
 };
 
+export const computeWeekOfMonth = (dateOrKey: Date | string): number => {
+  const d =
+    typeof dateOrKey === 'string'
+      ? parseDateKeyLocal(dateOrKey)
+      : new Date(dateOrKey.getFullYear(), dateOrKey.getMonth(), dateOrKey.getDate());
+  const day = d.getDay();
+  // School weeks run Mon-Fri. Use Wednesday (school midweek) to determine which month this school week primarily belongs to
+  const wedDiff = day === 0 ? 3 : 3 - day;
+  const wednesday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + wedDiff);
+
+  // Find date of the first Wednesday of wednesday's month
+  const firstDayOfMonth = new Date(wednesday.getFullYear(), wednesday.getMonth(), 1).getDay();
+  const firstWedDate = 1 + (firstDayOfMonth <= 3 ? 3 - firstDayOfMonth : 10 - firstDayOfMonth);
+
+  return Math.floor((wednesday.getDate() - firstWedDate) / 7) + 1;
+};
+
 const formatWeekDateRange = (monday: Date, friday: Date): string => {
   const sameYear = monday.getFullYear() === friday.getFullYear();
   const sameMonth = sameYear && monday.getMonth() === friday.getMonth();
@@ -279,39 +578,53 @@ export const resolveSchoolYearDateBounds = (
   }
 
   let startMonday = getMondayOfDate(startDateObj);
+  // Wednesday of this week determines which month/period it primarily belongs to
+  const startWed = new Date(startMonday.getFullYear(), startMonday.getMonth(), startMonday.getDate() + 2);
+  // If the week's Wednesday is before startDateObj (e.g. August 1 on a weekend having Wednesday in July),
+  // this week primarily belongs to the prior month. Advance to the first school week of the school year.
+  if (startWed < startDateObj) {
+    startMonday = new Date(startMonday.getFullYear(), startMonday.getMonth(), startMonday.getDate() + 7);
+  }
 
-  // Determine end boundary dynamically from SchoolYear.end_date, today, and recorded scores
-  let endCandidates: Date[] = [];
+  // Determine official end date of the school year if configured
+  let syOfficialEndDate: Date | null = null;
   if (schoolYear?.end_date) {
-    endCandidates.push(parseDateKeyLocal(schoolYear.end_date));
+    syOfficialEndDate = parseDateKeyLocal(schoolYear.end_date);
   } else if (yearMatch) {
-    endCandidates.push(new Date(parseInt(yearMatch[2], 10), 5, 30)); // June 30 of SY end year
+    syOfficialEndDate = new Date(parseInt(yearMatch[2], 10), 5, 30); // June 30 of SY end year
   }
 
-  // Always include today if within a reasonable range of the school year
-  const syEndCap = endCandidates[0];
-  if (!syEndCap || today <= syEndCap) {
-    endCandidates.push(today);
-  }
-
+  // Determine latest recorded date
+  let latestRecordedDate: Date | null = null;
   if (recordedDateKeys && recordedDateKeys.length > 0) {
     const validRecorded = recordedDateKeys.filter(Boolean).sort();
     const earliestRecorded = parseDateKeyLocal(validRecorded[0]);
-    const latestRecorded = parseDateKeyLocal(validRecorded[validRecorded.length - 1]);
+    latestRecordedDate = parseDateKeyLocal(validRecorded[validRecorded.length - 1]);
 
-    // If a recorded score within this SY falls slightly before start_date, adjust startMonday back safely only if start_date wasn't explicitly configured
     if (!schoolYear?.start_date && earliestRecorded < startMonday) {
       startMonday = getMondayOfDate(earliestRecorded);
     }
-    if (latestRecorded >= startMonday) {
-      endCandidates.push(latestRecorded);
-    }
   }
 
-  let endDateObj = endCandidates.reduce(
-    (maxD, curD) => (curD > maxD ? curD : maxD),
-    startMonday
-  );
+  // Active / Ongoing School Year:
+  // Increment weeks dynamically up to the current week (today) or latest recorded entry,
+  // without generating 50+ empty weeks in advance.
+  // Past / Archived School Year:
+  // If the official end date has already passed, show all weeks up to the end date.
+  let endDateObj: Date;
+  if (syOfficialEndDate && today > syOfficialEndDate) {
+    endDateObj = syOfficialEndDate;
+  } else {
+    let dynamicCap = today;
+    if (latestRecordedDate && latestRecordedDate > dynamicCap) {
+      dynamicCap = latestRecordedDate;
+    }
+    if (syOfficialEndDate && dynamicCap > syOfficialEndDate) {
+      dynamicCap = syOfficialEndDate;
+    }
+    endDateObj = dynamicCap;
+  }
+
   if (endDateObj < startMonday) {
     endDateObj = startMonday;
   }
@@ -365,10 +678,19 @@ export const generateSchoolYearWeeks = (
     }
 
     const weekNumber = i + 1;
+    const monthWeekNumber = computeWeekOfMonth(mon);
+    const wed = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 2);
+    const monthLabel = wed.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const monthShortLabel = wed.toLocaleDateString('en-US', { month: 'short' });
+
     weeks.push({
       weekNumber,
+      monthWeekNumber,
+      monthLabel,
+      monthShortLabel,
       weekKey: monKey,
-      label: `Week ${weekNumber}`,
+      label: `Week ${monthWeekNumber}`,
+      fullLabel: `${monthShortLabel} • Week ${monthWeekNumber}`,
       dateRangeLabel: formatWeekDateRange(mon, fri),
       mondayDate: monKey,
       fridayDate: friKey,

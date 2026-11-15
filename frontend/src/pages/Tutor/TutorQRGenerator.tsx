@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
@@ -38,7 +38,7 @@ import { SlidingTabBar, SlidingPeriodToggle } from '../../components/SlidingTabs
 import type { Attendance, User, AttendanceSession, SchoolYear } from '../../types';
 import {
   generateSchoolYearWeeks,
-  getSchoolYearWeekNumberForDate,
+  computeWeekOfMonth,
   type SchoolYearWeekOption,
 } from '../../config/academicConfig';
 import { HistoryWeekDropdown } from '../../components/HistoryWeekDropdown';
@@ -846,10 +846,10 @@ const getWeekdaysForMonday = (mondayStr: string, extraDates: string[] = []): str
 
 const getWeekTitle = (
   mondayStr: string,
-  schoolYear?: Partial<SchoolYear> | null,
-  recordedDateKeys?: string[]
+  _schoolYear?: Partial<SchoolYear> | null,
+  _recordedDateKeys?: string[]
 ) => {
-  const weekNum = getSchoolYearWeekNumberForDate(mondayStr, schoolYear, recordedDateKeys);
+  const weekNum = computeWeekOfMonth(mondayStr);
   return `WEEK ${weekNum}`;
 };
 
@@ -1103,6 +1103,7 @@ interface TutorQRGeneratorProps {
 export const TutorQRGenerator: React.FC<TutorQRGeneratorProps> = ({ pageMode }) => {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const activePageMode: 'qr' | 'manual' | 'history' =
     pageMode ??
     (location.pathname.includes('/history')
@@ -2416,6 +2417,10 @@ export const TutorQRGenerator: React.FC<TutorQRGeneratorProps> = ({ pageMode }) 
 
       await fetchAttendanceHistory();
 
+      if (manualDate) {
+        setSelectedWeekMonday(getWeekKey(manualDate));
+      }
+
       setSuccessToast({
         title: 'Attendance Saved',
         message: res.message || `Successfully recorded attendance for ${formatShortDateString(manualDate)}.`,
@@ -2431,6 +2436,14 @@ export const TutorQRGenerator: React.FC<TutorQRGeneratorProps> = ({ pageMode }) 
     } finally {
       setIsSavingManual(false);
     }
+  };
+
+  const handleNavigateToAttendanceHistory = () => {
+    setSuccessToast(null);
+    if (manualDate) {
+      setSelectedWeekMonday(getWeekKey(manualDate));
+    }
+    navigate('/tutor/attendance/history');
   };
 
   /* ─────────────────────────── render ─────────────────────────── */
@@ -3523,15 +3536,23 @@ export const TutorQRGenerator: React.FC<TutorQRGeneratorProps> = ({ pageMode }) 
             aria-live="polite"
             className="fixed top-20 right-4 sm:right-6 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
           >
-            <div className={`flex items-start gap-3 rounded-lg border bg-white dark:bg-[#111111] p-3.5 shadow-xl ${
-              successToast.type === 'error'
-                ? 'border-rose-200 dark:border-rose-900/60'
-                : 'border-emerald-200 dark:border-emerald-800'
-            }`}>
+            <div
+              onClick={() => {
+                if (successToast.type !== 'error') {
+                  handleNavigateToAttendanceHistory();
+                }
+              }}
+              className={`flex items-start gap-3 rounded-lg border bg-white dark:bg-[#111111] p-3.5 shadow-xl transition-all ${
+                successToast.type === 'error'
+                  ? 'border-rose-200 dark:border-rose-900/60'
+                  : 'border-emerald-200 dark:border-emerald-800 hover:border-emerald-400 dark:hover:border-emerald-600 cursor-pointer group'
+              }`}
+              title={successToast.type !== 'error' ? 'Click to view in Attendance History' : undefined}
+            >
               <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${
                 successToast.type === 'error'
                   ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-400'
-                  : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400'
+                  : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400 group-hover:scale-105 transition-transform'
               }`}>
                 {successToast.type === 'error' ? (
                   <AlertCircle className="h-4 w-4" />
@@ -3541,12 +3562,19 @@ export const TutorQRGenerator: React.FC<TutorQRGeneratorProps> = ({ pageMode }) 
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                  <h3 className={`text-xs font-bold text-gray-900 dark:text-slate-100 ${
+                    successToast.type !== 'error'
+                      ? 'group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors'
+                      : ''
+                  }`}>
                     {successToast.title}
                   </h3>
                   <button
                     type="button"
-                    onClick={() => setSuccessToast(null)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSuccessToast(null);
+                    }}
                     className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
                     aria-label="Close notification"
                   >
