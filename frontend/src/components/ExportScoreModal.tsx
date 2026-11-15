@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
-import type { User, Grade } from '../types';
+import type { User, Grade, SchoolYear } from '../types';
 import { userService } from '../services/userService';
+import { academicService } from '../services/academicService';
+import {
+  SCHOOL_METADATA_DEFAULTS,
+  computeWeekOfMonth,
+  isNotTakenGrade,
+} from '../config/academicConfig';
 import {
   exportScoresToExcel,
   formatSessionDateHeader,
@@ -372,10 +378,11 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
   selectedAralLevel = '',
   selectedSubject = '',
 }) => {
-  const [division, setDivision] = useState('DIVISION OF MASBATE');
-  const [district, setDistrict] = useState('PALANAS NORTH DISTRICT');
-  const [schoolName, setSchoolName] = useState('PALANAS NATIONAL AGRICULTURE HIGH SCHOOL');
-  const [schoolAddress, setSchoolAddress] = useState('Sta. Cruz, Palanas, Masbate');
+  const [division, setDivision] = useState<string>(SCHOOL_METADATA_DEFAULTS.division);
+  const [district, setDistrict] = useState<string>(SCHOOL_METADATA_DEFAULTS.district);
+  const [schoolName, setSchoolName] = useState<string>(SCHOOL_METADATA_DEFAULTS.schoolName);
+  const [schoolAddress, setSchoolAddress] = useState<string>(SCHOOL_METADATA_DEFAULTS.schoolAddress);
+  const [currentSchoolYear, setCurrentSchoolYear] = useState<SchoolYear | null>(null);
 
   const [subjectTitle, setSubjectTitle] = useState(() => {
     if (selectedSubject) {
@@ -515,15 +522,17 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
     }, {} as Record<string, number>);
   }, [assessmentGrades]);
 
-  const computeWeekOfMonth = (dateObj: Date): number => {
-    // School weeks run Mon-Fri. Use Wednesday (school midweek) to determine which month this school week primarily belongs to
-    const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
-    const day = d.getDay();
-    const wedDiff = day === 0 ? 3 : 3 - day;
-    const wednesday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + wedDiff);
-    const firstDay = new Date(wednesday.getFullYear(), wednesday.getMonth(), 1).getDay();
-    return Math.ceil((wednesday.getDate() + (firstDay === 0 ? 6 : firstDay - 1)) / 7);
-  };
+  useEffect(() => {
+    if (!isOpen) return;
+    academicService
+      .getCurrentSchoolYear()
+      .then((sy) => {
+        if (sy) setCurrentSchoolYear(sy);
+      })
+      .catch(() => {
+        // Keep fallback week calculation if offline
+      });
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -552,7 +561,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
       const targetMonth = initialTargetKey ? initialTargetKey.slice(0, 7) : currentMonth;
       setSelectedMonthKey(targetMonth);
     }
-  }, [isOpen, initialMode, initialTargetKey]);
+  }, [isOpen, initialMode, initialTargetKey, currentSchoolYear]);
 
   useEffect(() => {
     if (exportMode === 'daily' && selectedDateKey) {
@@ -570,7 +579,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
       const endOfMonth = new Date(yr, mo, 0);
       setDateStr(`${formatNumericDate(startOfMonth)} - ${formatNumericDate(endOfMonth)}`);
     }
-  }, [exportMode, selectedDateKey, selectedWeekKey, selectedMonthKey]);
+  }, [exportMode, selectedDateKey, selectedWeekKey, selectedMonthKey, currentSchoolYear]);
 
   // Helper to compute session number for any date within its week (1-5)
   const getSessionNumberForDate = useMemo(() => {
@@ -919,7 +928,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
         matchedGrade.score !== undefined &&
         matchedGrade.score !== null &&
         !isNaN(Number(matchedGrade.score)) &&
-        matchedGrade.remarks !== 'Not Taken'
+        !isNotTakenGrade(matchedGrade)
       ) {
         const val = Number(matchedGrade.score);
         scores.push(val);

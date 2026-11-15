@@ -1,508 +1,911 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { ChevronDown } from 'lucide-react';
+import { academicService } from '../../services/academicService';
+import type { SchoolYear } from '../../types';
+import { setActiveSystemSemester } from '../../utils/sessionDescriptionHelpers';
 import {
-  Shield, Lock, Clock, CheckCircle2, Server, RefreshCw,
-  Save, Activity, Search, ChevronLeft, ChevronRight,
-  AlertTriangle, LogIn, LogOut, KeyRound, UserCog, Eye,
-  Filter, Download,
-} from 'lucide-react';
-import api from '../../api/axios';
+  DEFAULT_COMPOSITE_WEIGHTS,
+  DEFAULT_RISK_THRESHOLDS,
+  getCompositeWeights,
+  getRiskThresholds,
+  resetWeightsAndThresholds,
+  setCompositeWeights,
+  setRiskThresholds,
+} from '../../config/academicConfig';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-interface AuditEntry {
-  id: string;
-  timestamp: string;
-  action: string;
-  username: string;
-  ip_address: string;
-  user_agent: string;
-  details: Record<string, unknown>;
-}
+const SEMESTER_OPTIONS: { value: '1st' | '2nd' | 'summer'; label: string }[] = [
+  { value: '1st', label: '1st Semester — MOSY (Q1 & Q2)' },
+  { value: '2nd', label: '2nd Semester — EOSY (Q3 & Q4)' },
+  { value: 'summer', label: 'Summer Remediation (Midyear)' },
+];
 
-interface AuditResponse {
-  count: number;
-  page: number;
-  page_size: number;
-  total_pages: number;
-  results: AuditEntry[];
-}
+export const Settings: React.FC = () => {
+  const [, setCurrentSY] = useState<SchoolYear | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [confirmSaveOpen, setConfirmSaveOpen] = useState<boolean>(false);
+  const [confirmAcknowledged, setConfirmAcknowledged] = useState<boolean>(false);
+  const [confirmPhrase, setConfirmPhrase] = useState<string>('');
+  const [semesterDropdownOpen, setSemesterDropdownOpen] = useState<boolean>(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-// ── Action badge colour map ───────────────────────────────────────────────────
-const actionMeta: Record<string, { color: string; bg: string; border: string; icon: React.ReactNode }> = {
-  LOGIN_SUCCESS:          { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <LogIn size={13} /> },
-  STUDENT_LOGIN_SUCCESS:  { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <LogIn size={13} /> },
-  LOGOUT_SUCCESS:         { color: '#1E40AF', bg: '#EFF6FF', border: '#BFDBFE', icon: <LogOut size={13} /> },
-  LOGIN_FAILED:           { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={13} /> },
-  STUDENT_LOGIN_FAILED:   { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={13} /> },
-  LOGIN_RATE_LIMITED:     { color: '#92400E', bg: '#FEF3C7', border: '#FDE68A', icon: <AlertTriangle size={13} /> },
-  LOGIN_MFA_CHALLENGE_ISSUED: { color: '#1E40AF', bg: '#EFF6FF', border: '#BFDBFE', icon: <Shield size={13} /> },
-  MFA_OTP_SUCCESS:        { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <Shield size={13} /> },
-  MFA_OTP_FAILED:         { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={13} /> },
-  MFA_OTP_RATE_LIMITED:   { color: '#92400E', bg: '#FEF3C7', border: '#FDE68A', icon: <AlertTriangle size={13} /> },
-  MFA_TOGGLED:            { color: '#5B21B6', bg: '#F5F3FF', border: '#DDD6FE', icon: <Shield size={13} /> },
-  PASSWORD_RESET_REQUESTED: { color: '#92400E', bg: '#FEF3C7', border: '#FDE68A', icon: <KeyRound size={13} /> },
-  PASSWORD_RESET_COMPLETED: { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <KeyRound size={13} /> },
-  PASSWORD_RESET_BY_ADMIN:  { color: '#5B21B6', bg: '#F5F3FF', border: '#DDD6FE', icon: <KeyRound size={13} /> },
-  PROFILE_UPDATED:        { color: '#1E40AF', bg: '#EFF6FF', border: '#BFDBFE', icon: <UserCog size={13} /> },
-  ACCOUNT_ACTIVATED:      { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <CheckCircle2 size={13} /> },
-  USER_CREATED:           { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <UserCog size={13} /> },
-  USER_UPDATED:           { color: '#1E40AF', bg: '#EFF6FF', border: '#BFDBFE', icon: <UserCog size={13} /> },
-  USER_DEACTIVATED:       { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <UserCog size={13} /> },
-  USER_ACTIVATED:         { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <UserCog size={13} /> },
-};
+  const semesterDropdownRef = useRef<HTMLDivElement>(null);
 
-const getActionMeta = (action: string) =>
-  actionMeta[action] ?? { color: '#334155', bg: '#F8FAFC', border: '#E2E8F0', icon: <Activity size={13} /> };
+  // Saved baseline state
+  const [savedStartYear, setSavedStartYear] = useState<number>(2026);
+  const [savedEndYear, setSavedEndYear] = useState<number>(2027);
+  const [savedSemester, setSavedSemester] = useState<'1st' | '2nd' | 'summer'>('1st');
+  const [savedWeights, setSavedWeights] = useState(getCompositeWeights());
+  const [savedThresholds, setSavedThresholds] = useState(getRiskThresholds());
 
-// ── Audit Log Tab ─────────────────────────────────────────────────────────────
-const AuditLogTab: React.FC = () => {
-  const [data, setData] = useState<AuditResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [actionFilter, setActionFilter] = useState('');
-  const [usernameFilter, setUsernameFilter] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Editable form state
+  const [startYear, setStartYear] = useState<number>(2026);
+  const [endYear, setEndYear] = useState<number>(2027);
+  const [selectedSemester, setSelectedSemester] = useState<'1st' | '2nd' | 'summer'>('1st');
+  const [attendanceWeightPct, setAttendanceWeightPct] = useState<number>(
+    Math.round(savedWeights.attendance * 100)
+  );
+  const [scoreWeightPct, setScoreWeightPct] = useState<number>(
+    Math.round(savedWeights.score * 100)
+  );
+  const [lowMinComposite, setLowMinComposite] = useState<number>(
+    savedThresholds.lowMinComposite
+  );
+  const [moderateMinComposite, setModerateMinComposite] = useState<number>(
+    savedThresholds.moderateMinComposite
+  );
+  const [highAttendanceGate, setHighAttendanceGate] = useState<number>(
+    savedThresholds.highAttendanceGate
+  );
 
-  const fetchLogs = useCallback(async () => {
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        semesterDropdownRef.current &&
+        !semesterDropdownRef.current.contains(event.target as Node)
+      ) {
+        setSemesterDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const parseSchoolYearDigits = (syStr?: string | null) => {
+    const match = String(syStr || '2026-2027').match(/^(\d{4})\D+(\d{4})$/);
+    if (match) {
+      return { start: Number(match[1]), end: Number(match[2]) };
+    }
+    return { start: 2026, end: 2027 };
+  };
+
+  const fetchAcademicData = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setErrorMsg(null);
     try {
-      const params = new URLSearchParams({ page: String(page) });
-      if (actionFilter) params.set('action', actionFilter);
-      if (usernameFilter) params.set('username', usernameFilter);
-      const res = await api.get<AuditResponse>(`/users/audit-logs/?${params}`);
-      setData(res.data);
+      const sy = await academicService.getCurrentSchoolYear();
+      setCurrentSY(sy);
+      const parsed = parseSchoolYearDigits(sy?.school_year);
+      const sem = (sy?.current_semester || '1st') as '1st' | '2nd' | 'summer';
+      const w = getCompositeWeights();
+      const t = getRiskThresholds();
+
+      setSavedStartYear(parsed.start);
+      setSavedEndYear(parsed.end);
+      setSavedSemester(sem);
+      setSavedWeights(w);
+      setSavedThresholds(t);
+
+      setStartYear(parsed.start);
+      setEndYear(parsed.end);
+      setSelectedSemester(sem);
+      setAttendanceWeightPct(Math.round(w.attendance * 100));
+      setScoreWeightPct(Math.round(w.score * 100));
+      setLowMinComposite(t.lowMinComposite);
+      setModerateMinComposite(t.moderateMinComposite);
+      setHighAttendanceGate(t.highAttendanceGate);
     } catch {
-      setError('Failed to load audit logs. Make sure you are signed in as SuperAdmin.');
+      setErrorMsg('Failed to load ARAL program configuration.');
     } finally {
       setLoading(false);
     }
-  }, [page, actionFilter, usernameFilter]);
+  }, []);
 
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  useEffect(() => {
+    fetchAcademicData();
+  }, [fetchAcademicData]);
 
-  const handleFilterSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(1);
-    fetchLogs();
+  const handleStartEdit = () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setStartYear(savedStartYear);
+    setEndYear(savedEndYear);
+    setSelectedSemester(savedSemester);
+    setAttendanceWeightPct(Math.round(savedWeights.attendance * 100));
+    setScoreWeightPct(Math.round(savedWeights.score * 100));
+    setLowMinComposite(savedThresholds.lowMinComposite);
+    setModerateMinComposite(savedThresholds.moderateMinComposite);
+    setHighAttendanceGate(savedThresholds.highAttendanceGate);
+    setSemesterDropdownOpen(false);
+    setIsEditing(true);
   };
 
-  const downloadCSV = () => {
-    if (!data) return;
-    const header = 'Timestamp,Action,Username,Details\n';
-    const rows = data.results
-      .map((r) => `"${r.timestamp}","${r.action}","${r.username}","${JSON.stringify(r.details).replace(/"/g, "'")}"`)
-      .join('\n');
-    const blob = new Blob([header + rows], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `aralert_audit_log_page${page}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleCancelEdit = () => {
+    setErrorMsg(null);
+    setStartYear(savedStartYear);
+    setEndYear(savedEndYear);
+    setSelectedSemester(savedSemester);
+    setAttendanceWeightPct(Math.round(savedWeights.attendance * 100));
+    setScoreWeightPct(Math.round(savedWeights.score * 100));
+    setLowMinComposite(savedThresholds.lowMinComposite);
+    setModerateMinComposite(savedThresholds.moderateMinComposite);
+    setHighAttendanceGate(savedThresholds.highAttendanceGate);
+    setSemesterDropdownOpen(false);
+    setIsEditing(false);
   };
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      {/* Header + controls */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <div>
-          <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            Audit Trail
-          </h2>
-          <p style={{ margin: '3px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            {data ? `${data.count} total events recorded` : 'All security and system events — tamper-evident log.'}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={downloadCSV}
-          disabled={!data}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-            padding: '0.5rem 1rem', borderRadius: 'var(--radius-md)',
-            background: 'var(--surface-muted)', border: '1px solid var(--slate-200)',
-            color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 600,
-            cursor: 'pointer', fontFamily: 'var(--font-body)',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand-dark)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-        >
-          <Download size={15} /> Export CSV
-        </button>
-      </div>
+  const handleSchoolYearStep = (delta: number) => {
+    const cleanStart = Math.max(2000, Math.min(2100, startYear + delta));
+    setStartYear(cleanStart);
+    setEndYear(cleanStart + 1);
+  };
 
-      {/* Filters */}
-      <form onSubmit={handleFilterSubmit} style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: '1', minWidth: '200px' }}>
-          <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Filter by Action
-          </label>
-          <div style={{ position: 'relative' }}>
-            <Filter size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              value={actionFilter}
-              onChange={(e) => setActionFilter(e.target.value)}
-              placeholder="e.g. LOGIN, FAILED, MFA..."
-              style={{
-                width: '100%', padding: '0.6rem 0.75rem 0.6rem 2rem',
-                border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-md)',
-                fontSize: '0.83rem', outline: 'none', boxSizing: 'border-box',
-                background: 'var(--surface-muted)', fontFamily: 'var(--font-body)',
-              }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--brand)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--slate-200)'; e.currentTarget.style.boxShadow = 'none'; }}
-            />
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: '1', minWidth: '200px' }}>
-          <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Filter by Username
-          </label>
-          <div style={{ position: 'relative' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              value={usernameFilter}
-              onChange={(e) => setUsernameFilter(e.target.value)}
-              placeholder="e.g. aralert_superadmin"
-              style={{
-                width: '100%', padding: '0.6rem 0.75rem 0.6rem 2rem',
-                border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-md)',
-                fontSize: '0.83rem', outline: 'none', boxSizing: 'border-box',
-                background: 'var(--surface-muted)', fontFamily: 'var(--font-body)',
-              }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--brand)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--slate-200)'; e.currentTarget.style.boxShadow = 'none'; }}
-            />
-          </div>
-        </div>
-        <button
-          type="submit"
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-            padding: '0.6rem 1.25rem', borderRadius: 'var(--radius-md)',
-            background: 'linear-gradient(135deg, var(--brand), var(--brand-hover))',
-            border: 'none', color: '#fff', fontSize: '0.83rem', fontWeight: 700,
-            cursor: 'pointer', fontFamily: 'var(--font-body)',
-            boxShadow: '0 4px 12px rgba(16,185,129,0.3)',
-          }}
-        >
-          <Search size={14} /> Search
-        </button>
-        {(actionFilter || usernameFilter) && (
-          <button
-            type="button"
-            onClick={() => { setActionFilter(''); setUsernameFilter(''); setPage(1); }}
-            style={{
-              padding: '0.6rem 0.9rem', borderRadius: 'var(--radius-md)',
-              background: 'transparent', border: '1px solid var(--slate-200)',
-              color: 'var(--text-muted)', fontSize: '0.8rem', cursor: 'pointer',
-              fontFamily: 'var(--font-body)',
-            }}
-          >
-            Clear
-          </button>
-        )}
-      </form>
+  const handleStartYearInputChange = (val: number) => {
+    if (Number.isNaN(val)) return startYear;
+    const cleanStart = Math.max(2000, Math.min(2100, Math.round(val)));
+    setStartYear(cleanStart);
+    setEndYear(cleanStart + 1);
+    return cleanStart;
+  };
 
-      {/* Table */}
-      <div style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-xl)', overflow: 'hidden' }}>
-        {loading ? (
-          <div style={{ padding: '3rem', textAlign: 'center' }}>
-            {[1,2,3,4,5].map(i => (
-              <div key={i} className="skeleton" style={{ height: '52px', marginBottom: '6px', borderRadius: '10px' }} />
-            ))}
-          </div>
-        ) : error ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: '#991B1B', background: '#FEF2F2' }}>
-            <AlertTriangle size={32} style={{ marginBottom: '0.75rem', color: '#EF4444' }} />
-            <p style={{ margin: 0, fontWeight: 600 }}>{error}</p>
-          </div>
-        ) : !data || data.results.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <Activity size={32} style={{ marginBottom: '0.75rem' }} />
-            <p style={{ margin: 0 }}>No audit events match your filters.</p>
-          </div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="data-table" style={{ minWidth: '700px' }}>
-              <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-slate-700">
-                <tr>
-                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-slate-700">Timestamp</th>
-                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-slate-700">Action</th>
-                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-slate-700">Username</th>
-                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-slate-700" style={{ textAlign: 'center' }}>Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.results.map((log) => {
-                  const meta = getActionMeta(log.action);
-                  const isExpanded = expandedId === log.id;
-                  const hasDetails = log.details && Object.keys(log.details).length > 0;
-                  return (
-                    <React.Fragment key={log.id}>
-                      <tr style={{ cursor: hasDetails ? 'pointer' : 'default' }} onClick={() => hasDetails && setExpandedId(isExpanded ? null : log.id)}>
-                        <td>
-                          <span style={{ fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                            {log.timestamp}
-                          </span>
-                        </td>
-                        <td>
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '5px',
-                            padding: '3px 10px', borderRadius: '99px',
-                            fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.03em',
-                            background: meta.bg, color: meta.color, border: `1px solid ${meta.border}`,
-                            whiteSpace: 'nowrap',
-                          }}>
-                            {meta.icon}
-                            {log.action.replace(/_/g, ' ')}
-                          </span>
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                            {log.username}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          {hasDetails ? (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setExpandedId(isExpanded ? null : log.id); }}
-                              style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '4px',
-                                padding: '3px 10px', borderRadius: '8px',
-                                background: 'var(--surface-muted)', border: '1px solid var(--slate-200)',
-                                color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600,
-                                cursor: 'pointer', fontFamily: 'var(--font-body)',
-                              }}
-                            >
-                              <Eye size={12} /> {isExpanded ? 'Hide' : 'View'}
-                            </button>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-disabled)' }}>—</span>
-                          )}
-                        </td>
-                      </tr>
-                      {isExpanded && hasDetails && (
-                        <tr>
-                          <td colSpan={4} style={{ padding: '0 1rem 1rem', background: 'var(--surface-muted)' }}>
-                            <div style={{
-                              background: '#0F172A', color: '#94A3B8', fontFamily: 'monospace',
-                              fontSize: '0.8rem', padding: '0.875rem 1rem', borderRadius: '10px',
-                              lineHeight: 1.7, overflow: 'auto',
-                            }}>
-                              <span style={{ color: '#64748B' }}>// Event details</span>
-                              {'\n'}
-                              {Object.entries(log.details).map(([k, v]) => (
-                                <div key={k}>
-                                  <span style={{ color: '#7DD3FC' }}>{k}</span>
-                                  <span style={{ color: '#94A3B8' }}>: </span>
-                                  <span style={{ color: '#6EE7B7' }}>{JSON.stringify(v)}</span>
-                                </div>
-                              ))}
-                              {log.user_agent && (
-                                <div style={{ marginTop: '0.5rem', color: '#64748B', fontSize: '0.72rem' }}>
-                                  ua: {log.user_agent}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+  const handleAttendanceWeightChange = (val: number) => {
+    const clamped = Math.max(0, Math.min(100, Math.round(val)));
+    setAttendanceWeightPct(clamped);
+    setScoreWeightPct(100 - clamped);
+    return clamped;
+  };
 
-    </div>
-  );
-};
+  const handleScoreWeightChange = (val: number) => {
+    const clamped = Math.max(0, Math.min(100, Math.round(val)));
+    setScoreWeightPct(clamped);
+    setAttendanceWeightPct(100 - clamped);
+    return clamped;
+  };
 
-// ── Main Settings Page ────────────────────────────────────────────────────────
-type Tab = 'security' | 'audit';
+  const handleResetDefaultWeights = () => {
+    setAttendanceWeightPct(Math.round(DEFAULT_COMPOSITE_WEIGHTS.attendance * 100));
+    setScoreWeightPct(Math.round(DEFAULT_COMPOSITE_WEIGHTS.score * 100));
+  };
 
-export const Settings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<Tab>('security');
-  const [requireMfaStaff, setRequireMfaStaff] = useState(false);
-  const [sessionTimeoutMinutes, setSessionTimeoutMinutes] = useState(30);
-  const [refreshTimeoutHours, setRefreshTimeoutHours] = useState(24);
-  const [loginLimitAttempts, setLoginLimitAttempts] = useState(10);
-  const [otpLimitAttempts, setOtpLimitAttempts] = useState(5);
-  const [saving, setSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const handleResetDefaultThresholds = () => {
+    setLowMinComposite(DEFAULT_RISK_THRESHOLDS.lowMinComposite);
+    setModerateMinComposite(DEFAULT_RISK_THRESHOLDS.moderateMinComposite);
+    setHighAttendanceGate(DEFAULT_RISK_THRESHOLDS.highAttendanceGate);
+  };
 
-  const handleSave = (e: React.FormEvent) => {
+  const savedAttendanceWeightPct = Math.round(savedWeights.attendance * 100);
+  const savedScoreWeightPct = Math.round(savedWeights.score * 100);
+  const syChanged = `${startYear}-${endYear}` !== `${savedStartYear}-${savedEndYear}`;
+  const semChanged = selectedSemester !== savedSemester;
+  const weightsChanged =
+    attendanceWeightPct !== savedAttendanceWeightPct ||
+    scoreWeightPct !== savedScoreWeightPct;
+  const thresholdsChanged =
+    lowMinComposite !== savedThresholds.lowMinComposite ||
+    moderateMinComposite !== savedThresholds.moderateMinComposite ||
+    highAttendanceGate !== savedThresholds.highAttendanceGate;
+  const hasAnyChanges = syChanged || semChanged || weightsChanged || thresholdsChanged;
+
+  const formatSemesterShort = (sem: '1st' | '2nd' | 'summer') =>
+    sem === '1st'
+      ? '1st Semester (MOSY)'
+      : sem === '2nd'
+        ? '2nd Semester (EOSY)'
+        : 'Summer (Midyear)';
+
+  const openConfirmModal = () => {
+    setConfirmAcknowledged(false);
+    setConfirmPhrase('');
+    setConfirmSaveOpen(true);
+  };
+
+  const closeConfirmModal = () => {
+    if (saving) return;
+    setConfirmSaveOpen(false);
+    setConfirmAcknowledged(false);
+    setConfirmPhrase('');
+  };
+
+  const handleValidateBeforeConfirm = (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg(null);
+
+    if (endYear !== startYear + 1) {
+      setErrorMsg('Active School Year must span consecutive years (e.g., 2026-2027).');
+      return;
+    }
+    if (attendanceWeightPct + scoreWeightPct !== 100) {
+      setErrorMsg('Attendance Weight (%) and Assessment Score Weight (%) must total 100%.');
+      return;
+    }
+    if (lowMinComposite <= moderateMinComposite) {
+      setErrorMsg('Low Risk Minimum Composite (%) must be greater than Moderate Risk Minimum Composite (%).');
+      return;
+    }
+    if (!hasAnyChanges) {
+      setErrorMsg('No configuration changes detected to save.');
+      return;
+    }
+
+    openConfirmModal();
+  };
+
+  const handleConfirmSaveAll = async () => {
+    if (!confirmAcknowledged || confirmPhrase.trim().toUpperCase() !== 'CONFIRM') return;
     setSaving(true);
-    setSaveSuccess(false);
-    setTimeout(() => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const formattedSchoolYear = `${startYear}-${endYear}`;
+
+    try {
+      const programConfigPayload = {
+        attendance_weight_pct: attendanceWeightPct,
+        score_weight_pct: scoreWeightPct,
+        low_min_composite: lowMinComposite,
+        moderate_min_composite: moderateMinComposite,
+        high_attendance_gate: highAttendanceGate,
+      };
+
+      if (syChanged) {
+        await academicService.saveSchoolYear({
+          school_year: formattedSchoolYear,
+          is_active: true,
+          current_semester: selectedSemester,
+          ...programConfigPayload,
+        });
+      } else {
+        await academicService.setActiveSemester(selectedSemester, programConfigPayload);
+      }
+      if (semChanged || syChanged) {
+        setActiveSystemSemester(selectedSemester);
+      }
+
+      const isDefaultWeights =
+        attendanceWeightPct === Math.round(DEFAULT_COMPOSITE_WEIGHTS.attendance * 100) &&
+        scoreWeightPct === Math.round(DEFAULT_COMPOSITE_WEIGHTS.score * 100) &&
+        lowMinComposite === DEFAULT_RISK_THRESHOLDS.lowMinComposite &&
+        moderateMinComposite === DEFAULT_RISK_THRESHOLDS.moderateMinComposite &&
+        highAttendanceGate === DEFAULT_RISK_THRESHOLDS.highAttendanceGate;
+
+      if (isDefaultWeights) {
+        const defaults = resetWeightsAndThresholds();
+        setSavedWeights(defaults.weights);
+        setSavedThresholds(defaults.thresholds);
+      } else {
+        const nextWeights = setCompositeWeights({
+          attendance: attendanceWeightPct / 100,
+          score: scoreWeightPct / 100,
+        });
+        const nextThresholds = setRiskThresholds({
+          lowMinComposite,
+          moderateMinComposite,
+          highAttendanceGate,
+        });
+        setSavedWeights(nextWeights);
+        setSavedThresholds(nextThresholds);
+      }
+
+      setConfirmSaveOpen(false);
+      setConfirmAcknowledged(false);
+      setConfirmPhrase('');
+      setIsEditing(false);
+      await fetchAcademicData();
+      setSuccessMsg('ARAL Program Configuration updated and recorded in the Audit Log.');
+      setTimeout(() => setSuccessMsg(null), 5000);
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.error || 'Failed to save ARAL program configuration.');
+    } finally {
       setSaving(false);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 4000);
-    }, 600);
+    }
   };
 
-  const tabStyle = (tab: Tab): React.CSSProperties => ({
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.6rem 1.25rem',
-    borderRadius: '10px',
-    fontSize: '0.875rem',
-    fontWeight: 700,
-    cursor: 'pointer',
-    border: 'none',
-    fontFamily: 'var(--font-body)',
-    transition: 'all 0.2s',
-    background: activeTab === tab ? 'linear-gradient(135deg, var(--brand), var(--brand-hover))' : 'transparent',
-    color: activeTab === tab ? '#fff' : 'var(--text-muted)',
-    boxShadow: activeTab === tab ? '0 4px 14px rgba(16,185,129,0.3)' : 'none',
-  });
+  const activeSemesterLabel =
+    SEMESTER_OPTIONS.find((opt) => opt.value === savedSemester)?.label ||
+    '1st Semester — MOSY (Q1 & Q2)';
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '1000px', margin: '0 auto' }}>
-      {/* Page header */}
-      <div className="p-4 sm:p-6 md:p-7" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              System &amp; Security Settings
-            </h1>
-            <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              Manage authentication policies, session limits, and review the full audit trail.
-            </p>
-          </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.85rem', background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 'var(--radius-pill)', color: '#065F46', fontSize: '0.75rem', fontWeight: 700 }}>
-            <CheckCircle2 size={15} /> System Status: Operational
-          </div>
-        </div>
+  const selectedSemesterLabel =
+    SEMESTER_OPTIONS.find((opt) => opt.value === selectedSemester)?.label ||
+    '1st Semester — MOSY (Q1 & Q2)';
 
-        {/* Tab switcher */}
-        <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-4" style={{ background: 'var(--surface-muted)', padding: '0.35rem', borderRadius: '12px', width: 'fit-content' }}>
-          <button type="button" style={tabStyle('security')} onClick={() => setActiveTab('security')}>
-            <Shield size={16} /> Security Policy
-          </button>
-          <button type="button" style={tabStyle('audit')} onClick={() => setActiveTab('audit')}>
-            <Activity size={16} /> Audit Trail
-          </button>
+  const displayLowMin = isEditing ? lowMinComposite : savedThresholds.lowMinComposite;
+  const displayModerateMin = isEditing ? moderateMinComposite : savedThresholds.moderateMinComposite;
+  const displayAttendanceGate = isEditing ? highAttendanceGate : savedThresholds.highAttendanceGate;
+  const displayModerateMax = Math.max(displayModerateMin, displayLowMin - 1);
+
+  const disabledInputClass =
+    'mt-1 block w-full px-3 py-2 border border-gray-200 dark:border-[#1E1E1E] rounded-md bg-gray-100 dark:bg-[#141414] text-xs font-semibold text-gray-500 dark:text-zinc-500 opacity-75 cursor-not-allowed select-none focus:outline-none';
+  const editableInputClass =
+    'mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-[#2A2A2A] rounded-md shadow-xs bg-white dark:bg-[#111111] text-xs font-bold text-gray-900 dark:text-slate-100 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]';
+
+  if (loading) {
+    return (
+      <div
+        className="max-w-4xl mx-auto flex flex-col gap-4 w-full min-w-0 animate-pulse"
+        style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+      >
+        <div className="p-8 sm:p-10 rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-md space-y-6">
+          <div className="h-5 w-52 rounded bg-gray-200 dark:bg-zinc-800" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="h-10 rounded-md bg-gray-100 dark:bg-zinc-900" />
+            <div className="h-10 rounded-md bg-gray-100 dark:bg-zinc-900" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="h-10 rounded-md bg-gray-100 dark:bg-zinc-900" />
+            <div className="h-10 rounded-md bg-gray-100 dark:bg-zinc-900" />
+          </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Tab content */}
-      {activeTab === 'security' ? (
-        <>
-          {saveSuccess && (
-            <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', padding: '1rem 1.25rem', borderRadius: 'var(--radius-lg)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <CheckCircle2 size={18} /> System settings updated successfully!
+  return (
+    <div
+      className="max-w-4xl mx-auto w-full min-w-0"
+      style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+    >
+      <div className="bg-white dark:bg-[#0A0A0A] p-6 sm:p-8 md:p-10 rounded-2xl border border-slate-200 dark:border-[#1A1A1A] shadow-md">
+        <form onSubmit={handleValidateBeforeConfirm} className="space-y-6">
+          {/* Card Header with Edit / Cancel & Save Actions */}
+          <div className="flex items-center justify-between gap-2 pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white uppercase tracking-tight">
+              ARAL Program Configuration
+            </h1>
+
+            {!isEditing ? (
+              <button
+                type="button"
+                onClick={handleStartEdit}
+                className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] rounded-md cursor-pointer transition-colors shadow-xs"
+              >
+                Edit Configuration
+              </button>
+            ) : (
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  disabled={saving}
+                  className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-slate-300 bg-white dark:bg-[#111111] border border-gray-300 dark:border-[#1A1A1A] hover:bg-gray-50 dark:hover:bg-zinc-900 rounded-md cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-5 py-2 text-xs font-bold uppercase tracking-wider text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] rounded-md cursor-pointer transition-colors shadow-xs disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {errorMsg && (
+            <div className="p-3 rounded-md bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-xs font-semibold text-rose-800 dark:text-rose-300">
+              {errorMsg}
             </div>
           )}
 
-          <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* Authentication & Security */}
-            <div className="p-4 sm:p-6" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--slate-100)' }}>
-                <Shield size={20} color="var(--brand)" />
-                <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Authentication &amp; Security Policy
-                </h2>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)', border: '1px solid var(--slate-200)' }}>
-                  <div>
-                    <p style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Enforce MFA for Staff Roles</p>
-                    <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>Require 2-Factor authentication via OTP for Admins, Tutors, and Principals.</p>
+          {successMsg && (
+            <div className="p-3 rounded-md bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+              {successMsg}
+            </div>
+          )}
+
+          {/* Section 1: Academic Period (Unified Active School Year & System-Styled Active Semester Dropdown) */}
+          <div className="space-y-3">
+            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
+              Academic Period
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Unified Active School Year */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                  Active School Year
+                </label>
+                {isEditing ? (
+                  <div className="mt-1 flex items-center justify-between w-full px-3 py-1.5 border border-gray-300 dark:border-[#2A2A2A] rounded-md shadow-xs bg-white dark:bg-[#111111] focus-within:border-[var(--brand)] focus-within:ring-1 focus-within:ring-[var(--brand)]">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900 dark:text-slate-100">
+                      <input
+                        type="number"
+                        min={2000}
+                        max={2100}
+                        step={1}
+                        value={String(startYear)}
+                        onChange={(e) => {
+                          const next = handleStartYearInputChange(Number(e.target.value));
+                          e.target.value = String(next);
+                        }}
+                        aria-label="Active School Year Start"
+                        className="w-14 bg-transparent text-xs font-bold text-gray-900 dark:text-slate-100 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="text-gray-400 dark:text-zinc-500 select-none">-</span>
+                      <span className="text-gray-900 dark:text-slate-100 select-none">{endYear}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSchoolYearStep(-1)}
+                        className="px-2 py-0.5 text-xs font-bold rounded border border-gray-200 dark:border-[#2A2A2A] text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1E1E1E] cursor-pointer transition-colors"
+                        title="Previous school year"
+                      >
+                        -
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSchoolYearStep(1)}
+                        className="px-2 py-0.5 text-xs font-bold rounded border border-gray-200 dark:border-[#2A2A2A] text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1E1E1E] cursor-pointer transition-colors"
+                        title="Next school year"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
-                  <label style={{ position: 'relative', display: 'inline-block', width: '48px', height: '26px' }}>
-                    <input type="checkbox" checked={requireMfaStaff} onChange={(e) => setRequireMfaStaff(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
-                    <span style={{ position: 'absolute', cursor: 'pointer', inset: 0, backgroundColor: requireMfaStaff ? 'var(--brand)' : '#CBD5E1', borderRadius: '34px', transition: '0.2s' }}>
-                      <span style={{ position: 'absolute', height: '20px', width: '20px', left: requireMfaStaff ? '24px' : '3px', bottom: '3px', backgroundColor: 'white', borderRadius: '50%', transition: '0.2s' }} />
+                ) : (
+                  <input
+                    type="text"
+                    value={`${savedStartYear}-${savedEndYear}`}
+                    readOnly
+                    disabled
+                    className={disabledInputClass}
+                  />
+                )}
+              </div>
+
+              {/* System-Styled Active Semester Dropdown */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                  Active Semester
+                </label>
+                {isEditing ? (
+                  <div className="relative mt-1" ref={semesterDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setSemesterDropdownOpen((prev) => !prev)}
+                      className="flex items-center justify-between w-full px-3 py-2 border border-gray-300 dark:border-[#2A2A2A] rounded-md shadow-xs bg-white dark:bg-[#111111] text-xs font-bold text-gray-900 dark:text-slate-100 hover:border-gray-400 dark:hover:border-zinc-700 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] transition cursor-pointer"
+                    >
+                      <span className="truncate">{selectedSemesterLabel}</span>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform duration-200 ${semesterDropdownOpen ? 'rotate-180' : ''
+                          }`}
+                      />
+                    </button>
+
+                    {semesterDropdownOpen && (
+                      <div className="absolute left-0 right-0 mt-1.5 z-50 rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                        <div className="p-1.5 flex flex-col gap-0.5">
+                          {SEMESTER_OPTIONS.map((option) => {
+                            const isSelected = selectedSemester === option.value;
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedSemester(option.value);
+                                  setSemesterDropdownOpen(false);
+                                }}
+                                className={`w-full rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${isSelected
+                                  ? 'bg-[var(--brand)] text-white'
+                                  : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                                  }`}
+                              >
+                                {option.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    value={activeSemesterLabel}
+                    readOnly
+                    disabled
+                    className={disabledInputClass}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Composite Scoring Weights */}
+          <div className="space-y-3 border-t border-gray-100 dark:border-[#1A1A1A] pt-5">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
+                Composite Scoring Weights
+              </h2>
+              {isEditing && (
+                <button
+                  type="button"
+                  onClick={handleResetDefaultWeights}
+                  className="text-xs font-bold text-[var(--brand)] hover:underline cursor-pointer"
+                >
+                  Restore to default composite scoring weights
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                  Attendance Weight (%)
+                </label>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={String(attendanceWeightPct)}
+                    onChange={(e) => {
+                      const clamped = handleAttendanceWeightChange(Number(e.target.value));
+                      e.target.value = String(clamped);
+                    }}
+                    className={editableInputClass}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={`${Math.round(savedWeights.attendance * 100)}%`}
+                    readOnly
+                    disabled
+                    className={disabledInputClass}
+                  />
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                  Assessment Score Weight (%)
+                </label>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={String(scoreWeightPct)}
+                    onChange={(e) => {
+                      const clamped = handleScoreWeightChange(Number(e.target.value));
+                      e.target.value = String(clamped);
+                    }}
+                    className={editableInputClass}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={`${Math.round(savedWeights.score * 100)}%`}
+                    readOnly
+                    disabled
+                    className={disabledInputClass}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Risk Classification Thresholds with System Risk Colors */}
+          <div className="space-y-4 border-t border-gray-100 dark:border-[#1A1A1A] pt-5">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
+                Risk Classification Thresholds
+              </h2>
+              {isEditing && (
+                <button
+                  type="button"
+                  onClick={handleResetDefaultThresholds}
+                  className="text-xs font-bold text-[var(--brand)] hover:underline cursor-pointer"
+                >
+                  Restore to default threshold
+                </button>
+              )}
+            </div>
+
+            {/* Composite Score Risk Tiers (Low, Medium, High) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Low Risk */}
+              <div className="p-3.5 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.03] dark:bg-emerald-500/[0.04] space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider risk-badge-low">
+                    Low Risk
+                  </span>
+                  <span className="text-[11px] font-bold text-risk-low">
+                    &gt;= {displayLowMin}%
+                  </span>
+                </div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                  Minimum Composite (%)
+                </label>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    min={50}
+                    max={100}
+                    step={1}
+                    value={String(lowMinComposite)}
+                    onChange={(e) => {
+                      const next = Math.max(0, Math.min(100, Math.round(Number(e.target.value))));
+                      setLowMinComposite(next);
+                      e.target.value = String(next);
+                    }}
+                    className={editableInputClass}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={`${savedThresholds.lowMinComposite}%`}
+                    readOnly
+                    disabled
+                    className={disabledInputClass}
+                  />
+                )}
+              </div>
+
+              {/* Moderate Risk */}
+              <div className="p-3.5 rounded-xl border border-amber-500/25 bg-amber-500/[0.03] dark:bg-amber-500/[0.04] space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider risk-badge-medium">
+                    Moderate Risk
+                  </span>
+                  <span className="text-[11px] font-bold text-risk-medium">
+                    {displayModerateMin}% – {displayModerateMax}%
+                  </span>
+                </div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                  Minimum Composite (%)
+                </label>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    min={30}
+                    max={95}
+                    step={1}
+                    value={String(moderateMinComposite)}
+                    onChange={(e) => {
+                      const next = Math.max(0, Math.min(100, Math.round(Number(e.target.value))));
+                      setModerateMinComposite(next);
+                      e.target.value = String(next);
+                    }}
+                    className={editableInputClass}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={`${savedThresholds.moderateMinComposite}%`}
+                    readOnly
+                    disabled
+                    className={disabledInputClass}
+                  />
+                )}
+              </div>
+
+              {/* High Risk (Derived from Medium Risk Minimum) */}
+              <div className="p-3.5 rounded-xl border border-rose-500/25 bg-rose-500/[0.03] dark:bg-rose-500/[0.04] space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider risk-badge-high">
+                    High Risk
+                  </span>
+                  <span className="text-[11px] font-bold text-risk-high">
+                    &lt; {displayModerateMin}%
+                  </span>
+                </div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                  Composite Score Range
+                </label>
+                <input
+                  type="text"
+                  value={`Below ${displayModerateMin}%`}
+                  readOnly
+                  disabled
+                  className={disabledInputClass}
+                />
+              </div>
+            </div>
+
+            {/* Attendance Safety Gate (High Risk Override) */}
+            <div className="p-4 rounded-xl border border-rose-500/25 bg-rose-500/[0.03] dark:bg-rose-500/[0.04]">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                <div className="sm:col-span-2 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <label className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                      Attendance Safety Gate (%)
+                    </label>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider risk-badge-high">
+                      High Risk Override (&lt;= {displayAttendanceGate}%)
                     </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 dark:text-slate-400 leading-relaxed">
+                    Automatically classifies a student as High Risk when their recorded attendance rate is at or below this threshold, even if their composite score qualifies for Low or Moderate Risk.
+                  </p>
+                </div>
+
+                <div>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={String(highAttendanceGate)}
+                      onChange={(e) => {
+                        const next = Math.max(0, Math.min(100, Math.round(Number(e.target.value))));
+                        setHighAttendanceGate(next);
+                        e.target.value = String(next);
+                      }}
+                      className={editableInputClass}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={`${savedThresholds.highAttendanceGate}%`}
+                      readOnly
+                      disabled
+                      className={disabledInputClass}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      {/* ── Robust Save Confirmation Modal ── */}
+      {confirmSaveOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+            onClick={closeConfirmModal}
+          >
+            <div
+              className="bg-white dark:bg-[#0A0A0A] rounded-xl p-5 sm:p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-[#1A1A1A] space-y-4"
+              style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3 pb-3 border-b border-gray-100 dark:border-[#1A1A1A]">
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">
+                    Confirm System Configuration Update
+                  </h3>
+                  <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
+                    Review all modified values below before applying system-wide changes.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={closeConfirmModal}
+                  className="text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 cursor-pointer shrink-0"
+                >
+                  Close
+                </button>
+              </div>
+
+              {/* System-wide Impact Warning */}
+              <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-[11px] text-amber-900 dark:text-amber-200 leading-relaxed space-y-1">
+                <p className="font-bold uppercase tracking-wider text-[10px] text-amber-800 dark:text-amber-300">
+                  System-Wide Impact Notice
+                </p>
+                <p>
+                  Applying these settings immediately updates academic periods, recalculates student composite ratings and risk tiers across all dashboards, and writes a permanent Audit Log record.
+                </p>
+              </div>
+
+              {/* Current vs New Configuration Comparison */}
+              <div className="rounded-lg border border-gray-200 dark:border-[#222222] overflow-hidden text-xs">
+                <div className="grid grid-cols-12 bg-gray-100/80 dark:bg-[#141414] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 border-b border-gray-200 dark:border-[#222222]">
+                  <span className="col-span-4">Setting</span>
+                  <span className="col-span-4">Current</span>
+                  <span className="col-span-4 text-right">New Value</span>
+                </div>
+                <div className="divide-y divide-gray-100 dark:divide-[#1E1E1E] bg-white dark:bg-[#0E0E0E]">
+                  <div className={`grid grid-cols-12 items-center px-3 py-2 gap-2 ${syChanged ? 'bg-blue-50/60 dark:bg-blue-950/20' : ''}`}>
+                    <span className="col-span-4 font-semibold text-gray-600 dark:text-slate-400">School Year</span>
+                    <span className="col-span-4 text-gray-500 dark:text-slate-400">{savedStartYear}-{savedEndYear}</span>
+                    <span className={`col-span-4 text-right font-bold ${syChanged ? 'text-[var(--brand)] dark:text-blue-400' : 'text-gray-700 dark:text-slate-300'}`}>
+                      {startYear}-{endYear}
+                    </span>
+                  </div>
+                  <div className={`grid grid-cols-12 items-center px-3 py-2 gap-2 ${semChanged ? 'bg-blue-50/60 dark:bg-blue-950/20' : ''}`}>
+                    <span className="col-span-4 font-semibold text-gray-600 dark:text-slate-400">Semester</span>
+                    <span className="col-span-4 text-gray-500 dark:text-slate-400">{formatSemesterShort(savedSemester)}</span>
+                    <span className={`col-span-4 text-right font-bold ${semChanged ? 'text-[var(--brand)] dark:text-blue-400' : 'text-gray-700 dark:text-slate-300'}`}>
+                      {formatSemesterShort(selectedSemester)}
+                    </span>
+                  </div>
+                  <div className={`grid grid-cols-12 items-center px-3 py-2 gap-2 ${weightsChanged ? 'bg-blue-50/60 dark:bg-blue-950/20' : ''}`}>
+                    <span className="col-span-4 font-semibold text-gray-600 dark:text-slate-400">Weights</span>
+                    <span className="col-span-4 text-gray-500 dark:text-slate-400">{savedAttendanceWeightPct}% Att / {savedScoreWeightPct}% Score</span>
+                    <span className={`col-span-4 text-right font-bold ${weightsChanged ? 'text-[var(--brand)] dark:text-blue-400' : 'text-gray-700 dark:text-slate-300'}`}>
+                      {attendanceWeightPct}% Att / {scoreWeightPct}% Score
+                    </span>
+                  </div>
+                  <div className={`grid grid-cols-12 items-center px-3 py-2 gap-2 ${thresholdsChanged ? 'bg-blue-50/60 dark:bg-blue-950/20' : ''}`}>
+                    <span className="col-span-4 font-semibold text-gray-600 dark:text-slate-400">Thresholds</span>
+                    <span className="col-span-4 text-gray-500 dark:text-slate-400">
+                      {savedThresholds.lowMinComposite}% / {savedThresholds.moderateMinComposite}% / {savedThresholds.highAttendanceGate}%
+                    </span>
+                    <span className={`col-span-4 text-right font-bold ${thresholdsChanged ? 'text-[var(--brand)] dark:text-blue-400' : 'text-gray-700 dark:text-slate-300'}`}>
+                      {lowMinComposite}% / {moderateMinComposite}% / {highAttendanceGate}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Explicit Verification Safeguards */}
+              <div className="space-y-3 pt-1">
+                <label className="flex items-start gap-2.5 cursor-pointer select-none text-xs text-gray-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={confirmAcknowledged}
+                    onChange={(e) => setConfirmAcknowledged(e.target.checked)}
+                    disabled={saving}
+                    className="mt-0.5 h-3.5 w-3.5 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
+                  />
+                  <span className="leading-snug">
+                    I confirm that I have reviewed the changes above and understand this action is tracked in the system Audit Log.
+                  </span>
+                </label>
+
+                <div>
+                  <label
+                    htmlFor="settings-confirm-phrase"
+                    className="block text-[11px] font-semibold text-gray-600 dark:text-slate-400 mb-1"
+                  >
+                    Type <span className="font-mono font-bold text-gray-900 dark:text-white">CONFIRM</span> to apply changes
                   </label>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Clock size={14} /> Access Token Lifetime (Minutes)
-                    </label>
-                    <input type="number" min={5} max={120} value={sessionTimeoutMinutes} onChange={(e) => setSessionTimeoutMinutes(Number(e.target.value))} style={{ padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--slate-200)', fontSize: '0.875rem', outline: 'none' }} />
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>OWASP recommended: 15–30 minutes.</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <RefreshCw size={14} /> Refresh Token Lifetime (Hours)
-                    </label>
-                    <input type="number" min={1} max={168} value={refreshTimeoutHours} onChange={(e) => setRefreshTimeoutHours(Number(e.target.value))} style={{ padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--slate-200)', fontSize: '0.875rem', outline: 'none' }} />
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Automatic token rotation on refresh enabled.</span>
-                  </div>
+                  <input
+                    id="settings-confirm-phrase"
+                    type="text"
+                    value={confirmPhrase}
+                    onChange={(e) => setConfirmPhrase(e.target.value)}
+                    disabled={saving}
+                    autoComplete="off"
+                    placeholder="Type CONFIRM"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-[#2A2A2A] rounded-md bg-white dark:bg-[#111111] text-xs font-mono font-bold text-gray-900 dark:text-white placeholder:font-sans placeholder:font-normal placeholder:text-gray-400 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                  />
                 </div>
               </div>
-            </div>
 
-            {/* Rate Limiting */}
-            <div className="p-4 sm:p-6" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--slate-100)' }}>
-                <Lock size={20} color="#EAB308" />
-                <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Rate Limiting &amp; Anti-Brute-Force Safeguards
-                </h2>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Max Failed Login Attempts per IP (15m window)</label>
-                  <input type="number" min={3} max={20} value={loginLimitAttempts} onChange={(e) => setLoginLimitAttempts(Number(e.target.value))} style={{ padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--slate-200)', fontSize: '0.875rem', outline: 'none' }} />
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Triggers HTTP 429 lockout on excess failures.</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Max Failed OTP Verification Attempts (15m window)</label>
-                  <input type="number" min={3} max={10} value={otpLimitAttempts} onChange={(e) => setOtpLimitAttempts(Number(e.target.value))} style={{ padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--slate-200)', fontSize: '0.875rem', outline: 'none' }} />
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Reduces 6-digit OTP brute-force probability to &lt;0.001%.</span>
-                </div>
+              <div className="flex justify-end gap-2.5 pt-2 border-t border-gray-100 dark:border-[#1A1A1A]">
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={closeConfirmModal}
+                  className="px-4 py-2 border border-gray-200 dark:border-[#2A2A2A] rounded-md text-xs font-semibold text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={saving || !confirmAcknowledged || confirmPhrase.trim().toUpperCase() !== 'CONFIRM'}
+                  onClick={handleConfirmSaveAll}
+                  className="px-5 py-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-md text-xs font-bold uppercase tracking-wider cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs transition-colors"
+                >
+                  {saving ? 'Applying...' : 'Confirm & Apply'}
+                </button>
               </div>
             </div>
-
-            {/* Infrastructure Diagnostics */}
-            <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '1.75rem', boxShadow: 'var(--shadow-xs)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--slate-100)' }}>
-                <Server size={20} color="#3B82F6" />
-                <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Environment & Infrastructure Diagnostics
-                </h2>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem' }}>
-                {[
-                  { label: 'Database Engine', value: 'PostgreSQL' },
-                  { label: 'Password Hasher', value: 'PBKDF2 SHA-256 (1.2M iterations)' },
-                  { label: 'Session Engine', value: 'SimpleJWT Token Pair' },
-                  { label: 'Compliance', value: 'OWASP ASVS / NIST', highlight: true },
-                ].map((item) => (
-                  <div key={item.label} style={{ padding: '1rem', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)', border: '1px solid var(--slate-200)' }}>
-                    <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{item.label}</p>
-                    <p style={{ margin: '4px 0 0', fontSize: '0.9rem', fontWeight: 700, color: item.highlight ? 'var(--brand-dark)' : 'var(--text-primary)' }}>{item.value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button type="submit" disabled={saving} className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.75rem' }}>
-                <Save size={16} />
-                {saving ? 'Saving...' : 'Save System Settings'}
-              </button>
-            </div>
-          </form>
-        </>
-      ) : (
-        <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '1.75rem', boxShadow: 'var(--shadow-xs)' }}>
-          <AuditLogTab />
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

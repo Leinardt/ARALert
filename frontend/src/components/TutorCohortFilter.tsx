@@ -180,54 +180,58 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
 
         {isOpen && (
           <div
-            role="listbox"
-            aria-label="Handled Classes"
-            className="absolute left-0 right-0 top-full mt-1.5 z-30 w-full max-w-full rounded-xl border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] p-1.5 shadow-xl max-h-64 overflow-y-auto no-scrollbar animate-in fade-in zoom-in-95 duration-100"
+            className="absolute left-0 right-0 top-full mt-1.5 z-30 w-full max-w-full rounded-xl border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100"
           >
-            {allowAll && (
-              <button
-                type="button"
-                role="option"
-                aria-selected={activeClassKey === 'ALL'}
-                onClick={() => {
-                  handleClassSelect('ALL');
-                  setIsOpen(false);
-                }}
-                className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-3 py-2.5 text-xs sm:text-sm font-bold transition-colors cursor-pointer ${
-                  activeClassKey === 'ALL'
-                    ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
-                    : 'text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-                }`}
-                title="ALL HANDLED CLASSES (OVERALL VIEW)"
-              >
-                <span className="truncate">ALL HANDLED CLASSES (OVERALL VIEW)</span>
-                {activeClassKey === 'ALL' && <Check className="w-4 h-4 shrink-0 text-[var(--brand)] dark:text-blue-400 ml-2" />}
-              </button>
-            )}
-            {classSections.map((cls) => {
-              const isSelected = activeClassKey === cls.key;
-              return (
+            <div
+              role="listbox"
+              aria-label="Handled Classes"
+              className="max-h-64 overflow-y-auto dropdown-scroll p-1.5 flex flex-col gap-0.5"
+            >
+              {allowAll && (
                 <button
-                  key={cls.key}
                   type="button"
                   role="option"
-                  aria-selected={isSelected}
+                  aria-selected={activeClassKey === 'ALL'}
                   onClick={() => {
-                    handleClassSelect(cls.key);
+                    handleClassSelect('ALL');
                     setIsOpen(false);
                   }}
                   className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-3 py-2.5 text-xs sm:text-sm font-bold transition-colors cursor-pointer ${
-                    isSelected
+                    activeClassKey === 'ALL'
                       ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
                       : 'text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
                   }`}
-                  title={cls.label}
+                  title="ALL HANDLED CLASSES (OVERALL VIEW)"
                 >
-                  <span className="truncate">{cls.label}</span>
-                  {isSelected && <Check className="w-4 h-4 shrink-0 text-[var(--brand)] dark:text-blue-400 ml-2" />}
+                  <span className="truncate">ALL HANDLED CLASSES (OVERALL VIEW)</span>
+                  {activeClassKey === 'ALL' && <Check className="w-4 h-4 shrink-0 text-[var(--brand)] dark:text-blue-400 ml-2" />}
                 </button>
-              );
-            })}
+              )}
+              {classSections.map((cls) => {
+                const isSelected = activeClassKey === cls.key;
+                return (
+                  <button
+                    key={cls.key}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={() => {
+                      handleClassSelect(cls.key);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-3 py-2.5 text-xs sm:text-sm font-bold transition-colors cursor-pointer ${
+                      isSelected
+                        ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
+                        : 'text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                    }`}
+                    title={cls.label}
+                  >
+                    <span className="truncate">{cls.label}</span>
+                    {isSelected && <Check className="w-4 h-4 shrink-0 text-[var(--brand)] dark:text-blue-400 ml-2" />}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

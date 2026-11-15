@@ -1,0 +1,31 @@
+%%{init: {'theme': 'base', 'flowchart': {'curve': 'basis', 'nodeSpacing': 75, 'rankSpacing': 195, 'padding': 24}, 'themeVariables': {'fontFamily': 'Segoe UI, Arial, sans-serif', 'fontSize': '13px', 'lineColor': '#1E293B', 'edgeLabelBackground': '#F8FAFC', 'tertiaryColor': '#FFFFFF'}}}%%
+flowchart LR
+    classDef entity fill:#EFF6FF,stroke:#1E3A8A,stroke-width:2.4px,color:#0F172A,font-weight:bold;
+    classDef centralProcess fill:#F0FDF4,stroke:#166534,stroke-width:3.2px,color:#0F172A,font-weight:bold;
+
+    %% Left External Entities
+    E_SA["Super Admin"]:::entity
+    E_ADM["School Admin"]:::entity
+    E_PRI["Principal"]:::entity
+
+    %% Central Process (Process 0)
+    P0(("Process 0<br/>ARALert System<br/>(Academic Recovery &<br/>Learning Alert System)")):::centralProcess
+
+    %% Right External Entities
+    E_GOOGLE["Google Identity Services<br/>(OAuth 2.0 / OIDC)"]:::entity
+    E_TUT["Tutor"]:::entity
+    E_STU["Student"]:::entity
+
+    %% Left Entities <-> Central Process 0 (Explicit Incoming & Outgoing Data Flows)
+    E_SA <-->|"Incoming: Google Token, Staff/Admin Pre-Registration,<br/>Account Status, Whitelist, Edit Reviews, Calendar Controls<br/>Outgoing: JWT Session & PHT Time, User Directory, KPIs,<br/>Paginated Audit Logs, Archives & Exported Reports"| P0
+
+    E_ADM <-->|"Incoming: Google Token, Single/Batch .xlsx Enrollment, LRN Check,<br/>Tutor Assignment, Edit Reviews, MOSY/EOSY/Summer Controls<br/>Outgoing: JWT Session & PHT Time, Institutional KPIs, LRN Conflicts,<br/>25-Slot Queues, Transition Summary, Archives & Reports"| P0
+
+    E_PRI <-->|"Incoming: Google Token, Analytics Period/Cohort Filters,<br/>Semester/Window Toggles, Summer Eval & Profile Edit Request<br/>Outgoing: JWT Session & PHT Time, Executive KPIs, Risk Tiers,<br/>Class/Per-Tutor Performance & 14-Day Staff DTR Trends"| P0
+
+    %% Central Process 0 <-> Right Entities (Explicit Outgoing & Incoming Data Flows)
+    P0 <-->|"Outgoing: Google OIDC ID Token Verification Request<br/>Incoming: Verified Identity Claims (email, sub, name)"| E_GOOGLE
+
+    P0 <-->|"Incoming: Google Token, QR Sessions & Scans, Manual Attendance,<br/>Bulk Scores, ARAL Activities, Risk Notes, Summer Eval, Edits<br/>Outgoing: JWT Session & PHT Time, Cohort Profiles, Live QR Feed,<br/>Composite Risk Alerts, Cohort Archive & Score/Att/QR Exports"| E_TUT
+
+    P0 <-->|"Incoming: 12-Digit LRN Login, Privacy Consent, QR Pass / Scan,<br/>Risk Intervention Acknowledgment & Profile Edit Request<br/>Outgoing: JWT Session & PHT Time, Permanent QR Pass & 6-Char Code,<br/>Attendance Logs, Scores, ARAL Progression & Printable QR Pass"| E_STU

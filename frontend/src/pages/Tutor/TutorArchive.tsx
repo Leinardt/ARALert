@@ -9,17 +9,10 @@ import type { SchoolYear, Grade, Attendance, User, TutorCohortHistoryData } from
 import { matchesSearch } from '../../utils/searchHelpers';
 import { formatSessionLabel, getScoreDescription } from '../../utils/sessionDescriptionHelpers';
 import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
+import { SlidingPeriodToggle } from '../../components/SlidingTabs';
+import { computeWeekOfMonth } from '../../config/academicConfig';
 
 /* ─── Date & Week Helper Functions (Mirrors TutorScores & TutorQRGenerator) ── */
-const computeWeekOfMonth = (dateObj: Date): number => {
-  const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
-  const day = d.getDay();
-  const wedDiff = day === 0 ? 3 : 3 - day;
-  const wednesday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + wedDiff);
-  const firstDay = new Date(wednesday.getFullYear(), wednesday.getMonth(), 1).getDay();
-  return Math.ceil((wednesday.getDate() + (firstDay === 0 ? 6 : firstDay - 1)) / 7);
-};
-
 const getWeekTitle = (mondayStr: string): string => {
   const d = new Date(`${mondayStr}T00:00:00`);
   const weekNum = computeWeekOfMonth(d);
@@ -446,20 +439,20 @@ export const TutorArchive: React.FC = () => {
 
     if (!isSelectedYearActive) {
       return [
-        { id: '1st', label: '1st Semester (MOSY)' },
-        { id: '2nd', label: '2nd Semester (EOSY)' },
-        { id: 'summer', label: 'Summer Remediation' },
+        { id: '1st', label: '1st Semester — MOSY (Q1 & Q2 • Middle of School Year)' },
+        { id: '2nd', label: '2nd Semester — EOSY (Q3 & Q4 • End of School Year)' },
+        { id: 'summer', label: 'Summer Remediation (Midyear)' },
       ];
     }
 
     const curSem = currentSchoolYear?.current_semester || '2nd';
     if (curSem === '2nd') {
-      return [{ id: '1st', label: '1st Semester (MOSY)' }];
+      return [{ id: '1st', label: '1st Semester — MOSY (Q1 & Q2 • Middle of School Year)' }];
     }
     if (curSem === 'summer') {
       return [
-        { id: '1st', label: '1st Semester (MOSY)' },
-        { id: '2nd', label: '2nd Semester (EOSY)' },
+        { id: '1st', label: '1st Semester — MOSY (Q1 & Q2 • Middle of School Year)' },
+        { id: '2nd', label: '2nd Semester — EOSY (Q3 & Q4 • End of School Year)' },
       ];
     }
     return [];
@@ -975,9 +968,21 @@ export const TutorArchive: React.FC = () => {
                   ? 'bg-[var(--brand)] text-white shadow-xs'
                   : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 font-bold'
               }`}
-              title={assessmentFilterName}
+              title={
+                selectedSemester === '1st'
+                  ? 'MOSY Assessment (Middle of School Year • Q1 & Q2)'
+                  : selectedSemester === '2nd'
+                  ? 'EOSY Assessment (End of School Year • Q3 & Q4)'
+                  : 'Summer Assessment (Midyear)'
+              }
             >
-              <span className="hidden min-[400px]:inline">{assessmentFilterName}</span>
+              <span className="hidden min-[400px]:inline">
+                {selectedSemester === '1st'
+                  ? 'MOSY ASSESSMENT (Q1 & Q2)'
+                  : selectedSemester === '2nd'
+                  ? 'EOSY ASSESSMENT (Q3 & Q4)'
+                  : assessmentFilterName}
+              </span>
               <span className="min-[400px]:hidden">{assessmentFilterName.replace(' ASSESSMENT', '')}</span>
             </button>
           </div>
@@ -1013,25 +1018,17 @@ export const TutorArchive: React.FC = () => {
             {/* View Mode Toggle and Calendar in a clean row on mobile */}
             <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
               {/* View Mode Toggle: WEEK / MONTH */}
-              <div className="flex h-8 shrink-0 items-center gap-0.5 rounded-md bg-gray-100 dark:bg-[#1A1A1A] p-0.5">
-                {(['week', 'month'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => {
-                      setViewMode(mode);
-                      setJumpDate(null);
-                    }}
-                    className={`h-7 whitespace-nowrap rounded-sm px-3 text-[10.5px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
-                      viewMode === mode && !jumpDate
-                        ? 'bg-[var(--brand)] text-white shadow-xs'
-                        : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 font-bold'
-                    }`}
-                  >
-                    {mode}
-                  </button>
-                ))}
-              </div>
+              <SlidingPeriodToggle
+                options={['week', 'month'] as const}
+                value={jumpDate ? null : viewMode}
+                onChange={(mode) => {
+                  setViewMode(mode);
+                  setJumpDate(null);
+                }}
+                ariaLabel="Archive records view period"
+                className="h-8 bg-gray-100 dark:bg-[#1A1A1A]"
+                buttonClassName="h-7 px-3 text-[10.5px] font-extrabold"
+              />
 
               {/* Calendar Popover */}
               <div className="relative inline-flex items-center shrink-0">

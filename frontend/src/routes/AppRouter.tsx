@@ -29,6 +29,7 @@ const EditUser = lazyWithRetry(() => import('../pages/SuperAdmin/EditUser').then
 const Profile = lazyWithRetry(() => import('../pages/SuperAdmin/Profile').then(m => ({ default: m.Profile })));
 const Settings = lazyWithRetry(() => import('../pages/SuperAdmin/Settings').then(m => ({ default: m.Settings })));
 const AuditLog = lazyWithRetry(() => import('../pages/SuperAdmin/AuditLog').then(m => ({ default: m.AuditLog })));
+const Tickets = lazyWithRetry(() => import('../pages/SuperAdmin/Tickets').then(m => ({ default: m.Tickets })));
 
 // Role pages
 const AdminHome = lazyWithRetry(() => import('../pages/Admin/AdminHome').then(m => ({ default: m.AdminHome })));
@@ -107,6 +108,7 @@ export const AppRouter: React.FC = () => {
           <Route path="/superadmin/evaluations" element={<AdminEvaluationHub />} />
           <Route path="/superadmin/archive" element={<AssessmentsArchive />} />
           <Route path="/superadmin/audit-logs" element={<AuditLog />} />
+          <Route path="/superadmin/tickets" element={<Tickets />} />
           <Route path="/superadmin/profile" element={<Profile />} />
           <Route path="/superadmin/settings" element={<Settings />} />
         </Route>
@@ -162,11 +164,16 @@ export const AppRouter: React.FC = () => {
           }
         >
           <Route path="/tutor" element={<TutorHome />} />
-          <Route path="/tutor/attendance/generate" element={<TutorQRGenerator />} />
+          <Route path="/tutor/attendance" element={<TutorQRGenerator pageMode="qr" />} />
+          <Route path="/tutor/attendance/generate" element={<TutorQRGenerator pageMode="qr" />} />
+          <Route path="/tutor/attendance/manual" element={<TutorQRGenerator pageMode="manual" />} />
+          <Route path="/tutor/attendance/history" element={<TutorQRGenerator pageMode="history" />} />
           <Route path="/tutor/analytics" element={<TutorAnalytics />} />
           <Route path="/tutor/students" element={<TutorStudentDirectory />} />
           <Route path="/tutor/archive" element={<TutorArchive />} />
-          <Route path="/tutor/scores" element={<TutorScores />} />
+          <Route path="/tutor/scores" element={<TutorScores pageMode="entry" />} />
+          <Route path="/tutor/scores/entry" element={<TutorScores pageMode="entry" />} />
+          <Route path="/tutor/scores/history" element={<TutorScores pageMode="history" />} />
           <Route path="/tutor/students/:id" element={<TutorStudentProfile />} />
         </Route>
 

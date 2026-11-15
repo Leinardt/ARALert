@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,6 +17,13 @@ import {
   parseTutorRoleDetailsFromUser,
 } from '../../utils/tutorCohortHelpers';
 import { TutorRoleDetailsSection } from '../../components/TutorRoleDetailsSection';
+import {
+  ARAL_LEVEL_OPTIONS,
+  GRADE_LEVEL_OPTIONS,
+  extractDynamicGradeLevels,
+  extractDynamicSections,
+  getSubjectsForAralLevel,
+} from '../../config/academicConfig';
 
 const NAME_REGEX = /^[a-zA-Z\s.\-ñÑ']+$/;
 const SECTION_REGEX = /^[a-zA-Z0-9\s\-]+$/;
@@ -46,7 +54,7 @@ const editUserSchema = z.object({
   lrn: z.string().optional(),
   grade_level_grade: z.string().optional(),
   grade_level_section: z.string().optional(),
-  is_active: z.boolean(),
+  is_active: z.boolean().optional(),
   assigned_tutor: z.string().optional().nullable(),
   aral_level: z.string().optional(),
   subject: z.string().optional(),
@@ -388,6 +396,8 @@ export const EditUser: React.FC = () => {
         payload.assigned_tutor = null;
         payload.parent_guardian_name = '';
         payload.contact_number = '';
+      } else {
+        delete payload.is_active;
       }
       if (data.role !== 'tutor' && data.role !== 'student') {
         payload.subject = null;
@@ -499,26 +509,28 @@ export const EditUser: React.FC = () => {
   const onSubmit = async (data: EditUserFields) => {
     if (!id) return;
 
-    if (isSelf && data.is_active === false) {
-      setErrorToast({
-        title: 'Action Not Allowed',
-        message: 'You cannot deactivate your own account.',
-      });
-      return;
-    }
+    if (data.role !== 'student') {
+      if (isSelf && data.is_active === false) {
+        setErrorToast({
+          title: 'Action Not Allowed',
+          message: 'You cannot deactivate your own account.',
+        });
+        return;
+      }
 
-    if (isRootSuperAdminEmail(data.email) && data.is_active === false) {
-      setErrorToast({
-        title: 'Action Protected',
-        message: 'The Primary Root SuperAdmin account is protected and cannot be deactivated.',
-      });
-      return;
-    }
+      if (isRootSuperAdminEmail(data.email) && data.is_active === false) {
+        setErrorToast({
+          title: 'Action Protected',
+          message: 'The Primary Root SuperAdmin account is protected and cannot be deactivated.',
+        });
+        return;
+      }
 
-    if (userInitialData?.is_active && data.is_active === false) {
-      setPendingSubmitData(data);
-      setShowDeactivateConfirmModal(true);
-      return;
+      if (userInitialData?.is_active && data.is_active === false) {
+        setPendingSubmitData(data);
+        setShowDeactivateConfirmModal(true);
+        return;
+      }
     }
 
     await performSave(data);
@@ -820,12 +832,9 @@ export const EditUser: React.FC = () => {
                     {...register('grade_level_grade')}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-[#1A1A1A] rounded-md shadow-sm focus:border-[var(--brand)] focus:outline-none focus:ring-[var(--brand)] text-xs uppercase font-semibold bg-white dark:bg-[#111111] dark:text-slate-100"
                   >
-                    <option value="GRADE 7">GRADE 7</option>
-                    <option value="GRADE 8">GRADE 8</option>
-                    <option value="GRADE 9">GRADE 9</option>
-                    <option value="GRADE 10">GRADE 10</option>
-                    <option value="GRADE 11">GRADE 11</option>
-                    <option value="GRADE 12">GRADE 12</option>
+                    {(tutors.length > 0 ? extractDynamicGradeLevels(tutors) : [...GRADE_LEVEL_OPTIONS]).map((grade) => (
+                      <option key={grade} value={grade}>{grade}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -836,6 +845,7 @@ export const EditUser: React.FC = () => {
                   <input
                     id="grade_level_section"
                     type="text"
+                    list="dynamic-section-options-edit"
                     placeholder="e.g. HYACINTH"
                     {...register('grade_level_section')}
                     onInput={(e) => {
@@ -845,6 +855,11 @@ export const EditUser: React.FC = () => {
                       errors.grade_level_section || serverErrors?.grade_level_section ? 'border-red-300 dark:border-red-800' : 'border-gray-300 dark:border-[#1A1A1A]'
                     }`}
                   />
+                  <datalist id="dynamic-section-options-edit">
+                    {extractDynamicSections(tutors, watchedStudentGrade).map((sec) => (
+                      <option key={sec} value={sec} />
+                    ))}
+                  </datalist>
                   {(errors.grade_level_section || serverErrors?.grade_level_section) && (
                     <p className="mt-1 text-xs text-red-600 dark:text-red-400">
                       {errors.grade_level_section?.message || serverErrors?.grade_level_section?.[0]}
@@ -863,9 +878,9 @@ export const EditUser: React.FC = () => {
                     {...register('aral_level')}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-[#1A1A1A] rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] text-xs bg-white dark:bg-[#111111] dark:text-slate-100 font-medium cursor-pointer"
                   >
-                    <option value="basic">BASIC</option>
-                    <option value="plus">PLUS</option>
-                    <option value="summer">SUMMER</option>
+                    {ARAL_LEVEL_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                     <option value="graduated">GRADUATED (Archive)</option>
                   </select>
                 </div>
@@ -879,18 +894,11 @@ export const EditUser: React.FC = () => {
                     {...register('subject')}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-[#1A1A1A] rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] text-xs bg-white dark:bg-[#111111] dark:text-slate-100 font-medium cursor-pointer"
                   >
-                    {watchedStudentAralLevel === 'summer' ? (
-                      <>
-                        <option value="Filipino">FILIPINO</option>
-                        <option value="English">ENGLISH</option>
-                      </>
-                    ) : watchedStudentAralLevel === 'plus' || watchedStudentAralLevel === 'graduated' ? (
-                      <option value="English">ENGLISH (for Plus/Graduated)</option>
-                    ) : (
-                      <option value="Filipino">FILIPINO (for Basic)</option>
-                    )}
-                    <option value="Math">MATH</option>
-                    <option value="Science">SCIENCE</option>
+                    {getSubjectsForAralLevel(watchedStudentAralLevel).map((subj) => (
+                      <option key={subj.id} value={subj.dbSubject}>
+                        {subj.displayLabel.toUpperCase()}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -991,25 +999,27 @@ export const EditUser: React.FC = () => {
             </div>
           )}
 
-          {isRootSuperAdminEmail(watch('email')) ? (
-            <div className="flex items-center pt-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              <ShieldCheck className="w-4 h-4 mr-1.5 shrink-0" />
-              <span>Primary Root SuperAdmin (Account Status Protected)</span>
-            </div>
-          ) : isSelf ? (
-            <div className="flex items-center pt-2 text-xs font-semibold text-blue-600 dark:text-blue-400">
-              <ShieldCheck className="w-4 h-4 mr-1.5 shrink-0" />
-              <span>Your Own Account (Cannot be deactivated)</span>
-            </div>
-          ) : (
-            <div className="flex items-center pt-2">
-              <input id="is_active" type="checkbox" {...register('is_active')}
-                className="h-4 w-4 text-[var(--brand)] focus:ring-[var(--brand)] border-gray-300 rounded cursor-pointer"
-              />
-              <label htmlFor="is_active" className="ml-2 block text-xs font-semibold text-gray-900 dark:text-slate-200 cursor-pointer">
-                Account Status (Active)
-              </label>
-            </div>
+          {selectedRole !== 'student' && (
+            isRootSuperAdminEmail(watch('email')) ? (
+              <div className="flex items-center pt-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                <ShieldCheck className="w-4 h-4 mr-1.5 shrink-0" />
+                <span>Primary Root SuperAdmin (Account Status Protected)</span>
+              </div>
+            ) : isSelf ? (
+              <div className="flex items-center pt-2 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                <ShieldCheck className="w-4 h-4 mr-1.5 shrink-0" />
+                <span>Your Own Account (Cannot be deactivated)</span>
+              </div>
+            ) : (
+              <div className="flex items-center pt-2">
+                <input id="is_active" type="checkbox" {...register('is_active')}
+                  className="h-4 w-4 text-[var(--brand)] focus:ring-[var(--brand)] border-gray-300 rounded cursor-pointer"
+                />
+                <label htmlFor="is_active" className="ml-2 block text-xs font-semibold text-gray-900 dark:text-slate-200 cursor-pointer">
+                  Account Status (Active)
+                </label>
+              </div>
+            )
           )}
 
           <div className="flex justify-end pt-4 space-x-3">
@@ -1023,9 +1033,10 @@ export const EditUser: React.FC = () => {
         </form>
       </div>
 
-      {/* ── Deactivate Account Confirmation Modal ──────────────────────── */}
-      {showDeactivateConfirmModal && pendingSubmitData && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      {/* ── Deactivate Account / Delete Student Confirmation Modal ──────── */}
+      {showDeactivateConfirmModal && pendingSubmitData &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#0A0A0A] rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 dark:border-[#1A1A1A] space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
@@ -1033,17 +1044,21 @@ export const EditUser: React.FC = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
-                  Deactivate Account
+                  {selectedRole === 'student' ? 'Delete Student' : 'Deactivate Account'}
                 </h3>
                 <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 mt-0.5 truncate">
-                  {userInitialData?.full_name || `${pendingSubmitData.first_name} ${pendingSubmitData.last_name}`} ({pendingSubmitData.email})
+                  {userInitialData?.full_name || `${pendingSubmitData.first_name} ${pendingSubmitData.last_name}`} (
+                  {selectedRole === 'student' ? pendingSubmitData.lrn || 'Student' : pendingSubmitData.email}
+                  )
                 </p>
               </div>
             </div>
 
             <div className="p-3.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
               <p className="text-xs font-medium text-amber-900 dark:text-amber-200 leading-relaxed">
-                Are you sure you want to deactivate this account? Deactivating an account while the user is logged in will forcibly make them logout and locked from entering the system
+                {selectedRole === 'student'
+                  ? 'Are you sure you want to delete this student? The student and their associated records will no longer appear in active views, while historical records are preserved in the database.'
+                  : 'Are you sure you want to deactivate this account? Deactivating an account while the user is logged in will forcibly make them logout and locked from entering the system'}
               </p>
             </div>
 
@@ -1065,12 +1080,19 @@ export const EditUser: React.FC = () => {
                 onClick={confirmDeactivationSave}
                 className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-xs font-bold cursor-pointer disabled:opacity-50 shadow-xs transition-colors"
               >
-                {isSubmitting ? 'Deactivating...' : 'Deactivate Account'}
+                {selectedRole === 'student'
+                  ? isSubmitting
+                    ? 'Deleting...'
+                    : 'Delete'
+                  : isSubmitting
+                    ? 'Deactivating...'
+                    : 'Deactivate Account'}
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
 
       {/* ── Saved Changes Floating Notification Toast (Matches TutorScores Score Success Notification) ── */}
       {showSuccessToast && (

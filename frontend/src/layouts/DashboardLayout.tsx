@@ -5,12 +5,13 @@ import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import {
   LayoutDashboard, Users, User as UserIcon, UserCheck, LogOut, QrCode, Scan,
-  Award, Bell, ChevronDown, ChevronUp, Shield, BookOpen, X, FileText, Moon, Sun,
-  PanelLeftClose, PanelLeftOpen, Menu, AlertTriangle, Calendar, Check, HelpCircle,
+  Award, Bell, ChevronDown, ChevronUp, ChevronLeft, Shield, BookOpen, X, FileText, Moon, Sun,
+  Menu, AlertTriangle, Calendar, Check, HelpCircle,
   Clock, CheckCircle2, XCircle, AlertCircle, RefreshCw, Archive, History,
 } from 'lucide-react';
 import { userService } from '../services/userService';
 import { academicService } from '../services/academicService';
+import { RISK_THRESHOLDS } from '../config/academicConfig';
 import { computeStudentRiskRows, type StudentRiskRow } from '../utils/analyticsHelpers';
 import { parseTutorRoleDetailsFromUser, isStudentInCohort, buildTutorClassSections, parseStudentGradeAndSection } from '../utils/tutorCohortHelpers';
 import { getReviewerLabel } from '../utils/studentFormatters';
@@ -232,6 +233,103 @@ const AuditLogNavIcon: React.FC<{ active?: boolean; theme?: 'light' | 'dark'; si
   );
 };
 
+const TicketsNavIcon: React.FC<{ active?: boolean; theme?: 'light' | 'dark'; size?: number }> = ({
+  active = false,
+  theme = 'light',
+  size = 18,
+}) => {
+  if (!active) {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="sidebar-icon"
+        style={{ width: size, height: size, flexShrink: 0 }}
+      >
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M7.5 10l1.5 1.5L11.5 9" />
+        <line x1="13.5" y1="10" x2="17.5" y2="10" />
+        <path d="M7.5 15l1.5 1.5L11.5 14" />
+        <line x1="13.5" y1="15" x2="17.5" y2="15" />
+      </svg>
+    );
+  }
+
+  const isDark = theme === 'dark';
+  const fillColor = isDark ? '#FFFFFF' : '#0052B7';
+  const detailColor = isDark ? '#000000' : '#FFFFFF';
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      className="sidebar-icon active"
+      style={{ width: size, height: size, flexShrink: 0 }}
+    >
+      <rect x="3" y="4" width="18" height="16" rx="2" fill={fillColor} stroke={fillColor} strokeWidth="0.8" />
+      <path d="M7.5 10l1.5 1.5L11.5 9" fill="none" stroke={detailColor} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="13.5" y1="10" x2="17.5" y2="10" stroke={detailColor} strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M7.5 15l1.5 1.5L11.5 14" fill="none" stroke={detailColor} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="13.5" y1="15" x2="17.5" y2="15" stroke={detailColor} strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+};
+
+const SettingsNavIcon: React.FC<{ active?: boolean; theme?: 'light' | 'dark'; size?: number }> = ({
+  active = false,
+  theme = 'light',
+  size = 18,
+}) => {
+  if (!active) {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="sidebar-icon"
+        style={{ width: size, height: size, flexShrink: 0 }}
+      >
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+    );
+  }
+
+  const isDark = theme === 'dark';
+  const fillColor = isDark ? '#FFFFFF' : '#0052B7';
+  const detailColor = isDark ? '#000000' : '#FFFFFF';
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      className="sidebar-icon active"
+      style={{ width: size, height: size, flexShrink: 0 }}
+    >
+      <path
+        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+        fill={fillColor}
+        stroke={fillColor}
+        strokeWidth="0.8"
+      />
+      <circle cx="12" cy="12" r="3" fill={detailColor} />
+    </svg>
+  );
+};
+
 const AssetSidebarIcon: React.FC<{
   darkSrc: string;
   darkActiveSrc?: string;
@@ -386,6 +484,7 @@ export const DashboardLayout: React.FC = () => {
 
   const getPageTitle = () => {
     const p = location.pathname;
+    if (p.includes('/tickets')) return 'Tickets';
     if (p.includes('/audit-logs')) return 'Audit Log';
     if (p.includes('/archive')) return 'Archive';
     if (p.includes('/evaluations')) return 'Assessment';
@@ -404,7 +503,8 @@ export const DashboardLayout: React.FC = () => {
     if (p.includes('/profile')) return user?.role === 'tutor' ? 'Tutor Profile' : 'Profile';
     if (p.includes('/settings')) return 'System Settings';
     if (p.includes('/analytics')) return 'Data Analytics';
-    if (p.includes('/academic-records') || p.includes('/scores')) return user?.role === 'student' ? 'Academic Records' : 'Score Entry';
+    if (p.includes('/tutor/scores')) return 'Score';
+    if (p.includes('/academic-records') || p.includes('/scores')) return user?.role === 'student' ? 'Academic Records' : 'Score';
     return 'Dashboard';
   };
 
@@ -425,7 +525,9 @@ export const DashboardLayout: React.FC = () => {
   const [moderateRiskStudents, setModerateRiskStudents] = useState<StudentRiskRow[]>([]);
   const [showRiskList, setShowRiskList] = useState(false);
   const [selectedAlertClass, setSelectedAlertClass] = useState<string>('all');
+  const [selectedAlertTutor, setSelectedAlertTutor] = useState<string>('all');
   const [principalTutors, setPrincipalTutors] = useState<User[]>([]);
+  const [tutorAssignedStudents, setTutorAssignedStudents] = useState<User[]>([]);
   const [expandedPrincipalTutorId, setExpandedPrincipalTutorId] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -513,7 +615,10 @@ export const DashboardLayout: React.FC = () => {
   const [systemAnnouncements, setSystemAnnouncements] = useState<SystemAnnouncementItem[]>([]);
   const [userNotificationFilter, setUserNotificationFilter] = useState<'all' | 'tickets' | 'edits' | 'updates'>('all');
   const [isClearingResolved, setIsClearingResolved] = useState<boolean>(false);
-  const activeTicketNotificationCount = user?.is_superuser ? pendingTicketsCount : myTickets.length;
+  const activeTicketNotificationCount =
+    user?.is_superuser || user?.role === 'admin'
+      ? 0
+      : myTickets.length;
   const totalNotificationsCount = pendingEditRequestsCount + activeTicketNotificationCount + systemAnnouncements.length + SYSTEM_UPDATES.length;
   const [myEditRequests, setMyEditRequests] = useState<StudentEditRequest[]>([]);
   const [isLoadingEditRequests, setIsLoadingEditRequests] = useState<boolean>(false);
@@ -587,7 +692,7 @@ export const DashboardLayout: React.FC = () => {
       ...systemAnnouncements.map((a) => ({ ...a, itemKind: 'announcement' as const })),
       ...SYSTEM_UPDATES.map((u) => ({ ...u, itemKind: 'system' as const })),
       ...myEditRequests.map((req) => ({ ...req, itemKind: 'edit' as const })),
-      ...myTickets.map((t) => ({ ...t, itemKind: 'ticket' as const })),
+      ...(user?.role === 'admin' || user?.is_superuser ? [] : myTickets.map((t) => ({ ...t, itemKind: 'ticket' as const }))),
     ];
     const currentIds = items.map(getInboxItemId);
     setSeenNotifItemIds((prev) => {
@@ -616,7 +721,7 @@ export const DashboardLayout: React.FC = () => {
       ...systemAnnouncements.map((a) => ({ ...a, itemKind: 'announcement' as const })),
       ...SYSTEM_UPDATES.map((u) => ({ ...u, itemKind: 'system' as const })),
       ...myEditRequests.map((req) => ({ ...req, itemKind: 'edit' as const })),
-      ...myTickets.map((t) => ({ ...t, itemKind: 'ticket' as const })),
+      ...(user?.role === 'admin' || user?.is_superuser ? [] : myTickets.map((t) => ({ ...t, itemKind: 'ticket' as const }))),
     ];
 
     if (items.length === 0) return 0;
@@ -678,6 +783,8 @@ export const DashboardLayout: React.FC = () => {
 
       if (isPrincipal) {
         setPrincipalTutors(tutors);
+      } else {
+        setTutorAssignedStudents(students);
       }
 
       const rows = computeStudentRiskRows(students, grades, attendanceLogs);
@@ -714,56 +821,23 @@ export const DashboardLayout: React.FC = () => {
 
   const tutorClassSections = useMemo(() => {
     if (!user || user.role !== 'tutor') return [];
-    return buildTutorClassSections(user, highRiskStudents);
-  }, [user, highRiskStudents]);
+    const highRiskById = new Map<string, StudentRiskRow>(
+      highRiskStudents.map((r) => [String(r.student.id), r])
+    );
+    const sourceList = tutorAssignedStudents.length > 0 ? tutorAssignedStudents : [];
+    const allSections = buildTutorClassSections(user, sourceList as any[]);
+    return allSections.map((sec) => ({
+      ...sec,
+      students: (sec.students || [])
+        .map((st: any) => {
+          const id = st?.student?.id ?? st?.rawStudent?.id ?? st?.id;
+          return id ? highRiskById.get(String(id)) : undefined;
+        })
+        .filter((r): r is StudentRiskRow => Boolean(r)),
+    }));
+  }, [user, tutorAssignedStudents, highRiskStudents]);
 
-  const principalClassSections = useMemo(() => {
-    if (!user || user.role !== 'principal') return [];
-    const classesMap = new Map<string, { key: string; label: string; cohort: string; aralLevel: string; students: StudentRiskRow[] }>();
-
-    highRiskStudents.forEach((r) => {
-      const st = r.student;
-      const rawAral = (st.aral_level || 'basic').toLowerCase().trim();
-      const aralLevel = rawAral.includes('summer') ? 'summer' : rawAral.includes('plus') ? 'plus' : 'basic';
-      let subj = (st.subject || '').trim();
-      if (!subj) {
-        subj = aralLevel === 'basic' ? 'Filipino' : 'English';
-      } else {
-        const norm = subj.toLowerCase();
-        if (norm.includes('math')) subj = 'Math';
-        else if (norm.includes('sci')) subj = 'Science';
-        else if (norm.includes('english')) subj = 'English';
-        else if (norm.includes('filipino')) subj = aralLevel === 'plus' ? 'English' : 'Filipino';
-        else if (norm.includes('reading')) subj = aralLevel === 'plus' ? 'English' : 'Filipino';
-        else subj = subj.charAt(0).toUpperCase() + subj.slice(1);
-      }
-      const { grade, section } = parseStudentGradeAndSection(st);
-      let cleanGrade = (grade || 'GRADE 7').toUpperCase().trim();
-      if (!cleanGrade.startsWith('GRADE')) {
-        const numMatch = cleanGrade.match(/\d+/);
-        cleanGrade = numMatch ? `GRADE ${numMatch[0]}` : `GRADE ${cleanGrade}`;
-      }
-      const cleanSec = (section || 'HYACINTH').toUpperCase().trim();
-      const cohortStr = `${cleanGrade} - ${cleanSec}`;
-      const label = `${aralLevel.toUpperCase()} • ${subj.toUpperCase()} • ${cohortStr}`;
-      const key = `${aralLevel}-${subj}-${cleanGrade}-${cleanSec}`.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-
-      if (!classesMap.has(key)) {
-        classesMap.set(key, { key, label, cohort: cohortStr, aralLevel, students: [] });
-      }
-      classesMap.get(key)!.students.push(r);
-    });
-
-    return Array.from(classesMap.values()).sort((a, b) => b.students.length - a.students.length);
-  }, [user, highRiskStudents]);
-
-  const availableClassSections = useMemo(() => {
-    if (user?.role === 'principal') return principalClassSections;
-    if (user?.role === 'tutor') return tutorClassSections;
-    return [];
-  }, [user?.role, principalClassSections, tutorClassSections]);
-
-  const principalTutorGroups = useMemo(() => {
+  const allPrincipalTutorGroups = useMemo(() => {
     if (!user || user.role !== 'principal') return [];
 
     const isStudentAssignedToTutor = (s: any, tutorId: string, tutorFullName?: string): boolean => {
@@ -783,15 +857,11 @@ export const DashboardLayout: React.FC = () => {
       return false;
     };
 
-    const targetStudents = selectedAlertClass === 'all'
-      ? highRiskStudents
-      : (principalClassSections.find((c) => c.key === selectedAlertClass)?.students ?? highRiskStudents);
-
     const groups = principalTutors.map((tutor) => {
       const tutorIdStr = String(tutor.id);
       const tutorFullName = tutor.full_name || `${tutor.first_name || ''} ${tutor.last_name || ''}`.trim() || 'Tutor';
 
-      const assignedStudents = targetStudents.filter((r) =>
+      const assignedStudents = highRiskStudents.filter((r) =>
         isStudentAssignedToTutor(r.student, tutorIdStr, tutorFullName)
       );
 
@@ -821,11 +891,11 @@ export const DashboardLayout: React.FC = () => {
         classesHandled,
         students: assignedStudents,
       };
-    }).filter((g) => g.students.length > 0);
+    });
 
     // Group any unassigned high-risk students so nothing is omitted
     const assignedStudentIds = new Set(groups.flatMap((g) => g.students.map((s) => s.student.id)));
-    const unassignedStudents = targetStudents.filter((r) => !assignedStudentIds.has(r.student.id));
+    const unassignedStudents = highRiskStudents.filter((r) => !assignedStudentIds.has(r.student.id));
     if (unassignedStudents.length > 0) {
       groups.push({
         tutor: { id: 'unassigned', full_name: 'Unassigned Students' } as any,
@@ -836,9 +906,20 @@ export const DashboardLayout: React.FC = () => {
       });
     }
 
-    groups.sort((a, b) => b.students.length - a.students.length);
+    groups.sort((a, b) => {
+      if (a.tutorId === 'unassigned' && b.tutorId !== 'unassigned') return 1;
+      if (b.tutorId === 'unassigned' && a.tutorId !== 'unassigned') return -1;
+      if (b.students.length !== a.students.length) return b.students.length - a.students.length;
+      return a.tutorName.localeCompare(b.tutorName);
+    });
     return groups;
-  }, [user, principalTutors, highRiskStudents, selectedAlertClass, principalClassSections]);
+  }, [user, principalTutors, highRiskStudents]);
+
+  const principalTutorGroups = useMemo(() => {
+    const withHighRisk = allPrincipalTutorGroups.filter((g) => g.students.length > 0);
+    if (selectedAlertTutor === 'all') return withHighRisk;
+    return withHighRisk.filter((g) => g.tutorId === selectedAlertTutor);
+  }, [allPrincipalTutorGroups, selectedAlertTutor]);
 
   const [isAlertClassDropdownOpen, setIsAlertClassDropdownOpen] = useState(false);
   const alertClassDropdownRef = useRef<HTMLDivElement>(null);
@@ -863,14 +944,56 @@ export const DashboardLayout: React.FC = () => {
     };
   }, [isAlertClassDropdownOpen]);
 
-  const selectedAlertClassLabel = useMemo(() => {
-    if (selectedAlertClass === 'all') {
-      const totalHigh = availableClassSections.reduce((s, c) => s + c.students.length, 0);
-      return `ALL CLASSES (${totalHigh} high-risk)`;
+  const alertFilterConfig = useMemo(() => {
+    if (user?.role === 'principal') {
+      if (allPrincipalTutorGroups.length === 0) return null;
+      const selectedGroup = selectedAlertTutor === 'all'
+        ? null
+        : allPrincipalTutorGroups.find((g) => g.tutorId === selectedAlertTutor);
+      return {
+        selectedValue: selectedAlertTutor,
+        selectedLabel: selectedGroup
+          ? `${selectedGroup.tutorName.toUpperCase()} (${selectedGroup.students.length})`
+          : `ALL TUTORS (${highRiskStudents.length} high-risk)`,
+        allLabel: `ALL TUTORS (${highRiskStudents.length} high-risk)`,
+        ariaLabel: 'Filter high-risk students by tutor',
+        listboxAriaLabel: 'Filter tutors',
+        options: allPrincipalTutorGroups.map((g) => ({
+          key: g.tutorId,
+          label: `${g.tutorName.toUpperCase()} (${g.students.length})`,
+        })),
+        onSelect: (value: string) => {
+          setSelectedAlertTutor(value);
+          setExpandedPrincipalTutorId(value === 'all' ? null : value);
+          setIsAlertClassDropdownOpen(false);
+        },
+      };
     }
-    const match = availableClassSections.find((c) => c.key === selectedAlertClass);
-    return match ? `${match.label} (${match.students.length})` : 'ALL CLASSES';
-  }, [selectedAlertClass, availableClassSections]);
+
+    if (user?.role === 'tutor' && tutorClassSections.length > 0) {
+      const totalHigh = tutorClassSections.reduce((s, c) => s + c.students.length, 0);
+      const match = selectedAlertClass === 'all'
+        ? null
+        : tutorClassSections.find((c) => c.key === selectedAlertClass);
+      return {
+        selectedValue: selectedAlertClass,
+        selectedLabel: match ? `${match.label} (${match.students.length})` : `ALL CLASSES (${totalHigh} high-risk)`,
+        allLabel: `ALL CLASSES (${totalHigh} high-risk)`,
+        ariaLabel: 'Filter high-risk students by class',
+        listboxAriaLabel: 'Filter classes',
+        options: tutorClassSections.map((cls) => ({
+          key: cls.key,
+          label: `${cls.label} (${cls.students.length})`,
+        })),
+        onSelect: (value: string) => {
+          setSelectedAlertClass(value);
+          setIsAlertClassDropdownOpen(false);
+        },
+      };
+    }
+
+    return null;
+  }, [user?.role, allPrincipalTutorGroups, selectedAlertTutor, highRiskStudents.length, tutorClassSections, selectedAlertClass]);
 
   const handleAcknowledgeAlert = async (row: StudentRiskRow) => {
     const existingRiskId = acknowledgedRiskIds[row.student.id];
@@ -926,7 +1049,7 @@ export const DashboardLayout: React.FC = () => {
   };
 
   const fetchTickets = useCallback(async () => {
-    if (!user) return;
+    if (!user || user.role === 'admin') return;
     try {
       const data = await ticketService.getTickets();
       setMyTickets(data.results || []);
@@ -1148,9 +1271,19 @@ export const DashboardLayout: React.FC = () => {
     );
   };
 
-  // Auto-refresh high risk student alerts with a gentle 60s interval and event-driven updates
+  // Sync active ARAL Program Configuration and auto-refresh high risk student alerts
   useEffect(() => {
-    fetchRiskStudents();
+    if (!user) return;
+    academicService.getCurrentSchoolYear().then(() => {
+      fetchRiskStudents();
+    }).catch(() => {
+      fetchRiskStudents();
+    });
+    const handleConfigChange = () => {
+      fetchRiskStudents();
+    };
+    window.addEventListener('aralert:weights-changed', handleConfigChange);
+    window.addEventListener('system_semester_changed', handleConfigChange);
     if (user?.role === 'tutor' || user?.role === 'principal') {
       const interval = setInterval(() => {
         if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
@@ -1164,8 +1297,14 @@ export const DashboardLayout: React.FC = () => {
       return () => {
         clearInterval(interval);
         window.removeEventListener('aralert:refresh-risk-alerts', handleCustomRefresh);
+        window.removeEventListener('aralert:weights-changed', handleConfigChange);
+        window.removeEventListener('system_semester_changed', handleConfigChange);
       };
     }
+    return () => {
+      window.removeEventListener('aralert:weights-changed', handleConfigChange);
+      window.removeEventListener('system_semester_changed', handleConfigChange);
+    };
   }, [user?.id, user?.role]);
 
   useEffect(() => { if (!showRiskList) return; fetchRiskStudents(); }, [showRiskList]);
@@ -1175,6 +1314,14 @@ export const DashboardLayout: React.FC = () => {
     fetchTickets();
     fetchAnnouncements();
   }, [user, location.pathname, fetchTickets, fetchAnnouncements]);
+
+  useEffect(() => {
+    const handleRefreshTickets = () => {
+      fetchTickets();
+    };
+    window.addEventListener('aralert:refresh-tickets', handleRefreshTickets);
+    return () => window.removeEventListener('aralert:refresh-tickets', handleRefreshTickets);
+  }, [fetchTickets]);
 
   useEffect(() => {
     if (showTutorNotifications || showStudentEditRequests || showEditRequestsModal) {
@@ -1203,12 +1350,28 @@ export const DashboardLayout: React.FC = () => {
   }, []);
 
 
+  const NavSectionHeader: React.FC<{ label: string; collapsed?: boolean; isFirst?: boolean }> = ({
+    label,
+    collapsed = false,
+    isFirst = false,
+  }) => {
+    if (collapsed) return null;
+    return (
+      <div
+        className={`sidebar-section-label ${isFirst ? '!mt-0 !pt-1' : '!mt-2.5 !pt-1'} !pb-1 select-none`}
+      >
+        {label}
+      </div>
+    );
+  };
+
   const renderNavItems = (collapsed: boolean = false, onItemClick?: () => void) => {
     return (
       <>
         {/* SuperAdmin nav */}
         {user?.is_superuser && (
           <>
+            <NavSectionHeader label="Operations" collapsed={collapsed} isFirst />
             <Link to="/superadmin" onClick={onItemClick} className={navLinkClass(isActive('/superadmin'), collapsed)} title="Dashboard">
               <AssetSidebarIcon
                 darkSrc={dashboardDarkDefault}
@@ -1264,6 +1427,8 @@ export const DashboardLayout: React.FC = () => {
               <AssessmentNavIcon active={isActivePrefix('/superadmin/evaluations') || isActivePrefix('/admin/evaluations')} theme={theme} />
               {!collapsed && <span className="truncate">Assessment</span>}
             </Link>
+
+            <NavSectionHeader label="Records & Audit" collapsed={collapsed} />
             <Link
               to="/superadmin/archive"
               onClick={onItemClick}
@@ -1282,12 +1447,44 @@ export const DashboardLayout: React.FC = () => {
               <AuditLogNavIcon active={isActivePrefix('/superadmin/audit-logs')} theme={theme} />
               {!collapsed && <span className="truncate">Audit Log</span>}
             </Link>
+
+            <NavSectionHeader label="Support" collapsed={collapsed} />
+            <Link
+              to="/superadmin/tickets"
+              onClick={onItemClick}
+              className={navLinkClass(isActivePrefix('/superadmin/tickets'), collapsed)}
+              title="Tickets"
+            >
+              <TicketsNavIcon active={isActivePrefix('/superadmin/tickets')} theme={theme} />
+              {!collapsed && (
+                <span className="flex-1 flex items-center justify-between gap-2 min-w-0">
+                  <span className="truncate">Tickets</span>
+                  {pendingTicketsCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold leading-none bg-amber-500 text-white shrink-0">
+                      {pendingTicketsCount > 99 ? '99+' : pendingTicketsCount}
+                    </span>
+                  )}
+                </span>
+              )}
+            </Link>
+
+            <NavSectionHeader label="System" collapsed={collapsed} />
+            <Link
+              to="/superadmin/settings"
+              onClick={onItemClick}
+              className={navLinkClass(isActivePrefix('/superadmin/settings'), collapsed)}
+              title="Settings"
+            >
+              <SettingsNavIcon active={isActivePrefix('/superadmin/settings')} theme={theme} />
+              {!collapsed && <span className="truncate">Settings</span>}
+            </Link>
           </>
         )}
 
         {/* Admin nav */}
         {user?.role === 'admin' && (
           <>
+            <NavSectionHeader label="Operations" collapsed={collapsed} isFirst />
             <Link to="/admin" onClick={onItemClick} className={navLinkClass(isActive('/admin'), collapsed)} title="Dashboard">
               <AssetSidebarIcon
                 darkSrc={dashboardDarkDefault}
@@ -1328,6 +1525,8 @@ export const DashboardLayout: React.FC = () => {
               <AssessmentNavIcon active={isActivePrefix('/admin/evaluations') || isActivePrefix('/superadmin/evaluations')} theme={theme} />
               {!collapsed && <span className="truncate">Assessment</span>}
             </Link>
+
+            <NavSectionHeader label="Records & Audit" collapsed={collapsed} />
             <Link
               to="/admin/archive"
               onClick={onItemClick}
@@ -1346,12 +1545,24 @@ export const DashboardLayout: React.FC = () => {
               <AuditLogNavIcon active={isActivePrefix('/admin/audit-logs')} theme={theme} />
               {!collapsed && <span className="truncate">Audit Log</span>}
             </Link>
+
+            <NavSectionHeader label="System" collapsed={collapsed} />
+            <Link
+              to="/admin/settings"
+              onClick={onItemClick}
+              className={navLinkClass(isActivePrefix('/admin/settings'), collapsed)}
+              title="Settings"
+            >
+              <SettingsNavIcon active={isActivePrefix('/admin/settings')} theme={theme} />
+              {!collapsed && <span className="truncate">Settings</span>}
+            </Link>
           </>
         )}
 
         {/* Tutor nav */}
         {user?.role === 'tutor' && (
           <>
+            <NavSectionHeader label="Classroom" collapsed={collapsed} isFirst />
             <Link to="/tutor" onClick={onItemClick} className={navLinkClass(isActive('/tutor'), collapsed)} title="Dashboard">
               <AssetSidebarIcon
                 darkSrc={dashboardDarkDefault}
@@ -1369,7 +1580,7 @@ export const DashboardLayout: React.FC = () => {
             <Link
               to="/tutor/attendance/generate"
               onClick={onItemClick}
-              className={navLinkClass(isActive('/tutor/attendance/generate'), collapsed)}
+              className={navLinkClass(isActivePrefix('/tutor/attendance'), collapsed)}
               title="QR Attendance"
             >
               <AssetSidebarIcon
@@ -1377,7 +1588,7 @@ export const DashboardLayout: React.FC = () => {
                 darkActiveSrc={qrDarkActive}
                 lightSrc={qrLightDefault}
                 lightActiveSrc={qrLightActive}
-                active={isActive('/tutor/attendance/generate')}
+                active={isActivePrefix('/tutor/attendance')}
                 alt="QR Attendance"
                 size={18}
                 theme={theme}
@@ -1385,32 +1596,18 @@ export const DashboardLayout: React.FC = () => {
               {!collapsed && <span className="truncate">QR Attendance</span>}
             </Link>
 
-            <Link to="/tutor/scores" onClick={onItemClick} className={navLinkClass(isActive('/tutor/scores'), collapsed)} title="Score Entry">
+            <Link to="/tutor/scores" onClick={onItemClick} className={navLinkClass(isActivePrefix('/tutor/scores'), collapsed)} title="Score">
               <AssetSidebarIcon
                 darkSrc={scoreDarkDefault}
                 darkActiveSrc={scoreDarkActive}
                 lightSrc={scoreLightDefault}
                 lightActiveSrc={scoreLightActive}
-                active={isActive('/tutor/scores')}
-                alt="Score Entry"
+                active={isActivePrefix('/tutor/scores')}
+                alt="Score"
                 size={18}
                 theme={theme}
               />
-              {!collapsed && <span className="truncate">Score Entry</span>}
-            </Link>
-
-            <Link to="/tutor/analytics" onClick={onItemClick} className={navLinkClass(isActive('/tutor/analytics'), collapsed)} title="Data Analytics">
-              <AssetSidebarIcon
-                darkSrc={analyticsDarkDefault}
-                darkActiveSrc={analyticsDarkActive}
-                lightSrc={analyticsLightDefault}
-                lightActiveSrc={analyticsLightActive}
-                active={isActive('/tutor/analytics')}
-                alt="Data Analytics"
-                size={18}
-                theme={theme}
-              />
-              {!collapsed && <span className="truncate">Data Analytics</span>}
+              {!collapsed && <span className="truncate">Score</span>}
             </Link>
 
             <Link to="/tutor/students" onClick={onItemClick} className={navLinkClass(isActivePrefix('/tutor/students'), collapsed)} title="Assigned Students">
@@ -1427,6 +1624,21 @@ export const DashboardLayout: React.FC = () => {
               {!collapsed && <span className="truncate">Assigned Students</span>}
             </Link>
 
+            <NavSectionHeader label="Progress & History" collapsed={collapsed} />
+            <Link to="/tutor/analytics" onClick={onItemClick} className={navLinkClass(isActive('/tutor/analytics'), collapsed)} title="Data Analytics">
+              <AssetSidebarIcon
+                darkSrc={analyticsDarkDefault}
+                darkActiveSrc={analyticsDarkActive}
+                lightSrc={analyticsLightDefault}
+                lightActiveSrc={analyticsLightActive}
+                active={isActive('/tutor/analytics')}
+                alt="Data Analytics"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">Data Analytics</span>}
+            </Link>
+
             <Link to="/tutor/archive" onClick={onItemClick} className={navLinkClass(isActive('/tutor/archive'), collapsed)} title="Archive">
               <ArchiveNavIcon active={isActive('/tutor/archive')} theme={theme} />
               {!collapsed && <span className="truncate">Archive</span>}
@@ -1437,6 +1649,7 @@ export const DashboardLayout: React.FC = () => {
         {/* Principal nav */}
         {user?.role === 'principal' && (
           <>
+            <NavSectionHeader label="Overview" collapsed={collapsed} isFirst />
             <Link to="/principal" onClick={onItemClick} className={navLinkClass(isActive('/principal'), collapsed)} title="Dashboard">
               <AssetSidebarIcon
                 darkSrc={dashboardDarkDefault}
@@ -1470,6 +1683,7 @@ export const DashboardLayout: React.FC = () => {
         {/* Student nav */}
         {user?.role === 'student' && (
           <>
+            <NavSectionHeader label="Learning" collapsed={collapsed} isFirst />
             <Link to="/student" onClick={onItemClick} className={navLinkClass(isActive('/student'), collapsed)} title="Dashboard">
               <AssetSidebarIcon
                 darkSrc={dashboardDarkDefault}
@@ -1482,19 +1696,6 @@ export const DashboardLayout: React.FC = () => {
                 theme={theme}
               />
               {!collapsed && <span className="truncate">Dashboard</span>}
-            </Link>
-            <Link to="/student/analytics" onClick={onItemClick} className={navLinkClass(isActive('/student/analytics'), collapsed)} title="Data Analytics">
-              <AssetSidebarIcon
-                darkSrc={analyticsDarkDefault}
-                darkActiveSrc={analyticsDarkActive}
-                lightSrc={analyticsLightDefault}
-                lightActiveSrc={analyticsLightActive}
-                active={isActive('/student/analytics')}
-                alt="Data Analytics"
-                size={18}
-                theme={theme}
-              />
-              {!collapsed && <span className="truncate">Data Analytics</span>}
             </Link>
 
             <Link to="/student/scores" onClick={onItemClick} className={navLinkClass(isActive('/student/scores') || isActive('/student/academic-records'), collapsed)} title="Academic Records">
@@ -1511,8 +1712,6 @@ export const DashboardLayout: React.FC = () => {
               {!collapsed && <span className="truncate">Academic Records</span>}
             </Link>
 
-            <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0' }} />
-
             <Link to="/student/attendance" onClick={onItemClick} className={navLinkClass(isActive('/student/attendance'), collapsed)} title="QR Attendance">
               <AssetSidebarIcon
                 darkSrc={qrDarkDefault}
@@ -1525,6 +1724,21 @@ export const DashboardLayout: React.FC = () => {
                 theme={theme}
               />
               {!collapsed && <span className="truncate">QR Attendance</span>}
+            </Link>
+
+            <NavSectionHeader label="Progress" collapsed={collapsed} />
+            <Link to="/student/analytics" onClick={onItemClick} className={navLinkClass(isActive('/student/analytics'), collapsed)} title="Data Analytics">
+              <AssetSidebarIcon
+                darkSrc={analyticsDarkDefault}
+                darkActiveSrc={analyticsDarkActive}
+                lightSrc={analyticsLightDefault}
+                lightActiveSrc={analyticsLightActive}
+                active={isActive('/student/analytics')}
+                alt="Data Analytics"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">Data Analytics</span>}
             </Link>
           </>
         )}
@@ -1563,14 +1777,29 @@ export const DashboardLayout: React.FC = () => {
           flexDirection: 'column',
           flexShrink: 0,
           borderRight: '1px solid var(--slate-200)',
-          zIndex: 20,
+          zIndex: 25,
           position: 'relative',
-          overflow: 'hidden',
+          overflow: 'visible',
         }}
       >
+        {/* Folder-Tab Sidebar Toggle (centered vertically on the sidebar right edge) */}
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          className="group/tab hidden lg:flex items-center justify-center absolute top-1/2 left-full -translate-y-1/2 z-30 w-[18px] h-12 rounded-r-lg border border-l-0 border-slate-200 bg-[var(--sidebar-bg)] text-slate-400 dark:text-zinc-500 hover:text-[var(--brand)] dark:hover:text-white shadow-[2px_0_6px_-2px_rgba(15,23,42,0.08)] dark:shadow-none transition-colors duration-150 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+          title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-expanded={!isSidebarCollapsed}
+        >
+          <ChevronLeft
+            size={14}
+            strokeWidth={2.25}
+            className={`transition-transform duration-200 ${isSidebarCollapsed ? 'rotate-180' : ''}`}
+          />
+        </button>
+
         {/* Brand Header */}
         <div
-          className="group/header"
           style={{
             padding: isSidebarCollapsed ? '0 0.5rem' : '0 1rem 0 1.25rem',
             minHeight: '64px',
@@ -1580,16 +1809,20 @@ export const DashboardLayout: React.FC = () => {
             justifyContent: isSidebarCollapsed ? 'center' : 'space-between',
             flexShrink: 0,
             position: 'relative',
+            overflow: 'hidden',
             transition: 'padding 0.25s ease',
           }}
         >
           {isSidebarCollapsed ? (
-            /* Collapsed State: Show the ARALert logo. On hover, expand button smoothly overlays/replaces it in that same position */
-            <div className="relative w-10 h-10 flex items-center justify-center">
-              {/* ARALert logo image (shown when collapsed) */}
+            /* Collapsed State: Show centered ARALert logo */
+            <Link
+              to={user?.is_superuser ? '/superadmin' : user?.role ? `/${user.role}` : '/'}
+              className="group/brand flex items-center justify-center w-10 h-10 no-underline"
+              title={`ARALert / ${getRoleLabel()}`}
+            >
               <div
                 id="sidebar-brand-logo-collapsed"
-                className="w-8 h-8 flex items-center justify-center select-none transition-all duration-200 ease-in-out opacity-100 scale-100 group-hover/header:opacity-0 group-hover/header:scale-75 pointer-events-none"
+                className="w-8 h-8 flex items-center justify-center select-none transition-transform duration-200 group-hover/brand:scale-105"
               >
                 <img
                   src={aralertLogo}
@@ -1598,21 +1831,10 @@ export const DashboardLayout: React.FC = () => {
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                 />
               </div>
-
-              {/* Expand sidebar button (smoothly replaces logo on hover in original position) */}
-              <button
-                type="button"
-                onClick={toggleSidebar}
-                className="absolute inset-0 flex items-center justify-center rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800 text-slate-600 hover:text-[var(--brand)] dark:text-slate-300 dark:hover:text-blue-400 shadow-xs transition-all duration-200 ease-in-out opacity-0 scale-75 group-hover/header:opacity-100 group-hover/header:scale-100 cursor-pointer focus:outline-none focus:opacity-100 focus:scale-100"
-                title="Expand sidebar"
-                aria-label="Expand sidebar"
-              >
-                <PanelLeftOpen size={18} strokeWidth={2.1} />
-              </button>
-            </div>
+            </Link>
           ) : (
-            /* Expanded State: Show ARALert logo + brand text; collapse button on the right in its original position, smoothly revealed on hover */
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            /* Expanded State: Show ARALert logo + brand text */
+            <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
               <Link
                 to={user?.is_superuser ? '/superadmin' : user?.role ? `/${user.role}` : '/'}
                 className="group/brand flex items-center gap-1.5 no-underline min-w-0"
@@ -1661,17 +1883,6 @@ export const DashboardLayout: React.FC = () => {
                   )}
                 </div>
               </Link>
-
-              {/* Collapse button in original right-side position; smoothly appears on hover without layout shift */}
-              <button
-                type="button"
-                onClick={toggleSidebar}
-                className="p-1.5 rounded-md border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-opacity duration-200 opacity-0 group-hover/header:opacity-100 focus:opacity-100 cursor-pointer shrink-0"
-                title="Collapse sidebar"
-                aria-label="Collapse sidebar"
-              >
-                <PanelLeftClose size={16} />
-              </button>
             </div>
           )}
         </div>
@@ -1681,6 +1892,7 @@ export const DashboardLayout: React.FC = () => {
           style={{
             flex: 1,
             overflowY: 'auto',
+            overflowX: 'hidden',
             padding: isSidebarCollapsed ? '0.875rem 0.35rem' : '0.875rem 0.75rem',
             display: 'flex',
             flexDirection: 'column',
@@ -1789,8 +2001,20 @@ export const DashboardLayout: React.FC = () => {
         style={{
           background: 'var(--sidebar-bg)',
           borderRight: '1px solid var(--slate-200)',
+          overflow: 'visible',
         }}
       >
+        {/* Mobile Folder-Tab Close Button (centered vertically on the drawer right edge) */}
+        <button
+          type="button"
+          onClick={() => setIsMobileDrawerOpen(false)}
+          className={`flex lg:hidden items-center justify-center absolute top-1/2 left-full -translate-y-1/2 z-30 w-[18px] h-12 rounded-r-lg border border-l-0 border-slate-200 bg-[var(--sidebar-bg)] text-slate-400 dark:text-zinc-500 hover:text-[var(--brand)] dark:hover:text-white shadow-[2px_0_6px_-2px_rgba(15,23,42,0.08)] dark:shadow-none transition-all duration-150 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${isMobileDrawerOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+          title="Close navigation"
+          aria-label="Close navigation"
+        >
+          <ChevronLeft size={14} strokeWidth={2.25} />
+        </button>
+
         {/* Mobile Drawer Header */}
         <div
           style={{
@@ -1798,9 +2022,9 @@ export const DashboardLayout: React.FC = () => {
             borderBottom: '1px solid var(--slate-100)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
             padding: '0 1rem 0 1.25rem',
             flexShrink: 0,
+            overflow: 'hidden',
           }}
         >
           <Link
@@ -1866,15 +2090,6 @@ export const DashboardLayout: React.FC = () => {
               )}
             </div>
           </Link>
-
-          <button
-            type="button"
-            onClick={() => setIsMobileDrawerOpen(false)}
-            className="p-1.5 rounded-md border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-            aria-label="Close navigation"
-          >
-            <X size={18} />
-          </button>
         </div>
 
         {/* Mobile Navigation */}
@@ -1882,6 +2097,7 @@ export const DashboardLayout: React.FC = () => {
           style={{
             flex: 1,
             overflowY: 'auto',
+            overflowX: 'hidden',
             padding: '0.875rem 0.75rem',
             display: 'flex',
             flexDirection: 'column',
@@ -2010,6 +2226,8 @@ export const DashboardLayout: React.FC = () => {
                       return next;
                     });
                     setSelectedAlertClass('all');
+                    setSelectedAlertTutor('all');
+                    setIsAlertClassDropdownOpen(false);
                     setShowTutorNotifications(false);
                     setShowStudentEditRequests(false);
                     setProfileMenuOpen(false);
@@ -2129,8 +2347,8 @@ export const DashboardLayout: React.FC = () => {
                         </button>
                       </div>
 
-                      {/* Class filter dropdown (Tutor and Principal) */}
-                      {((user?.role === 'tutor' && tutorClassSections.length > 1) || (user?.role === 'principal' && availableClassSections.length > 0)) && (
+                      {/* Alert filter dropdown (Tutor: by class, Principal: by tutor) */}
+                      {alertFilterConfig && (
                         <div style={{ position: 'relative', zIndex: 30, padding: '0.25rem 1.25rem 0.625rem', background: 'var(--surface-card)' }}>
                           <div ref={alertClassDropdownRef} className="relative w-full max-w-full">
                             <button
@@ -2138,59 +2356,57 @@ export const DashboardLayout: React.FC = () => {
                               onClick={() => setIsAlertClassDropdownOpen((prev) => !prev)}
                               aria-haspopup="listbox"
                               aria-expanded={isAlertClassDropdownOpen}
-                              aria-label="Filter high-risk students by class"
+                              aria-label={alertFilterConfig.ariaLabel}
                               className="w-full min-h-[36px] flex items-center justify-between rounded-lg border border-slate-200 dark:border-neutral-800 bg-[var(--surface-card)] px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 shadow-2xs focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 focus:outline-none transition-all cursor-pointer text-left"
                             >
-                              <span className="truncate pr-2">{selectedAlertClassLabel}</span>
+                              <span className="truncate pr-2">{alertFilterConfig.selectedLabel}</span>
                               <ChevronDown className={`shrink-0 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-150 ${isAlertClassDropdownOpen ? 'rotate-180' : ''}`} />
                             </button>
 
                             {isAlertClassDropdownOpen && (
                               <div
-                                role="listbox"
-                                aria-label="Filter classes"
-                                className="absolute left-0 right-0 top-full mt-1.5 z-50 w-full max-w-full rounded-xl border border-slate-200 dark:border-neutral-800 bg-[var(--surface-card)] p-1.5 shadow-2xl max-h-56 overflow-y-auto no-scrollbar animate-in fade-in zoom-in-95 duration-100"
+                                className="absolute left-0 right-0 top-full mt-1.5 z-50 w-full max-w-full rounded-xl border border-slate-200 dark:border-neutral-800 bg-[var(--surface-card)] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100"
                               >
-                                <button
-                                  type="button"
-                                  role="option"
-                                  aria-selected={selectedAlertClass === 'all'}
-                                  onClick={() => {
-                                    setSelectedAlertClass('all');
-                                    setIsAlertClassDropdownOpen(false);
-                                  }}
-                                  className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-2.5 py-2 text-xs font-bold transition-colors cursor-pointer ${selectedAlertClass === 'all'
-                                      ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
-                                      : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-800'
-                                    }`}
-                                  title={`ALL CLASSES (${availableClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)`}
+                                <div
+                                  role="listbox"
+                                  aria-label={alertFilterConfig.listboxAriaLabel}
+                                  className="max-h-56 overflow-y-auto dropdown-scroll p-1.5 flex flex-col gap-0.5"
                                 >
-                                  <span className="truncate">ALL CLASSES ({availableClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)</span>
-                                  {selectedAlertClass === 'all' && <Check className="w-3.5 h-3.5 shrink-0 text-[var(--brand)] dark:text-blue-400 ml-2" />}
-                                </button>
-                                {availableClassSections.map((cls) => {
-                                  const isSelected = selectedAlertClass === cls.key;
-                                  return (
-                                    <button
-                                      key={cls.key}
-                                      type="button"
-                                      role="option"
-                                      aria-selected={isSelected}
-                                      onClick={() => {
-                                        setSelectedAlertClass(cls.key);
-                                        setIsAlertClassDropdownOpen(false);
-                                      }}
-                                      className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-2.5 py-2 text-xs font-bold transition-colors cursor-pointer ${isSelected
-                                          ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
-                                          : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-800'
-                                        }`}
-                                      title={`${cls.label} (${cls.students.length})`}
-                                    >
-                                      <span className="truncate">{cls.label} ({cls.students.length})</span>
-                                      {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-[var(--brand)] dark:text-blue-400 ml-2" />}
-                                    </button>
-                                  );
-                                })}
+                                  <button
+                                    type="button"
+                                    role="option"
+                                    aria-selected={alertFilterConfig.selectedValue === 'all'}
+                                    onClick={() => alertFilterConfig.onSelect('all')}
+                                    className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-2.5 py-2 text-xs font-bold transition-colors cursor-pointer ${alertFilterConfig.selectedValue === 'all'
+                                        ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
+                                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-800'
+                                      }`}
+                                    title={alertFilterConfig.allLabel}
+                                  >
+                                    <span className="truncate">{alertFilterConfig.allLabel}</span>
+                                    {alertFilterConfig.selectedValue === 'all' && <Check className="w-3.5 h-3.5 shrink-0 text-[var(--brand)] dark:text-blue-400 ml-2" />}
+                                  </button>
+                                  {alertFilterConfig.options.map((opt) => {
+                                    const isSelected = alertFilterConfig.selectedValue === opt.key;
+                                    return (
+                                      <button
+                                        key={opt.key}
+                                        type="button"
+                                        role="option"
+                                        aria-selected={isSelected}
+                                        onClick={() => alertFilterConfig.onSelect(opt.key)}
+                                        className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-2.5 py-2 text-xs font-bold transition-colors cursor-pointer ${isSelected
+                                            ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
+                                            : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-800'
+                                          }`}
+                                        title={opt.label}
+                                      >
+                                        <span className="truncate">{opt.label}</span>
+                                        {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-[var(--brand)] dark:text-blue-400 ml-2" />}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -2214,19 +2430,21 @@ export const DashboardLayout: React.FC = () => {
                           principalTutorGroups.length === 0 ? (
                             <div style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
                               <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0 }}>
-                                {selectedAlertClass === 'all'
+                                {selectedAlertTutor === 'all'
                                   ? 'No high-risk students detected across all tutors.'
-                                  : 'No high-risk students detected for the selected class.'}
+                                  : `No high-risk students detected for ${allPrincipalTutorGroups.find((g) => g.tutorId === selectedAlertTutor)?.tutorName || 'the selected tutor'}.`}
                               </p>
                             </div>
                           ) : (
-                            <div className="flex flex-col gap-2.5">
-                              {principalTutorGroups.map((group) => {
+                            <div key={`principal-risk-list-${selectedAlertTutor}`} className="flex flex-col gap-2.5">
+                              {principalTutorGroups.map((group, groupIdx) => {
                                 const isExpanded = expandedPrincipalTutorId === group.tutorId;
+                                const groupCascadeDelay = Math.min(groupIdx * 50, 500);
                                 return (
                                   <div
                                     key={`principal-tutor-${group.tutorId}`}
-                                    className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#0A0A0A] overflow-hidden shadow-2xs transition-all"
+                                    className="risk-card-cascade rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#0A0A0A] overflow-hidden shadow-2xs transition-all"
+                                    style={{ animationDelay: `${groupCascadeDelay}ms` }}
                                   >
                                     {/* Tutor Header Row - Clickable Dropdown Trigger */}
                                     <button
@@ -2285,12 +2503,14 @@ export const DashboardLayout: React.FC = () => {
                                         </div>
 
                                         <div className="flex flex-col gap-2">
-                                          {group.students.map((row) => {
+                                          {group.students.map((row, studentIdx) => {
                                             const { grade: stGrade, section: stSection } = parseStudentGradeAndSection(row.student);
+                                            const studentCascadeDelay = Math.min(studentIdx * 50, 500);
                                             return (
                                               <div
                                                 key={`principal-student-${row.student.id}`}
-                                                className="rounded-lg border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#111111] p-3 space-y-2 shadow-2xs"
+                                                className="risk-card-cascade rounded-lg border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#111111] p-3 space-y-2 shadow-2xs"
+                                                style={{ animationDelay: `${studentCascadeDelay}ms` }}
                                               >
                                                 <div className="flex items-start justify-between gap-2">
                                                   <div className="min-w-0 flex-1">
@@ -2314,9 +2534,9 @@ export const DashboardLayout: React.FC = () => {
 
                                               {/* Safety Gate or Recovery Targets Remark */}
                                               <div className="flex flex-col gap-1 pt-0.5">
-                                                {row.compositeScore >= 70 && row.attendanceRate <= 75 && (
+                                                {row.compositeScore >= RISK_THRESHOLDS.moderateMinComposite && row.attendanceRate <= RISK_THRESHOLDS.highAttendanceGate && (
                                                   <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-900 dark:text-amber-200 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 leading-snug">
-                                                    Despite current composite rating, student is marked high risk due to the attendace rate being 75% or less.
+                                                    Despite current composite rating, student is marked high risk due to the attendance rate being {RISK_THRESHOLDS.highAttendanceGate}% or less.
                                                   </span>
                                                 )}
                                                 {row.neededPresentAttendance > 0 && (
@@ -2382,7 +2602,7 @@ export const DashboardLayout: React.FC = () => {
                             });
 
                             return (
-                              <div key={cls.key} className="flex flex-col gap-2">
+                              <div key={`${selectedAlertClass}-${cls.key}`} className="flex flex-col gap-2">
                                 {/* Class label shown only in "all" view or when more than one section exists */}
                                 {(selectedAlertClass === 'all' && tutorClassSections.length > 1) && (
                                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.125rem' }}>
@@ -2396,17 +2616,18 @@ export const DashboardLayout: React.FC = () => {
                                 )}
 
                                 {cls.students.length === 0 ? (
-                                  <div style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+                                  <div className="risk-card-cascade" style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
                                     <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0 }}>
                                       No high-risk students detected.
                                     </p>
                                   </div>
                                 ) : (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                                    {sortedClassStudents.map((row) => (
+                                    {sortedClassStudents.map((row, studentIdx) => (
                                       <div
-                                        key={`high-${cls.key}-${row.student.id}`}
-                                        className="rounded-xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#0A0A0A] p-3.5 space-y-2.5 shadow-2xs"
+                                        key={`high-${selectedAlertClass}-${cls.key}-${row.student.id}`}
+                                        className="risk-card-cascade rounded-xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#0A0A0A] p-3.5 space-y-2.5 shadow-2xs"
+                                        style={{ animationDelay: `${Math.min(studentIdx * 50, 500)}ms` }}
                                       >
                                         <div className="flex items-start justify-between gap-2">
                                           <Link
@@ -2435,9 +2656,9 @@ export const DashboardLayout: React.FC = () => {
 
                                         {/* Recovery targets */}
                                         <div className="flex flex-col gap-1.5 pt-0.5">
-                                          {row.compositeScore >= 70 && row.attendanceRate <= 75 && (
+                                          {row.compositeScore >= RISK_THRESHOLDS.moderateMinComposite && row.attendanceRate <= RISK_THRESHOLDS.highAttendanceGate && (
                                             <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[10.5px] font-medium text-amber-900 dark:text-amber-200 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 leading-snug">
-                                              Despite current composite rating, student is marked high risk due to the attendace rate being 75% or less.
+                                              Despite current composite rating, student is marked high risk due to the attendance rate being {RISK_THRESHOLDS.highAttendanceGate}% or less.
                                             </span>
                                           )}
                                           {row.neededPresentAttendance > 0 && (

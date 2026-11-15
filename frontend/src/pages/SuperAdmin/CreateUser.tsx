@@ -16,6 +16,13 @@ import {
 } from '../../utils/tutorCohortHelpers';
 import { TutorRoleDetailsSection } from '../../components/TutorRoleDetailsSection';
 import { BatchStudentEnrollmentModal } from '../../components/BatchStudentEnrollmentModal';
+import {
+  ARAL_LEVEL_OPTIONS,
+  GRADE_LEVEL_OPTIONS,
+  extractDynamicGradeLevels,
+  extractDynamicSections,
+  getSubjectsForAralLevel,
+} from '../../config/academicConfig';
 
 const NAME_REGEX = /^[a-zA-Z\s.\-ñÑ']+$/;
 const SECTION_REGEX = /^[a-zA-Z0-9\s\-]+$/;
@@ -684,12 +691,9 @@ export const CreateUser: React.FC = () => {
                       {...register('grade_level_grade')}
                       className="w-full rounded-md border border-gray-300 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-3 py-2 text-xs font-semibold uppercase shadow-2xs focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:text-slate-100"
                     >
-                      <option value="GRADE 7">GRADE 7</option>
-                      <option value="GRADE 8">GRADE 8</option>
-                      <option value="GRADE 9">GRADE 9</option>
-                      <option value="GRADE 10">GRADE 10</option>
-                      <option value="GRADE 11">GRADE 11</option>
-                      <option value="GRADE 12">GRADE 12</option>
+                      {(tutors.length > 0 ? extractDynamicGradeLevels(tutors) : [...GRADE_LEVEL_OPTIONS]).map((grade) => (
+                        <option key={grade} value={grade}>{grade}</option>
+                      ))}
                     </select>
                   </div>
 
@@ -700,6 +704,7 @@ export const CreateUser: React.FC = () => {
                     <input
                       id="grade_level_section"
                       type="text"
+                      list="dynamic-section-options"
                       placeholder="e.g. HYACINTH"
                       {...register('grade_level_section')}
                       onInput={(e) => {
@@ -709,6 +714,11 @@ export const CreateUser: React.FC = () => {
                         errors.grade_level_section || serverErrors?.grade_level_section ? 'border-red-300 dark:border-red-800' : 'border-gray-300 dark:border-[#1A1A1A]'
                       }`}
                     />
+                    <datalist id="dynamic-section-options">
+                      {extractDynamicSections(tutors, watchedStudentGrade).map((sec) => (
+                        <option key={sec} value={sec} />
+                      ))}
+                    </datalist>
                     {(errors.grade_level_section || serverErrors?.grade_level_section) && (
                       <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
                         {errors.grade_level_section?.message || serverErrors?.grade_level_section?.[0]}
@@ -725,11 +735,11 @@ export const CreateUser: React.FC = () => {
                     <select
                       id="student_aral_level"
                       {...register('aral_level')}
-                      className="w-full rounded-md border border-gray-300 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-3 py-2 text-xs font-medium shadow-2xs focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:text-slate-100 cursor-pointer"
+                      className="w-full rounded-md border border-gray-300 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-3 py-2 text-xs font-medium shadow-2xs focus:border-[var(--brand)] focus:outline-none focus:ring-[var(--brand)] dark:text-slate-100 cursor-pointer"
                     >
-                      <option value="basic">BASIC</option>
-                      <option value="plus">PLUS</option>
-                      <option value="summer">SUMMER</option>
+                      {ARAL_LEVEL_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
                     </select>
                   </div>
 
@@ -742,18 +752,11 @@ export const CreateUser: React.FC = () => {
                       {...register('subject')}
                       className="w-full rounded-md border border-gray-300 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-3 py-2 text-xs font-medium shadow-2xs focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:text-slate-100 cursor-pointer"
                     >
-                      {watchedStudentAralLevel === 'summer' ? (
-                        <>
-                          <option value="Filipino">FILIPINO</option>
-                          <option value="English">ENGLISH</option>
-                        </>
-                      ) : watchedStudentAralLevel === 'plus' ? (
-                        <option value="English">ENGLISH (for Plus)</option>
-                      ) : (
-                        <option value="Filipino">FILIPINO (for Basic)</option>
-                      )}
-                      <option value="Math">MATH</option>
-                      <option value="Science">SCIENCE</option>
+                      {getSubjectsForAralLevel(watchedStudentAralLevel).map((subj) => (
+                        <option key={subj.id} value={subj.dbSubject}>
+                          {subj.displayLabel.toUpperCase()}
+                        </option>
+                      ))}
                     </select>
                   </div>
 

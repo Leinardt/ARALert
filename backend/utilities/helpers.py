@@ -14,20 +14,65 @@ def get_client_ip(request):
     return request.META.get('REMOTE_ADDR')
 
 
+def get_active_program_config():
+    """
+    Return the active ARAL Program Configuration (composite weights & risk thresholds)
+    from the most recent PROGRAM_CONFIGURATION_UPDATED audit record, falling back to
+    validated DepEd defaults (40% Attendance / 60% Score, 86% Low / 70% Moderate / 75% Gate).
+    """
+    defaults = {
+        'attendance_weight_pct': 40,
+        'score_weight_pct': 60,
+        'attendance_weight': 0.40,
+        'score_weight': 0.60,
+        'low_min_composite': 86,
+        'moderate_min_composite': 70,
+        'high_attendance_gate': 75,
+    }
+    try:
+        from apps.accounts.models import AuditLog
+        last_cfg_log = (
+            AuditLog.objects.filter(action='PROGRAM_CONFIGURATION_UPDATED')
+            .order_by('-timestamp')
+            .first()
+        )
+        if last_cfg_log and isinstance(last_cfg_log.details, dict):
+            d = last_cfg_log.details
+            att_pct = int(round(float(d.get('attendance_weight_pct', 40))))
+            scr_pct = int(round(float(d.get('score_weight_pct', 100 - att_pct))))
+            if 0 <= att_pct <= 100 and att_pct + scr_pct == 100:
+                defaults['attendance_weight_pct'] = att_pct
+                defaults['score_weight_pct'] = scr_pct
+                defaults['attendance_weight'] = round(att_pct / 100.0, 4)
+                defaults['score_weight'] = round(scr_pct / 100.0, 4)
+
+            low_min = int(round(float(d.get('low_min_composite', 86))))
+            mod_min = int(round(float(d.get('moderate_min_composite', 70))))
+            gate = int(round(float(d.get('high_attendance_gate', 75))))
+            if 0 <= mod_min < low_min <= 100 and 0 <= gate <= 100:
+                defaults['low_min_composite'] = low_min
+                defaults['moderate_min_composite'] = mod_min
+                defaults['high_attendance_gate'] = gate
+    except Exception:
+        pass
+    return defaults
+
+
 def compute_student_risk_level(attendance_rate, score_avg):
     """Return the same risk tier used by tutor-facing analytics."""
     att = float(attendance_rate if attendance_rate is not None else 100.0)
     score = float(score_avg if score_avg is not None else 100.0)
+    cfg = get_active_program_config()
 
-    # Attendance Safety Gate: <= 75% attendance automatically classifies student as high risk
-    if att <= 75.0:
+    # Attendance Safety Gate: <= high_attendance_gate% attendance automatically classifies student as high risk
+    if att <= float(cfg['high_attendance_gate']):
         return 'high'
 
-    composite_score = ((att * 0.40) + (score * 0.60))
+    composite_score = (att * cfg['attendance_weight']) + (score * cfg['score_weight'])
 
-    if composite_score >= 86.0:
+    if composite_score >= float(cfg['low_min_composite']):
         return 'low'
-    elif composite_score >= 70.0:
+    elif composite_score >= float(cfg['moderate_min_composite']):
         return 'moderate'
     else:
         return 'high'

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X, History, Calendar, Award, User, Clock, CheckCircle2,
   AlertCircle, ShieldCheck, Sun, BookOpen, Layers
 } from 'lucide-react';
 import { academicService } from '../services/academicService';
 import type { StudentCompleteHistory } from '../types';
+import { useSlidingIndicator } from './SlidingTabs';
 
 interface StudentProfileHistoryModalProps {
   isOpen: boolean;
@@ -23,6 +25,9 @@ export const StudentProfileHistoryModal: React.FC<StudentProfileHistoryModalProp
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'enrollments' | 'tutors' | 'summer'>('enrollments');
+  const historyTabs = ['enrollments', 'tutors', 'summer'] as const;
+  const { containerRef: historyTabsRef, setItemRef: setHistoryTabRef, pillStyle: historyPillStyle } =
+    useSlidingIndicator(historyTabs.indexOf(activeTab), [isOpen, history]);
 
   useEffect(() => {
     if (isOpen && studentId) {
@@ -46,8 +51,8 @@ export const StudentProfileHistoryModal: React.FC<StudentProfileHistoryModalProp
 
   if (!isOpen || !studentId) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-white dark:bg-[#0f1117] border border-slate-200 dark:border-zinc-800 rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-scale-up">
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between shrink-0 bg-slate-50/50 dark:bg-zinc-900/40">
@@ -99,45 +104,73 @@ export const StudentProfileHistoryModal: React.FC<StudentProfileHistoryModalProp
         )}
 
         {/* Tab Selection */}
-        <div className="px-5 py-2.5 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setActiveTab('enrollments')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'enrollments'
-                ? 'bg-[var(--brand)] text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
-            }`}
+        <div className="px-5 py-2.5 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 shrink-0">
+          <div
+            ref={historyTabsRef}
+            role="tablist"
+            aria-label="Student history sections"
+            className="relative inline-flex max-w-full items-center gap-1 overflow-x-auto no-scrollbar rounded-xl bg-slate-100 dark:bg-zinc-800/80 p-1 select-none"
           >
-            <Calendar className="w-3.5 h-3.5" />
-            <span>School Year Enrollments ({history?.enrollment_history.length || 0})</span>
-          </button>
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute top-1 bottom-1 left-0 rounded-lg bg-[var(--brand)] shadow-xs will-change-transform motion-reduce:transition-none ${
+                historyPillStyle.animate
+                  ? 'transition-[transform,width,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]'
+                  : ''
+              } ${historyPillStyle.ready ? 'opacity-100' : 'opacity-0'}`}
+              style={{
+                width: `${historyPillStyle.width}px`,
+                transform: `translate3d(${historyPillStyle.left}px, 0, 0)`,
+              }}
+            />
+            <button
+              ref={setHistoryTabRef(0)}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'enrollments'}
+              onClick={() => setActiveTab('enrollments')}
+              className={`relative z-10 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors duration-200 cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                activeTab === 'enrollments'
+                  ? 'text-white'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>School Year Enrollments ({history?.enrollment_history.length || 0})</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('tutors')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'tutors'
-                ? 'bg-[var(--brand)] text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
-            }`}
-          >
-            <User className="w-3.5 h-3.5" />
-            <span>Tutor Assignments ({history?.tutor_history.length || 0})</span>
-          </button>
+            <button
+              ref={setHistoryTabRef(1)}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'tutors'}
+              onClick={() => setActiveTab('tutors')}
+              className={`relative z-10 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors duration-200 cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                activeTab === 'tutors'
+                  ? 'text-white'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Tutor Assignments ({history?.tutor_history.length || 0})</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('summer')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'summer'
-                ? 'bg-[var(--brand)] text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
-            }`}
-          >
-            <Sun className="w-3.5 h-3.5" />
-            <span>Summer Remediation ({history?.summer_history.length || 0})</span>
-          </button>
+            <button
+              ref={setHistoryTabRef(2)}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'summer'}
+              onClick={() => setActiveTab('summer')}
+              className={`relative z-10 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors duration-200 cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                activeTab === 'summer'
+                  ? 'text-white'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Sun className="w-3.5 h-3.5" />
+              <span>Summer Remediation ({history?.summer_history.length || 0})</span>
+            </button>
+          </div>
         </div>
 
         {/* Error Alert */}
@@ -155,7 +188,7 @@ export const StudentProfileHistoryModal: React.FC<StudentProfileHistoryModalProp
               Loading student timeline and permanent academic records...
             </div>
           ) : history ? (
-            <>
+            <div key={activeTab} className="tab-panel-enter">
               {/* Tab 1: Enrollments */}
               {activeTab === 'enrollments' && (
                 <div className="space-y-3">
@@ -307,7 +340,7 @@ export const StudentProfileHistoryModal: React.FC<StudentProfileHistoryModalProp
                   )}
                 </div>
               )}
-            </>
+            </div>
           ) : null}
         </div>
 
@@ -326,6 +359,7 @@ export const StudentProfileHistoryModal: React.FC<StudentProfileHistoryModalProp
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

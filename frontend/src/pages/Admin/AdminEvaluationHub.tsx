@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search, X, Lock, Unlock, AlertCircle,
   ChevronUp, ChevronDown, ChevronRight, ArrowUpDown
@@ -14,6 +15,12 @@ import { StudentProfileHistoryModal } from '../../components/StudentProfileHisto
 import { TableSkeleton } from '../../components/SkeletonLoader';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { matchesSearch } from '../../utils/searchHelpers';
+import { useSlidingIndicator } from '../../components/SlidingTabs';
+import {
+  COMPOSITE_WEIGHTS,
+  PASSING_SCORE_RATIO,
+  isNotTakenGrade,
+} from '../../config/academicConfig';
 import {
   MosyMonitoringData,
   EosyMonitoringData,
@@ -399,8 +406,13 @@ export const AdminEvaluationHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'mosy' | 'eosy' | 'summer'>(getInitialTab);
   const [currentSY, setCurrentSY] = useState<SchoolYear | null>(null);
   const [activeSystemSem, setActiveSystemSem] = useState(() => getActiveSystemSemester());
+  const phaseTabs = ['mosy', 'eosy', 'summer'] as const;
+  const { containerRef: phaseTabsRef, setItemRef: setPhaseTabRef, pillStyle: phasePillStyle } =
+    useSlidingIndicator(phaseTabs.indexOf(activeTab), [activeSystemSem, currentSY?.current_semester]);
   const [isSettingSemester, setIsSettingSemester] = useState<boolean>(false);
   const [isWindowOpen, setIsWindowOpen] = useState<boolean>(() => isAssessmentWindowOpen(getActiveSystemSemester()));
+  const [isAssessmentWindowConfirmOpen, setIsAssessmentWindowConfirmOpen] = useState<boolean>(false);
+  const [isTogglingWindow, setIsTogglingWindow] = useState<boolean>(false);
 
   // Tutors and Students Directory
   const [tutors, setTutors] = useState<User[]>([]);
@@ -480,14 +492,18 @@ export const AdminEvaluationHub: React.FC = () => {
     return () => window.removeEventListener('assessment_window_changed', handleWindowChange);
   }, [currentActiveSemester]);
 
-  const handleToggleAssessmentWindow = async () => {
+  const handleConfirmToggleAssessmentWindow = async () => {
     const nextState = !isWindowOpen;
+    setIsTogglingWindow(true);
     setAssessmentWindowOpen(nextState, currentActiveSemester);
     setIsWindowOpen(nextState);
     try {
       await academicService.toggleAssessmentWindow(nextState, currentActiveSemester);
     } catch (err) {
       console.warn('Failed to sync assessment window toggle to server:', err);
+    } finally {
+      setIsTogglingWindow(false);
+      setIsAssessmentWindowConfirmOpen(false);
     }
   };
 
@@ -497,6 +513,13 @@ export const AdminEvaluationHub: React.FC = () => {
     const handleSemChange = (e: any) => {
       const newSem = e?.detail?.semester || getActiveSystemSemester();
       setActiveSystemSem(newSem);
+      if (newSem === '2nd') {
+        setActiveTab('eosy');
+      } else if (newSem === 'summer') {
+        setActiveTab('summer');
+      } else {
+        setActiveTab('mosy');
+      }
     };
 
     window.addEventListener('system_semester_changed', handleSemChange);
@@ -826,27 +849,29 @@ export const AdminEvaluationHub: React.FC = () => {
           attendanceRate = Math.round((presentCount / sAtt.length) * 1000) / 10;
         }
 
-        // Compute Average Score
+        // Compute Average Score (exclude Not Taken records)
+        const scoredGrades = sGrades.filter((g) => !isNotTakenGrade(g));
         let avgScore = 100.0;
-        if (sGrades.length > 0) {
-          const totalPct = sGrades.reduce((acc, g) => {
+        if (scoredGrades.length > 0) {
+          const totalPct = scoredGrades.reduce((acc, g) => {
             const ts = Number(g.total_score) || 100;
             const sc = Number(g.score) || 0;
             return acc + (sc / ts) * 100;
           }, 0);
-          avgScore = Math.round((totalPct / sGrades.length) * 10) / 10;
+          avgScore = Math.round((totalPct / scoredGrades.length) * 10) / 10;
         }
 
         // Compute Composite Score (40% Attendance + 60% Academic Performance)
-        const compositeScore = Math.round(((attendanceRate * 0.4) + (avgScore * 0.6)) * 10) / 10;
+        const compositeScore = Math.round(((attendanceRate * COMPOSITE_WEIGHTS.attendance) + (avgScore * COMPOSITE_WEIGHTS.score)) * 10) / 10;
 
-        // Determine Status & Assessment Score: PASSED, RETAINED, or PENDING
-        const evalGrade = sGrades.find((g) => {
+        // Determine Status & Assessment Score: PASSED, FAILED, or PENDING
+        const matchingEvalGrades = sGrades.filter((g) => {
           const subj = (g.subject || '').toUpperCase();
           if (activeTab === 'mosy') return subj.includes('MOSY');
           if (activeTab === 'eosy') return subj.includes('EOSY');
           return subj.includes('SUMMER');
         });
+        const evalGrade = matchingEvalGrades.find((g) => !isNotTakenGrade(g)) ?? matchingEvalGrades[0];
 
         let assessmentScoreStr = '—';
         let studentStatus: 'PASSED' | 'FAILED' | 'PENDING' = 'PENDING';
@@ -856,20 +881,24 @@ export const AdminEvaluationHub: React.FC = () => {
           if (sr?.summer_result) {
             assessmentScoreStr = sr.summer_result === 'passed' ? '100.0%' : '50.0%';
             studentStatus = sr.summer_result === 'passed' ? 'PASSED' : 'FAILED';
-          } else if (evalGrade && evalGrade.remarks?.toLowerCase() !== 'not taken') {
+          } else if (evalGrade && isNotTakenGrade(evalGrade)) {
+            assessmentScoreStr = 'Not Taken';
+          } else if (evalGrade) {
             const ts = Number(evalGrade.total_score) || 40;
             const sc = Number(evalGrade.score) || 0;
             const pct = Math.round((sc / ts) * 1000) / 10;
             assessmentScoreStr = `${pct.toFixed(1)}%`;
-            const passedEval = evalGrade.remarks?.toLowerCase() === 'passed' || (ts === 40 ? sc >= 28 : (sc / ts) >= 0.7);
+            const passedEval = evalGrade.remarks?.toLowerCase() === 'passed' || (sc / ts) >= PASSING_SCORE_RATIO;
             studentStatus = passedEval ? 'PASSED' : 'FAILED';
           }
-        } else if (evalGrade && evalGrade.remarks?.toLowerCase() !== 'not taken') {
+        } else if (evalGrade && isNotTakenGrade(evalGrade)) {
+          assessmentScoreStr = 'Not Taken';
+        } else if (evalGrade) {
           const ts = Number(evalGrade.total_score) || 40;
           const sc = Number(evalGrade.score) || 0;
           const pct = Math.round((sc / ts) * 1000) / 10;
           assessmentScoreStr = `${pct.toFixed(1)}%`;
-          const passedEval = evalGrade.remarks?.toLowerCase() === 'passed' || (ts === 40 ? sc >= 28 : (sc / ts) >= 0.7);
+          const passedEval = evalGrade.remarks?.toLowerCase() === 'passed' || (sc / ts) >= PASSING_SCORE_RATIO;
           studentStatus = passedEval ? 'PASSED' : 'FAILED';
         }
 
@@ -990,17 +1019,45 @@ export const AdminEvaluationHub: React.FC = () => {
           </div>
 
           {/* Phase Switcher Tabs */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 w-full sm:w-auto">
+          <div
+            ref={phaseTabsRef}
+            role="tablist"
+            aria-label="Evaluation phase"
+            className="relative flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 w-full sm:w-auto select-none overflow-hidden"
+          >
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute top-1 bottom-1 left-0 rounded-lg bg-white dark:bg-zinc-800 shadow-xs will-change-transform motion-reduce:transition-none ${
+                phasePillStyle.animate
+                  ? 'transition-[transform,width,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]'
+                  : ''
+              } ${phasePillStyle.ready ? 'opacity-100' : 'opacity-0'}`}
+              style={{
+                width: `${phasePillStyle.width}px`,
+                transform: `translate3d(${phasePillStyle.left}px, 0, 0)`,
+              }}
+            />
             <button
+              ref={setPhaseTabRef(0)}
               type="button"
-              onClick={() => setActiveTab('mosy')}
-              className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-2 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial justify-center ${
+              role="tab"
+              aria-selected={activeTab === 'mosy'}
+              disabled={currentActiveSemester !== '1st'}
+              onClick={() => {
+                if (currentActiveSemester === '1st') setActiveTab('mosy');
+              }}
+              title={
+                currentActiveSemester === '1st'
+                  ? 'MOSY • Middle of School Year Assessment (1st Semester • Q1 & Q2)'
+                  : 'Inactive semester — switch active semester in Settings to view'
+              }
+              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 activeTab === 'mosy'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'text-slate-900 dark:text-white cursor-default'
+                  : 'text-slate-400 dark:text-zinc-600 opacity-50 cursor-not-allowed'
               }`}
             >
-              <span>MOSY<span className="hidden sm:inline"> (Q1 & Q2)</span></span>
+              <span>MOSY<span className="hidden xl:inline"> &bull; Middle of School Year</span><span className="hidden sm:inline"> (Q1 & Q2)</span></span>
               {currentActiveSemester === '1st' && (
                 <span className="px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60 leading-none inline-flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -1010,15 +1067,26 @@ export const AdminEvaluationHub: React.FC = () => {
             </button>
 
             <button
+              ref={setPhaseTabRef(1)}
               type="button"
-              onClick={() => setActiveTab('eosy')}
-              className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-2 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial justify-center ${
+              role="tab"
+              aria-selected={activeTab === 'eosy'}
+              disabled={currentActiveSemester !== '2nd'}
+              onClick={() => {
+                if (currentActiveSemester === '2nd') setActiveTab('eosy');
+              }}
+              title={
+                currentActiveSemester === '2nd'
+                  ? 'EOSY • End of School Year Assessment (2nd Semester • Q3 & Q4)'
+                  : 'Inactive semester — switch active semester in Settings to view'
+              }
+              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 activeTab === 'eosy'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'text-slate-900 dark:text-white cursor-default'
+                  : 'text-slate-400 dark:text-zinc-600 opacity-50 cursor-not-allowed'
               }`}
             >
-              <span>EOSY<span className="hidden sm:inline"> (Q3 & Q4)</span></span>
+              <span>EOSY<span className="hidden xl:inline"> &bull; End of School Year</span><span className="hidden sm:inline"> (Q3 & Q4)</span></span>
               {currentActiveSemester === '2nd' && (
                 <span className="px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60 leading-none inline-flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -1028,12 +1096,23 @@ export const AdminEvaluationHub: React.FC = () => {
             </button>
 
             <button
+              ref={setPhaseTabRef(2)}
               type="button"
-              onClick={() => setActiveTab('summer')}
-              className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition flex items-center gap-1 sm:gap-2 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial justify-center ${
+              role="tab"
+              aria-selected={activeTab === 'summer'}
+              disabled={currentActiveSemester !== 'summer'}
+              onClick={() => {
+                if (currentActiveSemester === 'summer') setActiveTab('summer');
+              }}
+              title={
+                currentActiveSemester === 'summer'
+                  ? 'Summer Remediation Assessment (Midyear)'
+                  : 'Inactive semester — switch active semester in Settings to view'
+              }
+              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 activeTab === 'summer'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'text-slate-900 dark:text-white cursor-default'
+                  : 'text-slate-400 dark:text-zinc-600 opacity-50 cursor-not-allowed'
               }`}
             >
               <span>SUMMER<span className="hidden sm:inline"> (Midyear)</span></span>
@@ -1051,7 +1130,7 @@ export const AdminEvaluationHub: React.FC = () => {
         <div className="flex items-center gap-2.5 w-full sm:w-auto">
           <button
             type="button"
-            onClick={handleToggleAssessmentWindow}
+            onClick={() => setIsAssessmentWindowConfirmOpen(true)}
             className={`relative inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold uppercase transition cursor-pointer border shadow-xs w-full sm:w-auto ${
               isWindowOpen
                 ? 'border-emerald-400/80 dark:border-emerald-600/80 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/60 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
@@ -1145,7 +1224,7 @@ export const AdminEvaluationHub: React.FC = () => {
           <TableSkeleton rows={8} cols={3} />
         </div>
       ) : (
-        <div className="space-y-6">
+        <div key={activeTab} className="tab-panel-enter space-y-6">
           {/* ── Assessment Status Card Container ──────────────────────────────────── */}
           <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-4 sm:p-6 space-y-4 sm:space-y-5 shadow-sm">
             {/* 1. Header Row: Bold Evaluation Status Label on Left with Active Badge & Transition Button on Top Right */}
@@ -1183,7 +1262,7 @@ export const AdminEvaluationHub: React.FC = () => {
                       ? 'bg-[#0052B7] text-white hover:bg-[#004194] border-[#0052B7] shadow-xs cursor-pointer'
                       : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 border-slate-200 dark:border-zinc-700 cursor-not-allowed opacity-60'
                   }`}
-                  title={!isAllTutorsComplete ? 'All tutors must complete MOSY evaluation before starting the next semester' : 'Start New Semester'}
+                  title={!isAllTutorsComplete ? 'All tutors must complete MOSY (Middle of School Year) evaluation before starting the next semester' : 'Start New Semester'}
                 >
                   {isProcessingMosy ? (
                     'Processing MOSY...'
@@ -1214,7 +1293,7 @@ export const AdminEvaluationHub: React.FC = () => {
                       ? 'bg-[#0052B7] text-white hover:bg-[#004194] border-[#0052B7] shadow-xs cursor-pointer'
                       : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 border-slate-200 dark:border-zinc-700 cursor-not-allowed opacity-60'
                   }`}
-                  title={!isAllTutorsComplete ? 'All tutors must complete EOSY evaluation before starting summer semester' : 'Start Summer Semester'}
+                  title={!isAllTutorsComplete ? 'All tutors must complete EOSY (End of School Year) evaluation before starting summer semester' : 'Start Summer Semester'}
                 >
                   {isProcessingEosy ? (
                     'Starting Summer...'
@@ -1454,6 +1533,111 @@ export const AdminEvaluationHub: React.FC = () => {
           await handleRefresh();
         }}
       />
+
+      {isAssessmentWindowConfirmOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="assessment-window-confirm-title"
+            onClick={() => !isTogglingWindow && setIsAssessmentWindowConfirmOpen(false)}
+          >
+          <div
+            className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#222222] rounded-xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col"
+            style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-gray-100 dark:border-[#1E1E1E] flex items-center justify-between bg-white dark:bg-[#111111]">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${
+                    isWindowOpen
+                      ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400'
+                      : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60 text-emerald-600 dark:text-emerald-400'
+                  }`}
+                >
+                  {isWindowOpen ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                </div>
+                <div>
+                  <h2
+                    id="assessment-window-confirm-title"
+                    className="text-sm sm:text-base font-bold text-gray-900 dark:text-slate-100"
+                  >
+                    {isWindowOpen ? `Close ${activePhaseLabel} Assessment` : `Open ${activePhaseLabel} Assessment`}
+                  </h2>
+                  <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                    Assessment Window Confirmation
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAssessmentWindowConfirmOpen(false)}
+                disabled={isTogglingWindow}
+                className="p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition cursor-pointer"
+                aria-label="Close confirmation dialog"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-3 text-xs text-gray-600 dark:text-slate-300">
+              <p className="leading-relaxed">
+                Are you sure you want to{' '}
+                <strong className="text-gray-900 dark:text-slate-100 font-semibold">
+                  {isWindowOpen ? 'close' : 'open'}
+                </strong>{' '}
+                the <strong className="text-gray-900 dark:text-slate-100 font-semibold">{activePhaseLabel} Assessment</strong>?
+              </p>
+              <p
+                className={`text-[11px] font-medium rounded-md p-3 border ${
+                  isWindowOpen
+                    ? 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/20 border-rose-200/70 dark:border-rose-900/40'
+                    : 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200/70 dark:border-emerald-900/40'
+                }`}
+              >
+                {isWindowOpen
+                  ? `Closing the ${activePhaseLabel} Assessment will lock score entry and prevent tutors from submitting or modifying ${activePhaseLabel} assessment scores.`
+                  : `Opening the ${activePhaseLabel} Assessment will allow tutors to record and submit ${activePhaseLabel} assessment scores for their assigned students.`}
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3.5 border-t border-gray-100 dark:border-[#1E1E1E] bg-gray-50/50 dark:bg-[#141414] flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsAssessmentWindowConfirmOpen(false)}
+                disabled={isTogglingWindow}
+                className="px-3.5 py-2 rounded-md border border-gray-200 dark:border-[#2A2A2A] text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#1F1F1F] text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmToggleAssessmentWindow}
+                disabled={isTogglingWindow}
+                className={`px-4 py-2 rounded-md text-white text-xs font-bold transition shadow-sm cursor-pointer disabled:opacity-50 ${
+                  isWindowOpen
+                    ? 'bg-rose-600 hover:bg-rose-700'
+                    : 'bg-emerald-600 hover:bg-emerald-700'
+                }`}
+              >
+                {isTogglingWindow
+                  ? isWindowOpen
+                    ? 'Closing...'
+                    : 'Opening...'
+                  : isWindowOpen
+                    ? 'Yes, Close Assessment'
+                    : 'Yes, Open Assessment'}
+              </button>
+            </div>
+          </div>
+        </div>,
+          document.body
+        )}
     </div>
   );
 };

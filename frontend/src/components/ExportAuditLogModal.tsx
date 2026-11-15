@@ -13,6 +13,7 @@ import {
   formatAuditTarget,
 } from '../utils/auditLogExportService';
 import { DEPED_LOGO_SRC, PNAHS_LOGO_SRC } from '../assets/template_logos/logosBase64';
+import { SCHOOL_METADATA_DEFAULTS } from '../config/academicConfig';
 
 export interface ExportAuditLogModalProps {
   isOpen: boolean;
@@ -185,10 +186,10 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
   initialSearch = '',
 }) => {
   // Letterhead details
-  const [division, setDivision] = useState('DIVISION OF MASBATE');
-  const [district, setDistrict] = useState('PALANAS NORTH DISTRICT');
-  const [schoolName, setSchoolName] = useState('PALANAS NATIONAL AGRICULTURE HIGH SCHOOL');
-  const [schoolAddress, setSchoolAddress] = useState('Sta. Cruz, Palanas, Masbate');
+  const [division, setDivision] = useState<string>(SCHOOL_METADATA_DEFAULTS.division);
+  const [district, setDistrict] = useState<string>(SCHOOL_METADATA_DEFAULTS.district);
+  const [schoolName, setSchoolName] = useState<string>(SCHOOL_METADATA_DEFAULTS.schoolName);
+  const [schoolAddress, setSchoolAddress] = useState<string>(SCHOOL_METADATA_DEFAULTS.schoolAddress);
   const [documentTitle, setDocumentTitle] = useState('ARAL PROGRAM SYSTEM AUDIT LOG RECORD');
 
   // Paper & Filters

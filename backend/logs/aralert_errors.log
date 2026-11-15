@@ -1,0 +1,552 @@
+[2026-11-10 19:49:02,169] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:49:02,170] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:49:02,175] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:49:02,181] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:49:02,184] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:49:02,189] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:49:02,193] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:49:02,200] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:49:02,208] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:49:02,209] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:49:02,218] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:49:02,224] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:49:02,342] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:49:02,347] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:49:02,360] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:02,364] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:02,383] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:02,387] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:06,887] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:49:06,891] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:49:06,900] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:49:06,908] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:49:06,916] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:49:06,925] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:49:07,459] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:49:07,462] ERROR django.server: "GET /api/academics/attendance/history/?role=student&page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:49:07,494] ERROR django.request: Internal Server Error: /api/academics/evaluations/mosy-monitoring/
+[2026-11-10 19:49:07,498] ERROR django.server: "GET /api/academics/evaluations/mosy-monitoring/ HTTP/1.1" 500 102
+[2026-11-10 19:49:07,524] ERROR django.request: Internal Server Error: /api/academics/evaluations/eosy-monitoring/
+[2026-11-10 19:49:07,530] ERROR django.server: "GET /api/academics/evaluations/eosy-monitoring/ HTTP/1.1" 500 102
+[2026-11-10 19:49:07,545] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:07,556] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:07,566] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:49:07,573] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:49:07,583] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:49:07,592] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:49:07,603] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:49:07,610] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:49:07,635] ERROR django.request: Internal Server Error: /api/academics/evaluations/mosy-monitoring/
+[2026-11-10 19:49:07,638] ERROR django.server: "GET /api/academics/evaluations/mosy-monitoring/ HTTP/1.1" 500 102
+[2026-11-10 19:49:07,642] ERROR django.request: Internal Server Error: /api/academics/evaluations/eosy-monitoring/
+[2026-11-10 19:49:07,643] ERROR django.server: "GET /api/academics/evaluations/eosy-monitoring/ HTTP/1.1" 500 102
+[2026-11-10 19:49:07,648] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:07,648] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:08,329] ERROR django.request: Internal Server Error: /api/academics/archive/
+[2026-11-10 19:49:08,334] ERROR django.server: "GET /api/academics/archive/ HTTP/1.1" 500 102
+[2026-11-10 19:49:08,345] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:08,349] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:08,362] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:49:08,367] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:49:08,392] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:49:08,401] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:49:08,410] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:49:08,412] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:49:08,419] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:49:08,423] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:49:08,431] ERROR django.request: Internal Server Error: /api/academics/archive/
+[2026-11-10 19:49:08,435] ERROR django.server: "GET /api/academics/archive/ HTTP/1.1" 500 102
+[2026-11-10 19:49:08,442] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:08,444] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:09,194] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:49:09,196] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:49:09,203] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:49:09,205] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:49:09,210] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:49:09,213] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:49:14,292] ERROR django.request: Internal Server Error: /api/academics/archive/
+[2026-11-10 19:49:14,296] ERROR django.server: "GET /api/academics/archive/ HTTP/1.1" 500 102
+[2026-11-10 19:49:14,307] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:14,309] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:14,321] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:49:14,329] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:49:14,335] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:49:14,339] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:49:14,348] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:49:14,350] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:49:14,356] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:49:14,358] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:49:14,362] ERROR django.request: Internal Server Error: /api/academics/archive/
+[2026-11-10 19:49:14,363] ERROR django.server: "GET /api/academics/archive/ HTTP/1.1" 500 102
+[2026-11-10 19:49:14,367] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:14,368] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:15,011] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:15,016] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:15,021] ERROR django.request: Internal Server Error: /api/academics/evaluations/mosy-monitoring/
+[2026-11-10 19:49:15,026] ERROR django.server: "GET /api/academics/evaluations/mosy-monitoring/ HTTP/1.1" 500 102
+[2026-11-10 19:49:15,031] ERROR django.request: Internal Server Error: /api/academics/evaluations/eosy-monitoring/
+[2026-11-10 19:49:15,035] ERROR django.server: "GET /api/academics/evaluations/eosy-monitoring/ HTTP/1.1" 500 102
+[2026-11-10 19:49:15,043] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:49:15,045] ERROR django.server: "GET /api/academics/attendance/history/?role=student&page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:49:15,053] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:49:15,055] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:49:15,068] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:49:15,073] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:49:15,077] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:49:15,080] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:49:15,086] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:15,087] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:15,093] ERROR django.request: Internal Server Error: /api/academics/evaluations/mosy-monitoring/
+[2026-11-10 19:49:15,094] ERROR django.server: "GET /api/academics/evaluations/mosy-monitoring/ HTTP/1.1" 500 102
+[2026-11-10 19:49:15,098] ERROR django.request: Internal Server Error: /api/academics/evaluations/eosy-monitoring/
+[2026-11-10 19:49:15,099] ERROR django.server: "GET /api/academics/evaluations/eosy-monitoring/ HTTP/1.1" 500 102
+[2026-11-10 19:49:16,163] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:49:16,166] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:49:16,168] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:49:16,171] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:49:16,176] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:49:16,179] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:49:16,830] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:16,832] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:16,837] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:49:16,847] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:49:16,859] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:49:16,864] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:49:16,874] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:49:16,879] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:49:16,888] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:49:16,890] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:49:16,894] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:16,895] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:53,847] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:49:53,849] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:49:53,851] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:49:53,855] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:49:53,862] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:49:53,865] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:49:53,875] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:49:53,883] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:49:53,893] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:49:53,896] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:49:53,908] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:49:53,916] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:49:53,936] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:49:53,940] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:49:53,960] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:53,962] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:53,981] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:53,986] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:56,687] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:49:56,689] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:49:56,695] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:49:56,696] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:49:56,701] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:49:56,703] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:49:58,138] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:58,142] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:58,147] ERROR django.request: Internal Server Error: /api/academics/evaluations/eosy-monitoring/
+[2026-11-10 19:49:58,154] ERROR django.server: "GET /api/academics/evaluations/eosy-monitoring/ HTTP/1.1" 500 102
+[2026-11-10 19:49:58,163] ERROR django.request: Internal Server Error: /api/academics/evaluations/mosy-monitoring/
+[2026-11-10 19:49:58,165] ERROR django.server: "GET /api/academics/evaluations/mosy-monitoring/ HTTP/1.1" 500 102
+[2026-11-10 19:49:58,172] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:49:58,174] ERROR django.server: "GET /api/academics/attendance/history/?role=student&page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:49:58,181] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:49:58,185] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:49:58,191] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:49:58,197] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:49:58,201] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:49:58,203] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:49:58,209] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:49:58,210] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:49:58,219] ERROR django.request: Internal Server Error: /api/academics/evaluations/mosy-monitoring/
+[2026-11-10 19:49:58,229] ERROR django.server: "GET /api/academics/evaluations/mosy-monitoring/ HTTP/1.1" 500 102
+[2026-11-10 19:49:58,235] ERROR django.request: Internal Server Error: /api/academics/evaluations/eosy-monitoring/
+[2026-11-10 19:49:58,239] ERROR django.server: "GET /api/academics/evaluations/eosy-monitoring/ HTTP/1.1" 500 102
+[2026-11-10 19:49:59,502] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:49:59,504] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:49:59,511] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:49:59,516] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:49:59,518] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:49:59,520] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:50:01,134] ERROR django.request: Internal Server Error: /api/academics/archive/
+[2026-11-10 19:50:01,135] ERROR django.server: "GET /api/academics/archive/ HTTP/1.1" 500 102
+[2026-11-10 19:50:01,160] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:01,162] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:01,174] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:50:01,176] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:50:01,183] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:01,187] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:50:01,193] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:01,198] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:01,202] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:01,205] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:01,209] ERROR django.request: Internal Server Error: /api/academics/archive/
+[2026-11-10 19:50:01,210] ERROR django.server: "GET /api/academics/archive/ HTTP/1.1" 500 102
+[2026-11-10 19:50:01,214] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:01,215] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:02,130] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:50:02,135] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:50:02,153] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:02,157] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:02,162] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:02,164] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:50:02,175] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:02,178] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:02,183] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:02,186] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:02,190] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:02,190] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:04,586] ERROR django.request: Internal Server Error: /api/academics/archive/
+[2026-11-10 19:50:04,592] ERROR django.server: "GET /api/academics/archive/ HTTP/1.1" 500 102
+[2026-11-10 19:50:04,599] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:04,604] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:04,610] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:04,617] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:50:04,624] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:50:04,626] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:50:04,631] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:04,632] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:04,636] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:04,637] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:04,648] ERROR django.request: Internal Server Error: /api/academics/archive/
+[2026-11-10 19:50:04,655] ERROR django.server: "GET /api/academics/archive/ HTTP/1.1" 500 102
+[2026-11-10 19:50:04,661] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:04,665] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:05,137] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:05,142] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:05,147] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:05,152] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:05,156] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:05,157] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:50:07,080] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:07,083] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:50:07,085] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:07,086] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:07,091] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:07,091] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:16,493] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:50:16,498] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:50:16,506] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:16,510] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:16,515] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:16,518] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:16,536] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:16,539] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:50:16,543] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:16,547] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:16,551] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:16,556] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:16,562] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:16,568] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:50:16,596] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:50:16,600] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:50:16,609] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:16,613] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:16,637] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:16,638] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,468] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:19,478] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,489] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:19,491] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,501] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:50:19,503] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:50:19,515] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:19,518] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,526] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:19,527] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,539] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:19,545] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,553] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:19,554] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,559] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:50:19,567] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:50:19,576] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:19,579] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,610] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:19,613] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,851] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:50:19,856] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:50:19,857] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:19,866] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,870] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:19,874] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,893] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:19,898] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,907] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:19,908] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,916] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:19,923] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,931] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:50:19,934] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:50:19,936] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:19,938] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,942] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:19,945] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:19,959] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:19,963] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:20,746] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:20,747] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:50:20,754] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:50:20,756] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:50:20,761] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:20,764] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:20,772] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:20,777] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:20,841] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:20,842] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:50:20,846] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:20,849] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:20,851] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:20,858] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:20,977] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:20,978] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:20,982] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:50:20,984] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:50:20,991] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:20,991] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:21,462] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:21,465] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:21,475] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:50:21,480] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:50:21,487] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:21,489] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:50:21,495] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:21,499] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:21,518] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:21,520] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:21,532] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:21,536] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:50:21,541] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:21,543] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:21,555] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:50:21,561] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:50:21,570] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:21,575] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:21,602] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:21,602] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:29,684] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:29,686] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:50:29,692] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:29,694] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:29,703] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:50:29,707] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:50:29,715] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:29,724] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:29,726] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:50:29,730] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:50:29,736] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:50:29,738] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:50:29,742] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:50:29,749] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:50:29,926] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:29,927] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:50:29,933] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:50:29,934] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:50:29,941] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:50:29,941] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:51:10,355] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:51:10,356] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:51:10,376] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:51:10,377] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:51:10,425] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:51:10,428] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:51:10,430] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:51:10,431] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:51:10,452] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:51:10,453] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:51:10,457] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:51:10,461] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:51:10,465] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:51:10,467] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:51:10,472] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:51:10,473] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:51:10,477] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:51:10,478] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:51:34,347] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:51:34,350] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:51:34,357] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:51:34,361] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:51:34,372] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:51:34,376] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:51:34,384] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:51:34,390] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:51:34,393] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:51:34,397] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:51:34,404] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:51:34,407] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:51:34,415] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:51:34,417] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:51:34,420] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:51:34,422] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:51:34,436] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:51:34,437] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:51:35,959] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:51:35,963] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:51:36,005] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:51:36,006] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:51:36,011] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:51:36,012] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:51:36,016] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:51:36,019] ERROR django.server: "GET /api/academics/attendance/history/?role=student&page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:51:36,021] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:51:36,022] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:51:36,027] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:51:36,027] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:51:36,746] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:51:36,747] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:51:36,751] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:51:36,753] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:51:36,757] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:51:36,761] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:51:36,766] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:51:36,768] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:51:36,773] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:51:36,774] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:51:37,301] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:51:37,303] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:51:37,309] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:51:37,311] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:51:37,318] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:51:37,321] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:51:37,325] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:51:37,325] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:51:37,849] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:51:37,852] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:51:37,854] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:51:37,858] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:51:37,864] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:51:37,866] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:51:37,870] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:51:37,872] ERROR django.server: "GET /api/users/student-edit-requests/ HTTP/1.1" 500 102
+[2026-11-10 19:51:37,876] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:51:37,876] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:52:07,344] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:52:07,346] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:52:07,350] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:52:07,354] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:52:07,358] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:52:07,364] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:52:07,374] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:52:07,380] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:52:07,393] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:52:07,400] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:52:07,411] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:52:07,419] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:52:07,444] ERROR django.request: Internal Server Error: /api/academics/attendance/history/
+[2026-11-10 19:52:07,445] ERROR django.server: "GET /api/academics/attendance/history/?page_size=200 HTTP/1.1" 500 102
+[2026-11-10 19:52:07,462] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:52:07,467] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:52:07,491] ERROR django.request: Internal Server Error: /api/academics/school-years/current/
+[2026-11-10 19:52:07,492] ERROR django.server: "GET /api/academics/school-years/current/ HTTP/1.1" 500 102
+[2026-11-10 19:53:05,045] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:53:05,046] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:53:05,053] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:53:05,055] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:53:05,062] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:53:05,064] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:53:06,097] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:53:06,099] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:53:06,102] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:53:06,103] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:53:06,107] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:53:06,108] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:53:06,409] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:53:06,411] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:53:06,415] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:53:06,419] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:53:06,426] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:53:06,433] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:53:15,162] ERROR django.request: Internal Server Error: /api/users/student-edit-requests/
+[2026-11-10 19:53:15,163] ERROR django.server: "GET /api/users/student-edit-requests/?status=pending HTTP/1.1" 500 102
+[2026-11-10 19:53:15,167] ERROR django.request: Internal Server Error: /api/users/announcements/
+[2026-11-10 19:53:15,168] ERROR django.server: "GET /api/users/announcements/ HTTP/1.1" 500 102
+[2026-11-10 19:53:15,172] ERROR django.request: Internal Server Error: /api/users/tickets/
+[2026-11-10 19:53:15,173] ERROR django.server: "GET /api/users/tickets/ HTTP/1.1" 500 102
+[2026-11-10 19:57:51,472] ERROR django.security.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\utils\deprecation.py", line 308, in __call__
+    response = self.process_request(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\middleware\common.py", line 48, in process_request
+    host = request.get_host()
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\http\request.py", line 206, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+[2026-11-10 19:57:51,561] ERROR django.security.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\utils\deprecation.py", line 308, in __call__
+    response = self.process_request(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\middleware\common.py", line 48, in process_request
+    host = request.get_host()
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\http\request.py", line 206, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+[2026-11-10 19:57:51,564] ERROR django.security.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\utils\deprecation.py", line 308, in __call__
+    response = self.process_request(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\middleware\common.py", line 48, in process_request
+    host = request.get_host()
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\http\request.py", line 206, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+[2026-11-10 19:57:51,568] ERROR django.security.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\utils\deprecation.py", line 308, in __call__
+    response = self.process_request(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\middleware\common.py", line 48, in process_request
+    host = request.get_host()
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\http\request.py", line 206, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+[2026-11-10 19:57:51,570] ERROR django.security.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\utils\deprecation.py", line 308, in __call__
+    response = self.process_request(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\middleware\common.py", line 48, in process_request
+    host = request.get_host()
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\http\request.py", line 206, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+[2026-11-10 19:57:51,573] ERROR django.security.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\utils\deprecation.py", line 308, in __call__
+    response = self.process_request(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\middleware\common.py", line 48, in process_request
+    host = request.get_host()
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\http\request.py", line 206, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+[2026-11-10 19:57:51,577] ERROR django.security.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\utils\deprecation.py", line 308, in __call__
+    response = self.process_request(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\middleware\common.py", line 48, in process_request
+    host = request.get_host()
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\http\request.py", line 206, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+[2026-11-10 19:57:51,581] ERROR django.security.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\utils\deprecation.py", line 308, in __call__
+    response = self.process_request(request)
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\middleware\common.py", line 48, in process_request
+    host = request.get_host()
+  File "C:\Users\Jorge\AppData\Roaming\Python\Python314\site-packages\django\http\request.py", line 206, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.

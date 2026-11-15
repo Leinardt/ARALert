@@ -1,4 +1,10 @@
 import type { Attendance, Grade, User } from '../types';
+import {
+  PASSING_SCORE_PERCENTAGE,
+  getCompositeWeights,
+  getRiskThresholds,
+  isNotTakenGrade,
+} from '../config/academicConfig';
 
 export interface StudentRiskRow {
   student: User;
@@ -16,8 +22,9 @@ export interface StudentRiskRow {
 }
 
 export const getRiskTier = (score: number) => {
-  if (score >= 86) return 'Low';
-  if (score >= 70) return 'Moderate';
+  const thresholds = getRiskThresholds();
+  if (score >= thresholds.lowMinComposite) return 'Low';
+  if (score >= thresholds.moderateMinComposite) return 'Moderate';
   return 'High';
 };
 
@@ -114,7 +121,10 @@ export const computeStudentRiskRows = (
 
   const scoreTotals = safeGrades
     .filter(
-      (grade: Grade) => grade.component_type !== 'attendance' && studentIds.has(getGradeStudentId(grade))
+      (grade: Grade) =>
+        grade.component_type !== 'attendance' &&
+        !isNotTakenGrade(grade) &&
+        studentIds.has(getGradeStudentId(grade))
     )
     .reduce((acc: Map<string, { totalPercent: number; count: number }>, grade: Grade) => {
       const sid = getGradeStudentId(grade);
@@ -152,15 +162,23 @@ export const computeStudentRiskRows = (
     const totalScorePercent = scoreData?.totalPercent || 0;
     const scoreAvg = scoreCount > 0 ? Number((totalScorePercent / scoreCount).toFixed(2)) : 100;
 
-    const compositeScore = Number(((attendanceRate * 0.4) + (scoreAvg * 0.6)).toFixed(2));
+    const weights = getCompositeWeights();
+    const thresholds = getRiskThresholds();
+    const compositeScore = Number(
+      (
+        attendanceRate * weights.attendance +
+        scoreAvg * weights.score
+      ).toFixed(2)
+    );
     const baseRiskTier = getRiskTier(compositeScore);
-    // Attendance Safety Gate: attendance <= 75% automatically overrides and classifies student as High Risk
-    const isAttendanceOverridden = totalDays > 0 && attendanceRate <= 75;
+    // Attendance Safety Gate: attendance <= threshold automatically overrides and classifies student as High Risk
+    const isAttendanceOverridden = totalDays > 0 && attendanceRate <= thresholds.highAttendanceGate;
     const riskTier = isAttendanceOverridden ? 'High' : baseRiskTier;
 
-    // Number of consecutive present sessions needed to reach > 75% attendance rate (exit High Risk override)
-    const neededPresentAttendance = isAttendanceOverridden
-      ? Math.max(0, Math.floor((0.75 * totalDays - presentDays) / 0.25) + 1)
+    // Number of consecutive present sessions needed to reach > gate% attendance rate (exit High Risk override)
+    const gateRatio = thresholds.highAttendanceGate / 100;
+    const neededPresentAttendance = isAttendanceOverridden && gateRatio < 1
+      ? Math.max(0, Math.floor((gateRatio * totalDays - presentDays) / (1 - gateRatio)) + 1)
       : 0;
 
     // Number of passed scores (assuming 100% or passing score mastery) needed to raise score average to >= 75%
@@ -168,7 +186,7 @@ export const computeStudentRiskRows = (
       ? Math.max(0, Math.ceil((75 * scoreCount - totalScorePercent) / 25))
       : 0;
 
-    const pointsToRecover = Math.max(0, Number((70 - compositeScore).toFixed(1)));
+    const pointsToRecover = Math.max(0, Number((PASSING_SCORE_PERCENTAGE - compositeScore).toFixed(1)));
 
     return {
       student,

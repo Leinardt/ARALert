@@ -58,7 +58,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
     try {
       const [editData, ticketData, announcementData] = await Promise.all([
         userService.getStudentEditRequests(),
-        ticketService.getTickets(),
+        isSuperAdmin ? ticketService.getTickets() : Promise.resolve({ results: [] as SupportTicketItem[], pending_count: 0 }),
         announcementService.getAnnouncements(),
       ]);
       setRequests(editData.results || []);
@@ -124,16 +124,14 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
   }, [requests]);
 
   const historyCount = useMemo(() => {
-    return requests.filter((r) => r.status !== 'pending').length + (isSuperAdmin ? historyTickets.length : 0);
-  }, [requests, isSuperAdmin, historyTickets.length]);
+    return requests.filter((r) => r.status !== 'pending').length;
+  }, [requests]);
 
-  // ALL count represents all active notifications:
-  // - Super Admin: pending edit requests + incoming pending tickets + active announcements
-  // - School Admin: pending edit requests + own non-dismissed problem reports + active announcements
+  // ALL count represents all active notifications for Super Admin / Admin:
+  // pending edit requests + active announcements + system updates
   const allCount = useMemo(() => {
-    const ticketCountForFeed = isSuperAdmin ? pendingTicketsCount : tickets.length;
-    return pendingCount + ticketCountForFeed + announcements.length + SYSTEM_UPDATES.length;
-  }, [pendingCount, isSuperAdmin, pendingTicketsCount, tickets.length, announcements.length]);
+    return pendingCount + announcements.length + SYSTEM_UPDATES.length;
+  }, [pendingCount, announcements.length]);
 
   const handlePublishAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -233,63 +231,28 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
       | { kind: 'ticket'; sortTime: number; ticket: SupportTicketItem }
       | { kind: 'request'; sortTime: number; request: StudentEditRequest };
 
-    if (activeTab === 'tickets') {
-      if (!isSuperAdmin) return [];
-      return activeTickets.map((t): FeedItem => ({
-        kind: 'ticket',
-        sortTime: new Date(t.created_at).getTime(),
-        ticket: t,
-      }));
-    }
-    if (activeTab === 'pending') {
+    if (activeTab === 'pending' || activeTab === 'all') {
       return requests
         .filter((r) => r.status === 'pending')
         .map((r): FeedItem => ({
           kind: 'request',
           sortTime: new Date(r.created_at).getTime(),
           request: r,
-        }));
-    }
-    if (activeTab === 'all') {
-      const items: FeedItem[] = [
-        ...activeTickets.map((t): FeedItem => ({
-          kind: 'ticket',
-          sortTime: new Date(
-            isSuperAdmin ? t.created_at : (t.resolved_at || t.updated_at || t.created_at)
-          ).getTime(),
-          ticket: t,
-        })),
-        ...requests
-          .filter((r) => r.status === 'pending')
-          .map((r): FeedItem => ({
-            kind: 'request',
-            sortTime: new Date(r.created_at).getTime(),
-            request: r,
-          })),
-      ];
-      return items.sort((a, b) => b.sortTime - a.sortTime);
+        }))
+        .sort((a, b) => b.sortTime - a.sortTime);
     }
     if (activeTab === 'history') {
-      const items: FeedItem[] = [
-        ...(isSuperAdmin
-          ? historyTickets.map((t): FeedItem => ({
-              kind: 'ticket',
-              sortTime: new Date(t.resolved_at || t.updated_at || t.created_at).getTime(),
-              ticket: t,
-            }))
-          : []),
-        ...requests
-          .filter((r) => r.status !== 'pending')
-          .map((r): FeedItem => ({
-            kind: 'request',
-            sortTime: new Date(r.reviewed_at || r.created_at).getTime(),
-            request: r,
-          })),
-      ];
-      return items.sort((a, b) => b.sortTime - a.sortTime);
+      return requests
+        .filter((r) => r.status !== 'pending')
+        .map((r): FeedItem => ({
+          kind: 'request',
+          sortTime: new Date(r.reviewed_at || r.created_at).getTime(),
+          request: r,
+        }))
+        .sort((a, b) => b.sortTime - a.sortTime);
     }
     return [];
-  }, [activeTab, isSuperAdmin, activeTickets, historyTickets, requests]);
+  }, [activeTab, requests]);
 
   const hasItemsToShow =
     activeTab === 'announcements' ||
@@ -725,26 +688,6 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
           >
             EDIT REQUESTS ({pendingCount})
           </button>
-          {isSuperAdmin && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('tickets')}
-              style={{
-                padding: '3px 7px',
-                borderRadius: '6px',
-                fontSize: '0.68rem',
-                fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-                flexShrink: 0,
-                background: activeTab === 'tickets' ? '#0052B7' : 'var(--slate-100)',
-                color: activeTab === 'tickets' ? '#FFFFFF' : 'var(--text-secondary)',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              TICKETS ({pendingTicketsCount})
-            </button>
-          )}
           <button
             type="button"
             onClick={() => setActiveTab('announcements')}
@@ -838,21 +781,15 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                   : 'No active notifications'}
               </p>
               <p className="text-xs text-slate-400 max-w-xs">
-                {activeTab === 'tickets'
-                  ? 'All problem reports have been addressed. Completed tickets are stored in History.'
-                  : activeTab === 'pending'
+                {activeTab === 'pending'
                   ? 'All profiles are up to date. Future edit requests will appear here for review.'
                   : activeTab === 'history'
-                  ? (isSuperAdmin
-                      ? 'Completed edit requests and resolved or closed tickets will appear here.'
-                      : 'Completed edit requests will appear here.')
-                  : (isSuperAdmin
-                      ? 'All profiles and systems are up to date. Future edit requests, tickets, and updates will appear here.'
-                      : 'All profiles and systems are up to date. Future edit requests and updates will appear here.')}
+                  ? 'Completed edit requests will appear here.'
+                  : 'All profiles and systems are up to date. Future edit requests and updates will appear here.'}
               </p>
             </div>
           ) : (
-            <>
+            <div key={activeTab} className="tab-panel-enter space-y-3 sm:space-y-3.5">
               {activeTab === 'all' && (
                 <>
                   {SYSTEM_UPDATES.map((u) => <SystemUpdateNotification key={u.id} update={u} />)}
@@ -1288,7 +1225,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                 </div>
               );
             })}
-            </>
+            </div>
           )}
         </div>
       </div>

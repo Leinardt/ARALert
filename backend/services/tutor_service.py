@@ -317,7 +317,8 @@ def get_tutor_cohort_history(tutor_id, school_year_str=None):
 
     # Query all assignment histories for this tutor
     histories_qs = TutorAssignmentHistory.objects.filter(
-        tutor=tutor
+        tutor=tutor,
+        student__is_active=True,
     ).select_related('student', 'school_year').order_by('-start_date')
 
     if school_year_str:

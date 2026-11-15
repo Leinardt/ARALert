@@ -262,17 +262,17 @@ class SupportTicketListView(APIView):
         user = request.user
         status_param = request.query_params.get('status', 'all').lower()
 
-        if user.is_superuser:
-            # Super Admin View
+        if user.is_superuser or getattr(user, 'role', '') == 'admin':
+            # Super Admin / Admin View
             active_statuses = [SupportTicket.Status.UNDER_REVIEW, SupportTicket.Status.IN_PROGRESS]
             pending_count = SupportTicket.objects.filter(status__in=active_statuses).count()
 
             if status_param == 'pending':
-                tickets = SupportTicket.objects.filter(status__in=active_statuses)[:50]
+                tickets = SupportTicket.objects.filter(status__in=active_statuses)[:200]
             elif status_param == 'history':
-                tickets = SupportTicket.objects.exclude(status__in=active_statuses)[:50]
+                tickets = SupportTicket.objects.exclude(status__in=active_statuses)[:200]
             else:
-                tickets = SupportTicket.objects.all()[:50]
+                tickets = SupportTicket.objects.all()[:200]
 
             return Response({
                 'pending_count': pending_count,
@@ -303,8 +303,8 @@ class SupportTicketActionView(APIView):
 
     def post(self, request, ticket_id):
         user = request.user
-        if not user.is_superuser:
-            return Response({'error': 'Only Super Admins can update ticket statuses.'}, status=status.HTTP_403_FORBIDDEN)
+        if not (user.is_superuser or getattr(user, 'role', '') == 'admin'):
+            return Response({'error': 'Only Super Admins or Admins can update ticket statuses.'}, status=status.HTTP_403_FORBIDDEN)
 
         try:
             ticket = SupportTicket.objects.get(ticket_id=ticket_id)
@@ -337,12 +337,29 @@ class SupportTicketActionView(APIView):
                 'ticket': serialize_support_ticket(ticket)
             })
 
+        elif action == 'reopen':
+            ticket.status = SupportTicket.Status.UNDER_REVIEW
+            ticket.claimed_by = None
+            ticket.resolved_by = None
+            ticket.resolved_at = None
+            ticket.save(update_fields=['status', 'claimed_by', 'resolved_by', 'resolved_at', 'updated_at'])
+
+            log_audit_event(
+                'PROBLEM_TICKET_REOPENED',
+                user=user,
+                request=request,
+                details={'ticket_id': ticket_id, 'reopened_by': user.email}
+            )
+            return Response({
+                'message': f'Ticket {ticket_id} reopened to Under Review.',
+                'ticket': serialize_support_ticket(ticket)
+            })
+
         elif action == 'resolve':
-            if not reply:
-                return Response({'error': 'A resolution note is required when resolving a ticket.'}, status=status.HTTP_400_BAD_REQUEST)
+            effective_reply = reply or 'Issue has been resolved by the administrator.'
 
             ticket.status = SupportTicket.Status.RESOLVED
-            ticket.admin_reply = reply
+            ticket.admin_reply = effective_reply
             ticket.resolved_by = user
             ticket.resolved_at = timezone.now()
             ticket.save(update_fields=['status', 'admin_reply', 'resolved_by', 'resolved_at', 'updated_at'])
@@ -355,7 +372,7 @@ class SupportTicketActionView(APIView):
                         'ticket_id': ticket.ticket_id,
                         'submitter_name': ticket.submitter_name,
                         'admin_name': admin_name,
-                        'admin_reply': reply,
+                        'admin_reply': effective_reply,
                         'status': 'Resolved',
                     },
                     to_email=ticket.contact_email,
@@ -365,7 +382,7 @@ class SupportTicketActionView(APIView):
                 'PROBLEM_TICKET_RESOLVED',
                 user=user,
                 request=request,
-                details={'ticket_id': ticket_id, 'resolved_by': user.email, 'reply': reply}
+                details={'ticket_id': ticket_id, 'resolved_by': user.email, 'reply': effective_reply}
             )
             return Response({
                 'message': f'Ticket {ticket_id} marked as Resolved.',
@@ -407,7 +424,7 @@ class SupportTicketActionView(APIView):
                 'ticket': serialize_support_ticket(ticket)
             })
 
-        return Response({'error': f"Invalid action '{action}'. Valid actions are 'claim', 'resolve', 'dismiss'."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': f"Invalid action '{action}'. Valid actions are 'claim', 'resolve', 'dismiss', 'reopen'."}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class SupportTicketDismissView(APIView):

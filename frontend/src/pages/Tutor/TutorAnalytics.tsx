@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../../utils/analyticsHelpers';
+import { RISK_THRESHOLDS, getCompositeFormulaDescription, getRiskRangeDescriptions } from '../../config/academicConfig';
 import {
   Search,
   ArrowUpDown,
@@ -18,7 +19,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Attendance, Grade, User } from '../../types';
-import { getRecentSchoolWeekdays, compareNamesByLastName } from '../../utils/studentFormatters';
+import { getRecentSchoolWeekdays, compareNamesByLastName, formatChartPeriodRange } from '../../utils/studentFormatters';
 import {
   type EntryDescriptionType,
   type MilestoneType,
@@ -32,6 +33,7 @@ import {
 import { matchesSearch } from '../../utils/searchHelpers';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { TutorCohortFilter } from '../../components/TutorCohortFilter';
+import { SlidingTabBar, SlidingPeriodToggle } from '../../components/SlidingTabs';
 import {
   useTutorCohortFilter,
   isStudentInCohort,
@@ -1541,7 +1543,7 @@ const RiskCalculationInfo: React.FC = () => (
       <Info className="h-3.5 w-3.5" />
     </button>
     <span className="pointer-events-none absolute left-0 top-full mt-2 sm:left-full sm:top-1/2 sm:mt-0 sm:ml-2 z-20 hidden w-72 sm:w-80 max-w-[calc(100vw-2rem)] sm:-translate-y-1/2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-2.5 sm:px-3 sm:py-2 text-left text-xs font-semibold leading-relaxed text-slate-800 dark:text-white shadow-lg group-hover:block group-focus-within:block">
-      Risk level is calculated from the composite rating of a student. Composite Rating = 40% (Attendance Rate) + 60% (Average Score Rate)
+      {getCompositeFormulaDescription()}
     </span>
   </span>
 );
@@ -1607,20 +1609,22 @@ const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; o
         <ChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       {isOpen && (
-        <div className={`absolute ${menuAlign === 'right' ? 'right-0' : 'left-0'} top-full z-50 mt-2 max-h-60 min-w-[200px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl`} role="listbox" aria-label="Students">
-          <button type="button" role="option" aria-selected={value === 'all'} onClick={() => { onChange('all'); setIsOpen(false); }} className={`block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer ${value === 'all' ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700'}`} style={{ fontFamily: 'var(--font-body)' }}>
-            ALL STUDENTS
-          </button>
-          {sortedRows.map((row) => {
-            const studentValue = String(row.student.id);
-            const isSelected = value === studentValue;
-            const displayName = getStudentDisplayName(row.student);
-            return (
-              <button key={studentValue} type="button" role="option" aria-selected={isSelected} onClick={() => { onChange(studentValue); setIsOpen(false); }} className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer ${isSelected ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700'}`} style={{ fontFamily: 'var(--font-body)' }}>
-                {displayName}
-              </button>
-            );
-          })}
+        <div className={`absolute ${menuAlign === 'right' ? 'right-0' : 'left-0'} top-full z-50 mt-2 min-w-[200px] max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden`}>
+          <div className="max-h-60 overflow-y-auto dropdown-scroll p-1.5" role="listbox" aria-label="Students">
+            <button type="button" role="option" aria-selected={value === 'all'} onClick={() => { onChange('all'); setIsOpen(false); }} className={`block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer ${value === 'all' ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700'}`} style={{ fontFamily: 'var(--font-body)' }}>
+              ALL STUDENTS
+            </button>
+            {sortedRows.map((row) => {
+              const studentValue = String(row.student.id);
+              const isSelected = value === studentValue;
+              const displayName = getStudentDisplayName(row.student);
+              return (
+                <button key={studentValue} type="button" role="option" aria-selected={isSelected} onClick={() => { onChange(studentValue); setIsOpen(false); }} className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer ${isSelected ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700'}`} style={{ fontFamily: 'var(--font-body)' }}>
+                  {displayName}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -2266,40 +2270,25 @@ export const TutorAnalytics: React.FC = () => {
       />
 
       {/* ── View Tab Switcher ── */}
-      <div
-        className="flex w-full rounded-md bg-gray-100 p-0.5 gap-0.5 dark:bg-[#111111]"
-        role="tablist"
-        aria-label="Analytics view"
-      >
-        {([
-          ['overall', 'Overall'],
-          ['attendance', 'Attendance'],
-          ['score', 'Score'],
-        ] as const).map(([tab, label]) => (
-          <button
-            key={tab}
-            type="button"
-            role="tab"
-            aria-selected={activeAnalyticsTab === tab}
-            onClick={() => setActiveAnalyticsTab(tab)}
-            className={`flex-1 h-8 rounded-sm px-4 flex items-center justify-center text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-              activeAnalyticsTab === tab
-                ? 'bg-[var(--brand)] text-white font-extrabold shadow-sm'
-                : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-white/5'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <SlidingTabBar
+        tabs={[
+          { id: 'overall', label: 'Overall' },
+          { id: 'attendance', label: 'Attendance' },
+          { id: 'score', label: 'Score' },
+        ] as const}
+        activeTab={activeAnalyticsTab}
+        onChange={setActiveAnalyticsTab}
+        ariaLabel="Analytics view"
+      />
+      <div key={activeAnalyticsTab} className="tab-panel-enter space-y-4 sm:space-y-6">
           {/* ── Overall Tab Content ── */}
           {activeAnalyticsTab === 'overall' && (
             <>
               {/* ── Risk Summary Cards ─────────────────────────────────────── */}
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className="relative rounded-md border risk-card-high p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
+                <div className="relative rounded-md border border-rose-500 dark:border-rose-500 bg-white dark:bg-[#0A0A0A] hover:border-rose-600 dark:hover:border-rose-400 transition-colors p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
                   <div className="absolute right-3 top-3">
-                    <RiskRangeInfo range="Composite rating is 69% and below" />
+                    <RiskRangeInfo range={getRiskRangeDescriptions().high} />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-high">
@@ -2310,9 +2299,9 @@ export const TutorAnalytics: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="relative rounded-md border risk-card-moderate p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
+                <div className="relative rounded-md border border-amber-500 dark:border-amber-500 bg-white dark:bg-[#0A0A0A] hover:border-amber-600 dark:hover:border-amber-400 transition-colors p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
                   <div className="absolute right-3 top-3">
-                    <RiskRangeInfo range="Composite rating is between 70% to 85%" />
+                    <RiskRangeInfo range={getRiskRangeDescriptions().moderate} />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-moderate">
@@ -2323,9 +2312,9 @@ export const TutorAnalytics: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="relative rounded-md border risk-card-low p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
+                <div className="relative rounded-md border border-emerald-500 dark:border-emerald-500 bg-white dark:bg-[#0A0A0A] hover:border-emerald-600 dark:hover:border-emerald-400 transition-colors p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
                   <div className="absolute right-3 top-3">
-                    <RiskRangeInfo range="Composite rating is between 86% to 100%" />
+                    <RiskRangeInfo range={getRiskRangeDescriptions().low} />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-low">
@@ -2359,21 +2348,16 @@ export const TutorAnalytics: React.FC = () => {
                         }}
                       />
                     </div>
-                    <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Filter risk chart by time period">
-                      {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                        <button
-                          key={filter}
-                          type="button"
-                          onClick={() => {
-                            setRiskTrendFilter(filter);
-                            setRiskTrendPage(0);
-                          }}
-                          className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all ${riskTrendFilter === filter ? 'bg-[var(--brand)] text-white font-black shadow-sm' : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'}`}
-                        >
-                          {filter}
-                        </button>
-                      ))}
-                    </div>
+                    <SlidingPeriodToggle
+                      options={['day', 'week', 'month'] as const}
+                      value={riskTrendFilter}
+                      onChange={(filter) => {
+                        setRiskTrendFilter(filter);
+                        setRiskTrendPage(0);
+                      }}
+                      ariaLabel="Filter risk chart by time period"
+                      buttonClassName="px-3 py-1.5 text-[10px]"
+                    />
                     {/* Period navigation arrows to scroll between previous and present records */}
                     <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present risk records">
                       <button
@@ -2386,6 +2370,9 @@ export const TutorAnalytics: React.FC = () => {
                       >
                         <ChevronLeft size={14} className="stroke-[2.5]" />
                       </button>
+                      <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                        {formatChartPeriodRange(riskTrendFilter, riskTrendPage)}
+                      </span>
                       <button
                         type="button"
                         onClick={() => setRiskTrendPage((p) => Math.max(0, p - 1))}
@@ -2580,9 +2567,9 @@ export const TutorAnalytics: React.FC = () => {
                                 <td className="px-2.5 py-2 text-left border-b border-gray-100 dark:border-[#1A1A1A]">
                                   {row.riskTier === 'High' ? (
                                     <div className="flex flex-wrap items-center gap-1.5">
-                                      {row.compositeScore >= 70 && row.attendanceRate <= 75 && (
+                                      {row.compositeScore >= RISK_THRESHOLDS.moderateMinComposite && row.attendanceRate <= RISK_THRESHOLDS.highAttendanceGate && (
                                         <span className="inline-flex items-center rounded bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-900 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-200 leading-snug">
-                                          Despite current composite rating, student is marked high risk due to the attendace rate being 75% or less.
+                                          Despite current composite rating, student is marked high risk due to the attendance rate being {RISK_THRESHOLDS.highAttendanceGate}% or less.
                                         </span>
                                       )}
                                       {row.neededPresentAttendance > 0 && (
@@ -2681,9 +2668,9 @@ export const TutorAnalytics: React.FC = () => {
                               <td className="px-4 py-3 align-middle">
                                 {row.riskTier === 'High' ? (
                                   <div className="flex flex-wrap items-center gap-1.5">
-                                    {row.compositeScore >= 70 && row.attendanceRate <= 75 && (
+                                    {row.compositeScore >= RISK_THRESHOLDS.moderateMinComposite && row.attendanceRate <= RISK_THRESHOLDS.highAttendanceGate && (
                                       <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[10.5px] font-medium text-amber-900 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-200 leading-snug">
-                                        Despite current composite rating, student is marked high risk due to the attendace rate being 75% or less.
+                                        Despite current composite rating, student is marked high risk due to the attendance rate being {RISK_THRESHOLDS.highAttendanceGate}% or less.
                                       </span>
                                     )}
                                     {row.neededPresentAttendance > 0 && (
@@ -2790,21 +2777,16 @@ export const TutorAnalytics: React.FC = () => {
                         }}
                       />
                     </div>
-                    <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Attendance trend period">
-                      {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                        <button
-                          key={filter}
-                          type="button"
-                          onClick={() => {
-                            setAttendanceFilter(filter);
-                            setAttendanceTrendPage(0);
-                          }}
-                          className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all ${attendanceFilter === filter ? 'bg-[var(--brand)] text-white font-black shadow-sm' : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'}`}
-                        >
-                          {filter}
-                        </button>
-                      ))}
-                    </div>
+                    <SlidingPeriodToggle
+                      options={['day', 'week', 'month'] as const}
+                      value={attendanceFilter}
+                      onChange={(filter) => {
+                        setAttendanceFilter(filter);
+                        setAttendanceTrendPage(0);
+                      }}
+                      ariaLabel="Attendance trend period"
+                      buttonClassName="px-3 py-1.5 text-[10px]"
+                    />
                     {/* Period navigation arrows */}
                     <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present attendance records">
                       <button
@@ -2817,6 +2799,9 @@ export const TutorAnalytics: React.FC = () => {
                       >
                         <ChevronLeft size={14} className="stroke-[2.5]" />
                       </button>
+                      <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                        {formatChartPeriodRange(attendanceFilter, attendanceTrendPage)}
+                      </span>
                       <button
                         type="button"
                         onClick={() => setAttendanceTrendPage((p) => Math.max(0, p - 1))}
@@ -3045,21 +3030,16 @@ export const TutorAnalytics: React.FC = () => {
                         }}
                       />
                     </div>
-                    <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Score trend period">
-                      {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                        <button
-                          key={filter}
-                          type="button"
-                          onClick={() => {
-                            setScoreFilter(filter);
-                            setScoreTrendPage(0);
-                          }}
-                          className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all ${scoreFilter === filter ? 'bg-[var(--brand)] text-white font-black shadow-sm' : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'}`}
-                        >
-                          {filter}
-                        </button>
-                      ))}
-                    </div>
+                    <SlidingPeriodToggle
+                      options={['day', 'week', 'month'] as const}
+                      value={scoreFilter}
+                      onChange={(filter) => {
+                        setScoreFilter(filter);
+                        setScoreTrendPage(0);
+                      }}
+                      ariaLabel="Score trend period"
+                      buttonClassName="px-3 py-1.5 text-[10px]"
+                    />
                     {/* Period navigation arrows */}
                     <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present score records">
                       <button
@@ -3072,6 +3052,9 @@ export const TutorAnalytics: React.FC = () => {
                       >
                         <ChevronLeft size={14} className="stroke-[2.5]" />
                       </button>
+                      <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                        {formatChartPeriodRange(scoreFilter, scoreTrendPage)}
+                      </span>
                       <button
                         type="button"
                         onClick={() => setScoreTrendPage((p) => Math.max(0, p - 1))}
@@ -3291,6 +3274,7 @@ export const TutorAnalytics: React.FC = () => {
               </div>
             </>
           )}
+      </div>
     </div>
   );
 };

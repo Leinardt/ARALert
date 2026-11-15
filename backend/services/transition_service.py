@@ -25,6 +25,9 @@ def parse_eosy_grade_status(grade: ApiGrade | None) -> tuple[str, str, float | N
     if not grade:
         return 'pending', 'pending', None
 
+    if (grade.remarks or '').strip().lower() == 'not taken':
+        return 'pending', 'not_taken', None
+
     try:
         ts = float(grade.total_score) if grade.total_score is not None else 40.0
     except (ValueError, TypeError):
@@ -86,11 +89,13 @@ def get_eosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
 
     tutors = User.objects.filter(role='tutor', is_active=True, is_superuser=False).prefetch_related('assigned_students')
 
-    # Bulk preload latest EOSY grade for all students in 1 query
-    eosy_grades = ApiGrade.objects.filter(subject__icontains='EOSY').order_by('student_id', '-date_logged')
+    # Bulk preload latest EOSY grade for all students in 1 query (preferring taken grades over Not Taken)
+    eosy_grades = ApiGrade.objects.filter(subject__icontains='EOSY').order_by('student_id', '-date_logged', '-id')
     eosy_grade_by_student = {}
     for g in eosy_grades:
-        if g.student_id not in eosy_grade_by_student:
+        existing = eosy_grade_by_student.get(g.student_id)
+        is_not_taken = (g.remarks or '').strip().lower() == 'not taken'
+        if not existing or ((existing.remarks or '').strip().lower() == 'not taken' and not is_not_taken):
             eosy_grade_by_student[g.student_id] = g
 
     completed_tutors_count = 0
@@ -322,9 +327,13 @@ def execute_school_year_transition(admin_user: User | None = None) -> dict:
             defaults={
                 'status': 'ACTIVE',
                 'is_active': True,
+                'current_semester': '1st',
                 'start_date': timezone.localdate(),
             }
         )
+        if not new_sy.start_date:
+            new_sy.start_date = timezone.localdate()
+        new_sy.current_semester = '1st'
 
         # Bulk preloads
         all_students = list(User.objects.filter(role='student').select_related('assigned_tutor'))
@@ -333,20 +342,22 @@ def execute_school_year_transition(admin_user: User | None = None) -> dict:
             for e in StudentEnrollment.objects.filter(student__in=all_students, school_year=active_sy)
         }
 
-        # Bulk preload latest EOSY grade for all students
-        eosy_grades = ApiGrade.objects.filter(subject__icontains='EOSY').order_by('student_id', '-date_logged')
+        # Bulk preload latest EOSY grade for all students (preferring taken grades over Not Taken)
+        eosy_grades = ApiGrade.objects.filter(subject__icontains='EOSY').order_by('student_id', '-date_logged', '-id')
         eosy_grade_by_student = {}
         for g in eosy_grades:
-            if g.student_id not in eosy_grade_by_student:
+            existing = eosy_grade_by_student.get(g.student_id)
+            is_not_taken = (g.remarks or '').strip().lower() == 'not taken'
+            if not existing or ((existing.remarks or '').strip().lower() == 'not taken' and not is_not_taken):
                 eosy_grade_by_student[g.student_id] = g
 
-        # Bulk preload basic failures
+        # Bulk preload basic failures (excluding Not Taken)
         from collections import defaultdict
         failed_basic_years = defaultdict(set)
         for sid, sy_str in StudentEnrollment.objects.filter(program='basic', eosy_result='failed').values_list('student_id', 'school_year__school_year'):
             if sy_str:
                 failed_basic_years[sid].add(sy_str)
-        for g in ApiGrade.objects.filter(subject__icontains='EOSY'):
+        for g in ApiGrade.objects.filter(subject__icontains='EOSY').exclude(remarks__iexact='Not Taken'):
             ts = float(g.total_score or 40)
             sc = float(g.score or 0)
             passed = sc >= 28.0 if ts == 40 else (sc / ts) >= 0.7
@@ -538,7 +549,7 @@ def execute_school_year_transition(admin_user: User | None = None) -> dict:
         # STEP 11: Activate New School Year
         new_sy.status = 'ACTIVE'
         new_sy.is_active = True
-        new_sy.save(update_fields=['status', 'is_active'])
+        new_sy.save(update_fields=['status', 'is_active', 'current_semester', 'start_date'])
 
         # Create Transition Audit Log
         TransitionAuditLog.objects.create(

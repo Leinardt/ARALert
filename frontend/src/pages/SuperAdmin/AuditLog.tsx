@@ -154,13 +154,12 @@ const CustomCalendarDropdown: React.FC<{
                 onSelectDate(cellDateKey);
                 onClose();
               }}
-              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                isSelected
-                  ? 'bg-[var(--brand)] text-white font-bold shadow-xs'
-                  : isToday
+              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold transition-all cursor-pointer ${isSelected
+                ? 'bg-[var(--brand)] text-white font-bold shadow-xs'
+                : isToday
                   ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
                   : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800'
-              }`}
+                }`}
             >
               <span>{dayNum}</span>
             </button>
@@ -271,6 +270,14 @@ const EVENT_CATEGORIES: EventCategoryGroup[] = [
       { value: 'SUMMER_EVALUATION_RECORDED', label: 'Summer Evaluation Recorded' },
     ],
   },
+  {
+    category: 'System & Program Configuration',
+    options: [
+      { value: 'PROGRAM_CONFIGURATION_UPDATED', label: 'ARAL Program Configuration Updated' },
+      { value: 'SCHOOL_YEAR_MANAGED', label: 'Active School Year Updated' },
+      { value: 'ASSESSMENT_WINDOW_TOGGLED', label: 'Assessment Window Toggled' },
+    ],
+  },
 ];
 
 const getEventLabel = (val: string): string => {
@@ -328,17 +335,15 @@ const EventFilterDropdown: React.FC<{
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         onClick={handleToggle}
-        className={`w-full h-9 px-3 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 transition cursor-pointer shadow-2xs ${
-          value
-            ? 'border-[var(--brand)] bg-[var(--brand-light)] text-[var(--brand)] dark:bg-[var(--brand)]/15 dark:text-blue-300 dark:border-[var(--brand)]/50 font-bold'
-            : 'border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] text-gray-700 dark:text-slate-200 hover:border-gray-300 dark:hover:border-[#262626]'
-        }`}
+        className={`w-full h-9 px-3 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 transition cursor-pointer shadow-2xs ${value
+          ? 'border-[var(--brand)] bg-[var(--brand-light)] text-[var(--brand)] dark:bg-[var(--brand)]/15 dark:text-blue-300 dark:border-[var(--brand)]/50 font-bold'
+          : 'border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] text-gray-700 dark:text-slate-200 hover:border-gray-300 dark:hover:border-[#262626]'
+          }`}
       >
         <span className="truncate">{currentLabel}</span>
         <ChevronDown
-          className={`h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-zinc-500 transition-transform duration-200 ${
-            isOpen ? 'rotate-180' : ''
-          }`}
+          className={`h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-zinc-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''
+            }`}
         />
       </button>
 
@@ -346,60 +351,64 @@ const EventFilterDropdown: React.FC<{
         <div
           className={`absolute ${
             menuAlign === 'right' ? 'right-0' : 'left-0'
-          } top-full z-50 mt-1 max-h-72 w-full sm:w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl`}
-          role="listbox"
-          aria-label="Filter by Event"
+          } top-full z-50 mt-1 w-full sm:w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-xl overflow-hidden`}
         >
-          {/* ALL EVENTS option */}
-          <button
-            type="button"
-            role="option"
-            aria-selected={value === ''}
-            onClick={() => {
-              onChange('');
-              setIsOpen(false);
-            }}
-            className={`block w-full truncate rounded-lg px-3 py-1.5 text-left text-xs font-bold transition cursor-pointer ${
-              value === ''
-                ? 'bg-[var(--brand)] text-white'
-                : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-            }`}
+          <div
+            className="max-h-72 overflow-y-auto dropdown-scroll p-1.5"
+            role="listbox"
+            aria-label="Filter by Event"
           >
-            ALL EVENTS
-          </button>
+            {/* ALL EVENTS option */}
+            <button
+              type="button"
+              role="option"
+              aria-selected={value === ''}
+              onClick={() => {
+                onChange('');
+                setIsOpen(false);
+              }}
+              className={`block w-full truncate rounded-lg px-3 py-1.5 text-left text-xs font-bold transition cursor-pointer ${
+                value === ''
+                  ? 'bg-[var(--brand)] text-white'
+                  : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+              }`}
+            >
+              ALL EVENTS
+            </button>
 
-          {/* Grouped Categories */}
-          {EVENT_CATEGORIES.map((group) => (
-            <div key={group.category} className="mt-2 pt-1 border-t border-gray-100 dark:border-[#1A1A1A]">
-              <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 select-none">
-                {group.category}
+            {/* Grouped Categories */}
+            {EVENT_CATEGORIES.map((group) => (
+              <div key={group.category} className="mt-2 pt-1 border-t border-gray-100 dark:border-[#1A1A1A]">
+                <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 select-none">
+                  {group.category}
+                </div>
+                <div className="space-y-0.5">
+                  {group.options.map((opt) => {
+                    const isSel = opt.value === value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="option"
+                        aria-selected={isSel}
+                        onClick={() => {
+                          onChange(opt.value);
+                          setIsOpen(false);
+                        }}
+                        className={`block w-full truncate rounded-lg px-3 py-1.5 text-left text-xs font-semibold transition cursor-pointer ${
+                          isSel
+                            ? 'bg-[var(--brand)] text-white'
+                            : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="space-y-0.5">
-                {group.options.map((opt) => {
-                  const isSel = opt.value === value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      role="option"
-                      aria-selected={isSel}
-                      onClick={() => {
-                        onChange(opt.value);
-                        setIsOpen(false);
-                      }}
-                      className={`block w-full truncate rounded-lg px-3 py-1.5 text-left text-xs font-semibold transition cursor-pointer ${
-                        isSel
-                          ? 'bg-[var(--brand)] text-white'
-                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -487,11 +496,10 @@ export const AuditLog: React.FC = () => {
               type="button"
               id="audit-log-calendar-btn"
               onClick={() => setShowCalendarPopover((prev) => !prev)}
-              className={`w-full h-9 px-3 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 transition cursor-pointer shadow-2xs ${
-                dateFilter
-                  ? 'bg-[var(--brand)] text-white border-[var(--brand)] font-bold'
-                  : 'border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] text-gray-700 dark:text-slate-200 hover:border-gray-300 dark:hover:border-[#262626]'
-              }`}
+              className={`w-full h-9 px-3 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 transition cursor-pointer shadow-2xs ${dateFilter
+                ? 'bg-[var(--brand)] text-white border-[var(--brand)] font-bold'
+                : 'border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] text-gray-700 dark:text-slate-200 hover:border-gray-300 dark:hover:border-[#262626]'
+                }`}
               title="Filter audit logs by specific date"
             >
               <div className="flex items-center gap-2 truncate">
@@ -499,10 +507,10 @@ export const AuditLog: React.FC = () => {
                 <span className="truncate">
                   {dateFilter
                     ? new Date(dateFilter + 'T00:00:00').toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })
                     : 'All Dates'}
                 </span>
               </div>
@@ -584,7 +592,7 @@ export const AuditLog: React.FC = () => {
 
       {/* ── Log Table Container (30 records per page) ── */}
       <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm overflow-hidden">
-        
+
         {/* Active Filters (if any) */}
         {(eventFilter || dateFilter || searchFilter) && (
           <div className="px-3.5 sm:px-5 py-2 sm:py-2.5 border-b border-gray-100 dark:border-[#1A1A1A] flex flex-wrap items-center gap-1.5 sm:gap-2 bg-gray-50/50 dark:bg-[#111111]">
@@ -663,175 +671,175 @@ export const AuditLog: React.FC = () => {
         ) : (
           <>
             {/* ── Mobile View (< 768px): Sticky Event & Timestamp with Horizontal Scrolling Details ── */}
-          <div className="md:hidden overflow-x-auto table-scroll-container mobile-scroll-table w-full">
-            <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
-              <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400 shadow-xs">
-                <tr>
-                  <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#111111] w-[135px] min-w-[135px] max-w-[135px] px-3 py-2 text-left whitespace-nowrap shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] border-b border-r border-gray-100 dark:border-[#1A1A1A]">
-                    EVENT & TIME
-                  </th>
-                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-3 py-2 text-left whitespace-nowrap min-w-[120px]">
-                    TARGET
-                  </th>
-                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-3 py-2 text-left whitespace-nowrap min-w-[120px]">
-                    ACTOR
-                  </th>
-                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-3 py-2 text-center whitespace-nowrap min-w-[80px]">
-                    ROLE
-                  </th>
-                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-3 py-2 text-left whitespace-nowrap min-w-[140px]">
-                    EMAIL
-                  </th>
-                  <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-3 py-2 text-center whitespace-nowrap min-w-[110px]">
-                    LRN
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
-                {data.results.map((log) => {
-                  return (
-                    <tr
-                      key={log.id}
-                      className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-white/[0.02]"
-                    >
-                      {/* Pinned Sticky Column: Event Name + Timestamp underneath */}
-                      <td className="sticky left-0 z-10 bg-white dark:bg-[#0A0A0A] w-[135px] min-w-[135px] max-w-[135px] px-3 py-2.5 shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] border-r border-gray-100 dark:border-[#1A1A1A]">
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-bold text-[11px] text-gray-900 dark:text-slate-100 truncate leading-snug" title={log.action.replace(/_/g, ' ')}>
-                            {log.action.replace(/_/g, ' ')}
-                          </span>
-                          <span className="text-[10px] font-mono text-gray-400 dark:text-slate-500 truncate mt-0.5">
-                            {log.timestamp}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* TARGET */}
-                      <td className="px-3 py-2.5 text-xs whitespace-nowrap max-w-[140px] truncate" title={getTargetDisplay(log) !== '—' ? getTargetDisplay(log) : undefined}>
-                        {(() => {
-                          const target = getTargetDisplay(log);
-                          if (target === '—') return <span className="text-gray-400 dark:text-slate-500">—</span>;
-                          return (
-                            <span className="font-semibold text-gray-900 dark:text-slate-100">
-                              {target}
+            <div className="md:hidden overflow-x-auto table-scroll-container mobile-scroll-table w-full">
+              <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+                <thead className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400 shadow-xs">
+                  <tr>
+                    <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-[#111111] w-[135px] min-w-[135px] max-w-[135px] px-3 py-2 text-left whitespace-nowrap shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      EVENT & TIME
+                    </th>
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-3 py-2 text-left whitespace-nowrap min-w-[120px]">
+                      TARGET
+                    </th>
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-3 py-2 text-left whitespace-nowrap min-w-[120px]">
+                      ACTOR
+                    </th>
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-3 py-2 text-center whitespace-nowrap min-w-[80px]">
+                      ROLE
+                    </th>
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-3 py-2 text-left whitespace-nowrap min-w-[140px]">
+                      EMAIL
+                    </th>
+                    <th className="sticky top-0 z-20 bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-3 py-2 text-center whitespace-nowrap min-w-[110px]">
+                      LRN
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
+                  {data.results.map((log) => {
+                    return (
+                      <tr
+                        key={log.id}
+                        className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-white/[0.02]"
+                      >
+                        {/* Pinned Sticky Column: Event Name + Timestamp underneath */}
+                        <td className="sticky left-0 z-10 bg-white dark:bg-[#0A0A0A] w-[135px] min-w-[135px] max-w-[135px] px-3 py-2.5 shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] border-r border-gray-100 dark:border-[#1A1A1A]">
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-bold text-[11px] text-gray-900 dark:text-slate-100 truncate leading-snug" title={log.action.replace(/_/g, ' ')}>
+                              {log.action.replace(/_/g, ' ')}
                             </span>
-                          );
-                        })()}
-                      </td>
-
-                      {/* ACTOR NAME */}
-                      <td className="px-3 py-2.5 font-semibold text-gray-900 dark:text-slate-100 whitespace-nowrap text-xs">
-                        {log.name || 'System'}
-                      </td>
-
-                      {/* ROLE */}
-                      <td className="px-3 py-2.5 text-center whitespace-nowrap text-[11px] font-medium text-gray-700 dark:text-slate-300">
-                        {log.role || '—'}
-                      </td>
-
-                      {/* EMAIL */}
-                      <td className="px-3 py-2.5 text-xs text-gray-600 dark:text-slate-300 whitespace-nowrap">
-                        {log.role?.toLowerCase() === 'student' || log.email?.includes('@aralert.local') || log.email?.startsWith('student-')
-                          ? '—'
-                          : (log.email || '—')}
-                      </td>
-
-                      {/* LRN */}
-                      <td className="px-3 py-2.5 text-center text-xs font-mono text-gray-700 dark:text-slate-300 whitespace-nowrap">
-                        {log.lrn || '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* ── Desktop View (>= 768px): Original Full-Width Table ── */}
-          <div className="hidden md:block overflow-x-auto mobile-scroll-table">
-            <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
-              <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] shadow-xs">
-                <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-                    TIMESTAMP
-                  </th>
-                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-                    EVENT
-                  </th>
-                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap max-w-[150px]">
-                    TARGET
-                  </th>
-                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-                    NAME
-                  </th>
-                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-                    ROLE
-                  </th>
-                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-                    EMAIL
-                  </th>
-                  <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-                    LRN
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
-                {data.results.map((log) => {
-                  return (
-                    <tr
-                      key={log.id}
-                      className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/[0.02]"
-                    >
-                      {/* TIMESTAMP */}
-                      <td className="px-4 py-3 text-xs font-mono text-gray-600 dark:text-slate-300 whitespace-nowrap">
-                        {log.timestamp}
-                      </td>
-
-                      {/* EVENT */}
-                      <td className="px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-900 dark:text-slate-100">
-                        {log.action.replace(/_/g, ' ')}
-                      </td>
-
-                      {/* TARGET */}
-                      <td className="px-3 py-3 whitespace-nowrap text-xs max-w-[150px] truncate" title={getTargetDisplay(log) !== '—' ? getTargetDisplay(log) : undefined}>
-                        {(() => {
-                          const target = getTargetDisplay(log);
-                          if (target === '—') return <span className="text-gray-400 dark:text-slate-500">—</span>;
-                          return (
-                            <span className="font-semibold text-gray-900 dark:text-slate-100">
-                              {target}
+                            <span className="text-[10px] font-mono text-gray-400 dark:text-slate-500 truncate mt-0.5">
+                              {log.timestamp}
                             </span>
-                          );
-                        })()}
-                      </td>
+                          </div>
+                        </td>
 
-                      {/* NAME */}
-                      <td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 whitespace-nowrap">
-                        {log.name || 'System'}
-                      </td>
+                        {/* TARGET */}
+                        <td className="px-3 py-2.5 text-xs whitespace-nowrap max-w-[140px] truncate" title={log.details?.change_summary || (getTargetDisplay(log) !== '—' ? getTargetDisplay(log) : undefined)}>
+                          {(() => {
+                            const target = getTargetDisplay(log);
+                            if (target === '—') return <span className="text-gray-400 dark:text-slate-500">—</span>;
+                            return (
+                              <span className="font-semibold text-gray-900 dark:text-slate-100">
+                                {target}
+                              </span>
+                            );
+                          })()}
+                        </td>
 
-                      {/* ROLE */}
-                      <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-700 dark:text-slate-300">
-                        {log.role || '—'}
-                      </td>
+                        {/* ACTOR NAME */}
+                        <td className="px-3 py-2.5 font-semibold text-gray-900 dark:text-slate-100 whitespace-nowrap text-xs">
+                          {log.name || 'System'}
+                        </td>
 
-                      {/* EMAIL */}
-                      <td className="px-4 py-3 text-xs text-gray-600 dark:text-slate-300 whitespace-nowrap">
-                        {log.role?.toLowerCase() === 'student' || log.email?.includes('@aralert.local') || log.email?.startsWith('student-')
-                          ? '—'
-                          : (log.email || '—')}
-                      </td>
+                        {/* ROLE */}
+                        <td className="px-3 py-2.5 text-center whitespace-nowrap text-[11px] font-medium text-gray-700 dark:text-slate-300">
+                          {log.role || '—'}
+                        </td>
 
-                      {/* LRN */}
-                      <td className="px-4 py-3 text-xs font-mono text-gray-700 dark:text-slate-300 whitespace-nowrap">
-                        {log.lrn || '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        {/* EMAIL */}
+                        <td className="px-3 py-2.5 text-xs text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                          {log.role?.toLowerCase() === 'student' || log.email?.includes('@aralert.local') || log.email?.startsWith('student-')
+                            ? '—'
+                            : (log.email || '—')}
+                        </td>
+
+                        {/* LRN */}
+                        <td className="px-3 py-2.5 text-center text-xs font-mono text-gray-700 dark:text-slate-300 whitespace-nowrap">
+                          {log.lrn || '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ── Desktop View (>= 768px): Original Full-Width Table ── */}
+            <div className="hidden md:block overflow-x-auto mobile-scroll-table">
+              <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
+                <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] shadow-xs">
+                  <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
+                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      TIMESTAMP
+                    </th>
+                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      EVENT
+                    </th>
+                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap max-w-[150px]">
+                      TARGET
+                    </th>
+                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      NAME
+                    </th>
+                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      ROLE
+                    </th>
+                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      EMAIL
+                    </th>
+                    <th className="sticky top-0 z-10 bg-gray-50 dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      LRN
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
+                  {data.results.map((log) => {
+                    return (
+                      <tr
+                        key={log.id}
+                        className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/[0.02]"
+                      >
+                        {/* TIMESTAMP */}
+                        <td className="px-4 py-3 text-xs font-mono text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                          {log.timestamp}
+                        </td>
+
+                        {/* EVENT */}
+                        <td className="px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-900 dark:text-slate-100">
+                          {log.action.replace(/_/g, ' ')}
+                        </td>
+
+                        {/* TARGET */}
+                        <td className="px-3 py-3 whitespace-nowrap text-xs max-w-[150px] truncate" title={log.details?.change_summary || (getTargetDisplay(log) !== '—' ? getTargetDisplay(log) : undefined)}>
+                          {(() => {
+                            const target = getTargetDisplay(log);
+                            if (target === '—') return <span className="text-gray-400 dark:text-slate-500">—</span>;
+                            return (
+                              <span className="font-semibold text-gray-900 dark:text-slate-100">
+                                {target}
+                              </span>
+                            );
+                          })()}
+                        </td>
+
+                        {/* NAME */}
+                        <td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 whitespace-nowrap">
+                          {log.name || 'System'}
+                        </td>
+
+                        {/* ROLE */}
+                        <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-700 dark:text-slate-300">
+                          {log.role || '—'}
+                        </td>
+
+                        {/* EMAIL */}
+                        <td className="px-4 py-3 text-xs text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                          {log.role?.toLowerCase() === 'student' || log.email?.includes('@aralert.local') || log.email?.startsWith('student-')
+                            ? '—'
+                            : (log.email || '—')}
+                        </td>
+
+                        {/* LRN */}
+                        <td className="px-4 py-3 text-xs font-mono text-gray-700 dark:text-slate-300 whitespace-nowrap">
+                          {log.lrn || '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </>
         )}
 

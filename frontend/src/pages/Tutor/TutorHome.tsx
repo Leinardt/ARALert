@@ -14,7 +14,8 @@ import {
   BarChart2,
 } from 'lucide-react';
 import { computeStudentRiskRows, type StudentRiskRow, getRiskAvatarClass } from '../../utils/analyticsHelpers';
-import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
+import { isNotTakenGrade } from '../../config/academicConfig';
+import { getRecentSchoolWeekdays, formatChartPeriodRange } from '../../utils/studentFormatters';
 import {
   getCurrentSemesterMilestone,
   getActiveSystemMilestone,
@@ -22,6 +23,7 @@ import {
   setActiveSystemSemester,
 } from '../../utils/sessionDescriptionHelpers';
 import { TutorCohortFilter } from '../../components/TutorCohortFilter';
+import { SlidingPeriodToggle } from '../../components/SlidingTabs';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { useTutorCohortFilter, isStudentInCohort, getTutorClassViewLabel, getCachedTutorStudents } from '../../utils/tutorCohortHelpers';
 
@@ -655,7 +657,7 @@ export const TutorHome: React.FC = () => {
     const studentIds = new Set(filteredStudents.map((s) => String(s.id)));
     const isAllSubject = !selectedSubject || selectedSubject.toLowerCase() === 'all';
     const assessmentGrades = grades.filter((g) => {
-      if (!studentIds.has(String(g.student)) || g.component_type !== 'assessment') return false;
+      if (!studentIds.has(String(g.student)) || g.component_type !== 'assessment' || isNotTakenGrade(g)) return false;
       if (!isAllSubject && g.subject) {
         const gradeSubj = g.subject.toLowerCase().trim();
         const selSubj = selectedSubject.toLowerCase().trim();
@@ -1070,22 +1072,16 @@ export const TutorHome: React.FC = () => {
                       <span className="truncate max-w-[120px] whitespace-nowrap">{tutorMilestone}</span>
                     </div>
                   </div>
-                  <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap" aria-label="Tutor performance trend period">
-                    {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                      <button
-                        key={filter}
-                        type="button"
-                        onClick={() => {
-                          setTrendFilter(filter);
-                          setTrendPage(0);
-                        }}
-                        className={`rounded-sm px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${trendFilter === filter ? 'bg-[var(--brand)] text-white shadow-xs' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                          }`}
-                      >
-                        {filter}
-                      </button>
-                    ))}
-                  </div>
+                  <SlidingPeriodToggle
+                    options={['day', 'week', 'month'] as const}
+                    value={trendFilter}
+                    onChange={(filter) => {
+                      setTrendFilter(filter);
+                      setTrendPage(0);
+                    }}
+                    ariaLabel="Tutor performance trend period"
+                    buttonClassName="px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px]"
+                  />
                   {/* Period navigation arrows */}
                   <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present records">
                     <button
@@ -1098,6 +1094,9 @@ export const TutorHome: React.FC = () => {
                     >
                       <ChevronLeft size={14} className="stroke-[2.5]" />
                     </button>
+                    <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                      {formatChartPeriodRange(trendFilter, trendPage)}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setTrendPage((p) => Math.max(0, p - 1))}
@@ -1206,9 +1205,20 @@ export const TutorHome: React.FC = () => {
               >
                 {topAtRiskTitle}
               </h3>
-              <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-950/60 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300">
-                <AnimatedCounter value={atRiskStudents.length} />
-              </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span
+                  className="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-950/60 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300"
+                  title="High Risk Students"
+                >
+                  <AnimatedCounter value={highRiskStudents.length} />
+                </span>
+                <span
+                  className="inline-flex min-w-5 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300"
+                  title="Moderate Risk Students"
+                >
+                  <AnimatedCounter value={moderateRiskStudents.length} />
+                </span>
+              </div>
             </div>
 
             <div
@@ -1234,8 +1244,11 @@ export const TutorHome: React.FC = () => {
                       <Link
                         to={`/tutor/students/${s.student.id}`}
                         state={{ from: 'dashboard' }}
-                        className={`group relative block rounded-sm border px-3 py-2 min-h-[44px] flex flex-col justify-center transition-all duration-150 ease-out cursor-pointer hover:z-10 hover:scale-[1.018] hover:-translate-y-0.5 hover:shadow-md ${isHighRisk ? 'risk-card-high' : 'risk-card-medium'
-                          }`}
+                        className={`group relative flex flex-col justify-center rounded-sm border px-3 py-2 min-h-[44px] bg-white dark:bg-[#0A0A0A] transition-all duration-150 ease-out cursor-pointer hover:z-10 hover:scale-[1.018] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.5)] ${
+                          isHighRisk
+                            ? 'border-[var(--risk-high-border)] hover:border-[var(--risk-high)]'
+                            : 'border-[var(--risk-medium-border)] hover:border-[var(--risk-medium)]'
+                        }`}
                       >
                         <div className="min-w-0">
                           <div className="flex items-center justify-between gap-1.5">

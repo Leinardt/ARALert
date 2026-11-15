@@ -370,3 +370,56 @@ export const getReviewerLabel = (
   return firstName ? `${role} ${firstName}` : role;
 };
 
+/**
+ * Formats the active date/period range displayed between the left (<) and right (>)
+ * chart navigation buttons for Day (10 school days), Week (6 school weeks), or Month (6 months).
+ */
+export const formatChartPeriodRange = (
+  filter: 'day' | 'week' | 'month',
+  pageOffset: number = 0,
+  refDate: Date = new Date()
+): string => {
+  const now = refDate;
+  const oneDay = 24 * 60 * 60 * 1000;
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const formatDate = (date: Date) =>
+    date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  if (filter === 'day') {
+    const count = 10 * (pageOffset + 1);
+    const allSchoolDays = getRecentSchoolWeekdays(count, now);
+    const schoolDays = allSchoolDays.slice(0, 10);
+    if (schoolDays.length === 0) return '';
+    const first = schoolDays[0];
+    const last = schoolDays[schoolDays.length - 1];
+    return `${formatDate(first)} – ${formatDate(last)}`;
+  }
+
+  const periodCount = 6;
+  const totalOffsetFirst = (periodCount - 1) + pageOffset * periodCount;
+  const totalOffsetLast = pageOffset * periodCount;
+
+  if (filter === 'month') {
+    const firstMonth = new Date(now.getFullYear(), now.getMonth() - totalOffsetFirst, 1);
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - totalOffsetLast, 1);
+    const firstMonthShort = firstMonth.toLocaleDateString('en-US', { month: 'short' });
+    const lastMonthShort = lastMonth.toLocaleDateString('en-US', { month: 'short' });
+    const firstYear = firstMonth.getFullYear();
+    const lastYear = lastMonth.getFullYear();
+    if (firstYear === lastYear) {
+      return `${firstMonthShort} – ${lastMonthShort} ${lastYear}`;
+    }
+    return `${firstMonthShort} ${firstYear} – ${lastMonthShort} ${lastYear}`;
+  }
+
+  // week (Monday of first week to Friday of last week)
+  const dayOfWeek = now.getDay();
+  const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const currentWeekMon = new Date(startOfToday.getTime() + diffToMon * oneDay);
+  const firstMon = new Date(currentWeekMon.getTime() - totalOffsetFirst * 7 * oneDay);
+  const lastMon = new Date(currentWeekMon.getTime() - totalOffsetLast * 7 * oneDay);
+  const lastFri = new Date(lastMon.getTime() + 4 * oneDay);
+  return `${formatDate(firstMon)} – ${formatDate(lastFri)}`;
+};
+
+

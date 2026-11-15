@@ -88,6 +88,7 @@ export const Login: React.FC = () => {
     resolver: zodResolver(studentLoginSchema),
     defaultValues: { lrn: '' },
   });
+  const lrnField = studentForm.register('lrn');
 
   const handleSuccessfulAuth = (res: any) => {
     const user = res.user;
@@ -397,9 +398,28 @@ export const Login: React.FC = () => {
                     id="lrn"
                     type="text"
                     inputMode="numeric"
+                    pattern="[0-9]*"
                     placeholder="Enter 12-digit LRN"
                     maxLength={12}
-                    {...studentForm.register('lrn')}
+                    {...lrnField}
+                    onKeyDown={(e) => {
+                      if (
+                        e.key.length === 1 &&
+                        !e.ctrlKey &&
+                        !e.metaKey &&
+                        !e.altKey &&
+                        !/^\d$/.test(e.key)
+                      ) {
+                        e.preventDefault();
+                      }
+                    }}
+                    onChange={(e) => {
+                      const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 12);
+                      if (e.target.value !== digitsOnly) {
+                        e.target.value = digitsOnly;
+                      }
+                      lrnField.onChange(e);
+                    }}
                     className={`w-full px-3.5 py-2.5 rounded-xl border bg-slate-50/50 dark:bg-neutral-900 text-slate-900 dark:text-white text-sm tracking-wide placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0052B7]/20 focus:border-[#0052B7] dark:focus:border-blue-500 transition-all duration-150 ${studentForm.formState.errors.lrn
                       ? 'border-red-500 dark:border-red-500'
                       : 'border-slate-200 dark:border-neutral-800'

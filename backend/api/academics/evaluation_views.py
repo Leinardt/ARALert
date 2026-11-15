@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import User, AuditLog
 from utilities.audit import log_audit_event
+from utilities.helpers import get_active_program_config
 
 logger = logging.getLogger(__name__)
 from apps.academics.models import (
@@ -59,16 +60,199 @@ from .serializers import (
 
 
 # ---------------------------------------------------------------------------
+# School Year & Program Configuration Helpers
+# ---------------------------------------------------------------------------
+
+def _extract_and_log_program_config_update(
+    request,
+    *,
+    prev_sy: str,
+    new_sy: str,
+    prev_sem: str,
+    new_sem: str,
+    prev_cfg: dict,
+    force_log: bool = False,
+):
+    """Validate optional composite weight / risk threshold inputs and write an audit entry."""
+    config_keys = (
+        'attendance_weight_pct',
+        'score_weight_pct',
+        'low_min_composite',
+        'moderate_min_composite',
+        'high_attendance_gate',
+    )
+    has_config_payload = any(k in request.data for k in config_keys)
+    if not has_config_payload and not force_log:
+        return
+
+    try:
+        att_pct = int(round(float(request.data.get('attendance_weight_pct', prev_cfg['attendance_weight_pct']))))
+        scr_pct = int(round(float(request.data.get('score_weight_pct', 100 - att_pct))))
+        low_min = int(round(float(request.data.get('low_min_composite', prev_cfg['low_min_composite']))))
+        mod_min = int(round(float(request.data.get('moderate_min_composite', prev_cfg['moderate_min_composite']))))
+        gate = int(round(float(request.data.get('high_attendance_gate', prev_cfg['high_attendance_gate']))))
+    except (TypeError, ValueError):
+        return
+
+    if not (0 <= att_pct <= 100 and att_pct + scr_pct == 100 and 0 <= mod_min < low_min <= 100 and 0 <= gate <= 100):
+        return
+
+    changes = []
+    if prev_sy != new_sy:
+        changes.append(f"SY: {prev_sy} -> {new_sy}")
+    if prev_sem != new_sem:
+        changes.append(f"Sem: {prev_sem} -> {new_sem}")
+    if prev_cfg['attendance_weight_pct'] != att_pct or prev_cfg['score_weight_pct'] != scr_pct:
+        changes.append(
+            f"Weights: {prev_cfg['attendance_weight_pct']}/{prev_cfg['score_weight_pct']} -> {att_pct}/{scr_pct}"
+        )
+    if (
+        prev_cfg['low_min_composite'] != low_min
+        or prev_cfg['moderate_min_composite'] != mod_min
+        or prev_cfg['high_attendance_gate'] != gate
+    ):
+        changes.append(
+            f"Thresholds: {prev_cfg['low_min_composite']}/{prev_cfg['moderate_min_composite']}/{prev_cfg['high_attendance_gate']} -> {low_min}/{mod_min}/{gate}"
+        )
+
+    change_summary = (
+        ' | '.join(changes)
+        if changes
+        else f"SY {new_sy} ({new_sem}) | Weights {att_pct}/{scr_pct} | Thresholds {low_min}/{mod_min}/{gate}"
+    )
+
+    log_audit_event(
+        'PROGRAM_CONFIGURATION_UPDATED',
+        user=request.user,
+        request=request,
+        details={
+            'target_name': change_summary,
+            'change_summary': change_summary,
+            'school_year': new_sy,
+            'current_semester': new_sem,
+            'attendance_weight_pct': att_pct,
+            'score_weight_pct': scr_pct,
+            'low_min_composite': low_min,
+            'moderate_min_composite': mod_min,
+            'high_attendance_gate': gate,
+            'previous': {
+                'school_year': prev_sy,
+                'current_semester': prev_sem,
+                'attendance_weight_pct': prev_cfg['attendance_weight_pct'],
+                'score_weight_pct': prev_cfg['score_weight_pct'],
+                'low_min_composite': prev_cfg['low_min_composite'],
+                'moderate_min_composite': prev_cfg['moderate_min_composite'],
+                'high_attendance_gate': prev_cfg['high_attendance_gate'],
+            },
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 # School Year Views
 # ---------------------------------------------------------------------------
 
 class SchoolYearListView(APIView):
-    """GET /api/academics/school-years/ — List all school years."""
+    """
+    GET /api/academics/school-years/ — List all school years.
+    POST /api/academics/school-years/ — Create or update/activate a school year (Admin/SuperAdmin).
+    """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         years = SchoolYear.objects.all().order_by('-created_at')
         return Response(SchoolYearSerializer(years, many=True).data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        if request.user.role not in ('admin', 'principal') and not request.user.is_superuser:
+            return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+
+        school_year_str = str(request.data.get('school_year') or '').strip()
+        if not school_year_str:
+            return Response({'error': 'school_year (e.g., 2026-2027) is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        set_active = bool(request.data.get('is_active', False))
+        current_semester = request.data.get('current_semester') or '1st'
+        if current_semester not in ('1st', '2nd', 'summer'):
+            current_semester = '1st'
+
+        start_date = request.data.get('start_date') or None
+        end_date = request.data.get('end_date') or None
+
+        prev_active_sy = SchoolYear.objects.filter(is_active=True).first()
+        prev_sy_str = prev_active_sy.school_year if prev_active_sy else school_year_str
+        prev_sem_str = getattr(prev_active_sy, 'current_semester', current_semester) if prev_active_sy else current_semester
+        prev_cfg = get_active_program_config()
+
+        sy, created = SchoolYear.objects.get_or_create(
+            school_year=school_year_str,
+            defaults={
+                'status': 'ACTIVE' if set_active else 'UPCOMING',
+                'is_active': set_active,
+                'current_semester': current_semester,
+                'start_date': start_date,
+                'end_date': end_date,
+            }
+        )
+
+        update_fields = []
+        if start_date is not None and sy.start_date != start_date:
+            sy.start_date = start_date
+            update_fields.append('start_date')
+        if end_date is not None and sy.end_date != end_date:
+            sy.end_date = end_date
+            update_fields.append('end_date')
+        if request.data.get('current_semester') and hasattr(sy, 'current_semester'):
+            sy.current_semester = current_semester
+            update_fields.append('current_semester')
+
+        if set_active:
+            SchoolYear.objects.filter(is_active=True).exclude(id=sy.id).update(is_active=False)
+            sy.is_active = True
+            sy.status = 'ACTIVE'
+            update_fields.extend(['is_active', 'status'])
+
+        if update_fields:
+            sy.save(update_fields=list(set(update_fields)))
+
+        new_sem_str = getattr(sy, 'current_semester', '1st')
+        _extract_and_log_program_config_update(
+            request,
+            prev_sy=prev_sy_str,
+            new_sy=sy.school_year,
+            prev_sem=prev_sem_str,
+            new_sem=new_sem_str,
+            prev_cfg=prev_cfg,
+            force_log=False,
+        )
+
+        log_audit_event(
+            'SCHOOL_YEAR_MANAGED',
+            user=request.user,
+            request=request,
+            details={
+                'target_name': f"SY {sy.school_year} ({new_sem_str})",
+                'school_year': sy.school_year,
+                'created': created,
+                'is_active': sy.is_active,
+                'current_semester': new_sem_str,
+            }
+        )
+
+        resp_data = SchoolYearSerializer(sy).data
+        prog_cfg = get_active_program_config()
+        resp_data.update({
+            'attendance_weight_pct': prog_cfg['attendance_weight_pct'],
+            'score_weight_pct': prog_cfg['score_weight_pct'],
+            'low_min_composite': prog_cfg['low_min_composite'],
+            'moderate_min_composite': prog_cfg['moderate_min_composite'],
+            'high_attendance_gate': prog_cfg['high_attendance_gate'],
+        })
+
+        return Response(
+            resp_data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        )
 
 
 class CurrentSchoolYearView(APIView):
@@ -126,6 +310,14 @@ class CurrentSchoolYearView(APIView):
             is_window_open = bool(last_window_log.details.get('is_open', True))
 
         data['is_assessment_window_open'] = is_window_open
+        prog_cfg = get_active_program_config()
+        data.update({
+            'attendance_weight_pct': prog_cfg['attendance_weight_pct'],
+            'score_weight_pct': prog_cfg['score_weight_pct'],
+            'low_min_composite': prog_cfg['low_min_composite'],
+            'moderate_min_composite': prog_cfg['moderate_min_composite'],
+            'high_attendance_gate': prog_cfg['high_attendance_gate'],
+        })
         return Response(data, status=status.HTTP_200_OK)
 
     def post(self, request):
@@ -137,28 +329,61 @@ class CurrentSchoolYearView(APIView):
             return Response({'error': 'Invalid semester. Allowed: 1st, 2nd, summer.'}, status=status.HTTP_400_BAD_REQUEST)
 
         sy = SchoolYear.objects.filter(is_active=True).first()
+        sy_str = sy.school_year if sy else '2026-2027'
+        prev_sem = getattr(sy, 'current_semester', None) or semester
+        prev_cfg = get_active_program_config()
+
         if sy and hasattr(sy, 'current_semester'):
             sy.current_semester = semester
             sy.save(update_fields=['current_semester'])
 
-        milestone = 'MOSY' if semester == '1st' else ('EOSY' if semester == '2nd' else 'ARAL Summer Assessment')
-        
-        log_audit_event(
-            'SEMESTER_TRANSITION_SET',
-            user=request.user,
-            request=request,
-            details={
-                'school_year': sy.school_year if sy else '2026-2027',
-                'semester': semester,
-                'milestone': milestone,
-            }
+        _extract_and_log_program_config_update(
+            request,
+            prev_sy=sy_str,
+            new_sy=sy_str,
+            prev_sem=prev_sem,
+            new_sem=semester,
+            prev_cfg=prev_cfg,
+            force_log=False,
         )
 
+        milestone = 'MOSY' if semester == '1st' else ('EOSY' if semester == '2nd' else 'ARAL Summer Assessment')
+
+        # Log SEMESTER_TRANSITION_SET when semester changes or when triggered without a config payload
+        has_config_payload = any(
+            k in request.data
+            for k in (
+                'attendance_weight_pct',
+                'score_weight_pct',
+                'low_min_composite',
+                'moderate_min_composite',
+                'high_attendance_gate',
+            )
+        )
+        if prev_sem != semester or not has_config_payload:
+            log_audit_event(
+                'SEMESTER_TRANSITION_SET',
+                user=request.user,
+                request=request,
+                details={
+                    'target_name': f"{sy_str} ({milestone})",
+                    'school_year': sy_str,
+                    'semester': semester,
+                    'milestone': milestone,
+                }
+            )
+
+        prog_cfg = get_active_program_config()
         return Response({
             'status': 'SUCCESS',
             'school_year': sy.school_year if sy else '2026-2027',
             'current_semester': semester,
             'active_milestone': milestone,
+            'attendance_weight_pct': prog_cfg['attendance_weight_pct'],
+            'score_weight_pct': prog_cfg['score_weight_pct'],
+            'low_min_composite': prog_cfg['low_min_composite'],
+            'moderate_min_composite': prog_cfg['moderate_min_composite'],
+            'high_attendance_gate': prog_cfg['high_attendance_gate'],
             'message': f'Active semester updated to {semester} semester ({milestone}).'
         }, status=status.HTTP_200_OK)
 
@@ -375,7 +600,7 @@ class AssignTutorView(APIView):
         period = serializer.validated_data.get('period', 'MOSY')
         notes = serializer.validated_data.get('notes', '')
 
-        student = get_object_or_404(User, id=student_id, role='student')
+        student = get_object_or_404(User, id=student_id, role='student', is_active=True)
         tutor = get_object_or_404(User, id=tutor_id, role='tutor') if tutor_id else None
 
         try:
@@ -563,7 +788,7 @@ class SchoolYearArchiveDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         sy = get_object_or_404(SchoolYear, school_year=school_year)
-        enrollments = StudentEnrollment.objects.filter(school_year=sy).select_related(
+        enrollments = StudentEnrollment.objects.filter(school_year=sy, student__is_active=True).select_related(
             'student', 'assigned_tutor', 'school_year'
         )
 
@@ -609,7 +834,7 @@ class StudentCompleteHistoryView(APIView):
                 {'error': 'You do not have permission to view another student\'s history.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        student = get_object_or_404(User, id=student_id, role='student')
+        student = get_object_or_404(User, id=student_id, role='student', is_active=True)
 
         # Enrollments across all school years
         enrollments = StudentEnrollment.objects.filter(

@@ -1,3 +1,5 @@
+import { getCompositeWeights } from '../config/academicConfig';
+
 export interface PerformanceTrendPoint {
   label: string;
   value: number;
@@ -90,8 +92,9 @@ export const buildPerformanceTrend = (
       const attendanceValue = stats.attendanceCount > 0 ? stats.attendanceTotal / stats.attendanceCount : null;
       if (scoreValue === null && attendanceValue === null) return null;
 
+      const weights = getCompositeWeights();
       const combinedValue = scoreValue !== null && attendanceValue !== null
-        ? scoreValue * 0.60 + attendanceValue * 0.40
+        ? scoreValue * weights.score + attendanceValue * weights.attendance
         : scoreValue !== null
         ? scoreValue
         : attendanceValue ?? 0;

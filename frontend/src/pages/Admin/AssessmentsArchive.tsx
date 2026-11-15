@@ -8,10 +8,16 @@ import { userService } from '../../services/userService';
 import { SchoolYear, User, Grade, Attendance } from '../../types';
 import { TableSkeleton } from '../../components/SkeletonLoader';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
+import { useSlidingIndicator } from '../../components/SlidingTabs';
 import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
 import { useAuth } from '../../hooks/useAuth';
 import { isAssessmentWindowOpen } from '../../utils/sessionDescriptionHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
+import {
+  COMPOSITE_WEIGHTS,
+  PASSING_SCORE_RATIO,
+  isNotTakenGrade,
+} from '../../config/academicConfig';
 
 /* ─── Helper: Normalize ARAL Level ─────────────────────────────────── */
 const normalizeAralLevel = (val?: string | null): 'BASIC' | 'PLUS' | 'SUMMER' => {
@@ -484,32 +490,36 @@ const SchoolYearDropdown: React.FC<{
         <div
           className={`absolute ${
             menuAlign === 'right' ? 'right-0' : 'left-0'
-          } top-full z-50 mt-1 max-h-60 w-44 sm:w-48 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl`}
-          role="listbox"
-          aria-label="Select School Year"
+          } top-full z-50 mt-1 w-44 sm:w-48 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-xl overflow-hidden`}
         >
-          {options.map((opt) => {
-            const isSel = opt.value === value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                role="option"
-                aria-selected={isSel}
-                onClick={() => {
-                  onChange(opt.value);
-                  setIsOpen(false);
-                }}
-                className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase transition cursor-pointer ${
-                  isSel
-                    ? 'bg-[var(--brand)] text-white'
-                    : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-                }`}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
+          <div
+            className="max-h-60 overflow-y-auto dropdown-scroll p-1.5"
+            role="listbox"
+            aria-label="Select School Year"
+          >
+            {options.map((opt) => {
+              const isSel = opt.value === value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="option"
+                  aria-selected={isSel}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setIsOpen(false);
+                  }}
+                  className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase transition cursor-pointer ${
+                    isSel
+                      ? 'bg-[var(--brand)] text-white'
+                      : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -524,6 +534,9 @@ export const AssessmentsArchive: React.FC = () => {
   const [currentSchoolYear, setCurrentSchoolYear] = useState<SchoolYear | null>(null);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('2026-2027');
   const [activeTab, setActiveTab] = useState<'mosy' | 'eosy' | 'summer'>('mosy');
+  const archivePhaseTabs = ['mosy', 'eosy', 'summer'] as const;
+  const { containerRef: archivePhaseTabsRef, setItemRef: setArchivePhaseTabRef, pillStyle: archivePhasePillStyle } =
+    useSlidingIndicator(archivePhaseTabs.indexOf(activeTab), [selectedSchoolYear, currentSchoolYear?.current_semester]);
 
   const schoolYearOptions = useMemo<SchoolYearOption[]>(() => {
     if (archivedYears.length === 0) {
@@ -804,29 +817,31 @@ export const AssessmentsArchive: React.FC = () => {
           attendanceRate = Math.round((presentCount / sAtt.length) * 1000) / 10;
         }
 
-        // Compute Average Score
+        // Compute Average Score (exclude Not Taken records)
+        const scoredGrades = sGrades.filter((g) => !isNotTakenGrade(g));
         let avgScore = 100.0;
-        if (sGrades.length > 0) {
-          const totalPct = sGrades.reduce((acc, g) => {
+        if (scoredGrades.length > 0) {
+          const totalPct = scoredGrades.reduce((acc, g) => {
             const ts = Number(g.total_score) || 100;
             const sc = Number(g.score) || 0;
             return acc + (sc / ts) * 100;
           }, 0);
-          avgScore = Math.round((totalPct / sGrades.length) * 10) / 10;
+          avgScore = Math.round((totalPct / scoredGrades.length) * 10) / 10;
         }
 
         // Compute Composite Score (40% Attendance + 60% Academic Performance)
-        const compositeScore = Math.round(((attendanceRate * 0.4) + (avgScore * 0.6)) * 10) / 10;
+        const compositeScore = Math.round(((attendanceRate * COMPOSITE_WEIGHTS.attendance) + (avgScore * COMPOSITE_WEIGHTS.score)) * 10) / 10;
 
         // Determine Status & Assessment Score
-        // Check if student has explicit evaluation record
-        const evalGrade = sGrades.find((g) => {
+        // Check if student has explicit evaluation record (prefer taken record over Not Taken)
+        const matchingEvalGrades = sGrades.filter((g) => {
           const subj = (g.subject || '').toUpperCase();
           const rem = (g.remarks || '').toUpperCase();
           if (activeTab === 'mosy') return subj.includes('MOSY') || rem.includes('MOSY');
           if (activeTab === 'eosy') return subj.includes('EOSY') || rem.includes('EOSY');
           return subj.includes('SUMMER') || rem.includes('SUMMER');
         });
+        const evalGrade = matchingEvalGrades.find((g) => !isNotTakenGrade(g)) ?? matchingEvalGrades[0];
 
         let assessmentScoreStr = '—';
         let status: 'MOVED_UP' | 'GRADUATED' | 'RETAINED' | 'PENDING' = 'PENDING';
@@ -835,12 +850,12 @@ export const AssessmentsArchive: React.FC = () => {
         const tutorLevel = (tutor.tutor_type || tutor.aral_level || '').toLowerCase();
         const isPlusCohort = rawLevel === 'plus' || rawLevel === 'graduated' || tutorLevel === 'plus';
 
-        if (evalGrade && evalGrade.remarks?.toLowerCase() !== 'not taken') {
+        if (evalGrade && !isNotTakenGrade(evalGrade)) {
           const ts = Number(evalGrade.total_score) || 40;
           const sc = Number(evalGrade.score) || 0;
           const pct = Math.round((sc / ts) * 1000) / 10;
           assessmentScoreStr = `${pct.toFixed(1)}%`;
-          const isPassed = ts === 40 ? sc >= 28 : (sc / ts) >= 0.7;
+          const isPassed = (sc / ts) >= PASSING_SCORE_RATIO;
 
           if (activeTab === 'mosy') {
             // In MOSY (Q1 & Q2): Plus students who pass graduate!
@@ -876,7 +891,7 @@ export const AssessmentsArchive: React.FC = () => {
         }
 
         // Only archive students who actually have an evaluation grade or completed record in this concluded period
-        const hasEvaluatedRecord = Boolean(evalGrade && evalGrade.remarks?.toLowerCase() !== 'not taken') ||
+        const hasEvaluatedRecord = Boolean(evalGrade && !isNotTakenGrade(evalGrade)) ||
           (rawLevel === 'graduated' && (activeTab === 'eosy' || activeTab === 'summer'));
 
         if (!hasEvaluatedRecord) {
@@ -1027,21 +1042,41 @@ export const AssessmentsArchive: React.FC = () => {
           </div>
 
           {/* Phase Switcher Tabs — Full width on mobile, distributed flex-1 */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 w-full sm:w-auto">
+          <div
+            ref={archivePhaseTabsRef}
+            role="tablist"
+            aria-label="Archived assessment phase"
+            className="relative flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 w-full sm:w-auto select-none overflow-hidden"
+          >
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute top-1 bottom-1 left-0 rounded-lg bg-white dark:bg-zinc-800 shadow-xs will-change-transform motion-reduce:transition-none ${
+                archivePhasePillStyle.animate
+                  ? 'transition-[transform,width,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]'
+                  : ''
+              } ${archivePhasePillStyle.ready && concludedTabsForSelectedYear.includes(activeTab) ? 'opacity-100' : 'opacity-0'}`}
+              style={{
+                width: `${archivePhasePillStyle.width}px`,
+                transform: `translate3d(${archivePhasePillStyle.left}px, 0, 0)`,
+              }}
+            />
             <button
+              ref={setArchivePhaseTabRef(0)}
               type="button"
+              role="tab"
+              aria-selected={activeTab === 'mosy'}
               onClick={() => setActiveTab('mosy')}
               disabled={!concludedTabsForSelectedYear.includes('mosy')}
-              className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
+              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 !concludedTabsForSelectedYear.includes('mosy')
                   ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-zinc-600'
                   : activeTab === 'mosy'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs cursor-pointer'
+                  ? 'text-slate-900 dark:text-white cursor-pointer'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white cursor-pointer'
               }`}
-              title={!concludedTabsForSelectedYear.includes('mosy') ? '1st Semester not yet concluded' : 'Concluded 1st Semester'}
+              title={!concludedTabsForSelectedYear.includes('mosy') ? '1st Semester (MOSY • Middle of School Year • Q1 & Q2) not yet concluded' : 'Concluded 1st Semester (MOSY • Middle of School Year • Q1 & Q2)'}
             >
-              <span>MOSY<span className="hidden sm:inline"> (Q1 & Q2)</span></span>
+              <span>MOSY<span className="hidden xl:inline"> &bull; Middle of School Year</span><span className="hidden sm:inline"> (Q1 & Q2)</span></span>
               {currentSchoolYear?.current_semester === '1st' && (
                 <span className="text-[9px] sm:text-[10px] font-normal text-slate-400 dark:text-zinc-500">
                   <span className="sm:hidden">(Active)</span>
@@ -1051,19 +1086,22 @@ export const AssessmentsArchive: React.FC = () => {
             </button>
 
             <button
+              ref={setArchivePhaseTabRef(1)}
               type="button"
+              role="tab"
+              aria-selected={activeTab === 'eosy'}
               onClick={() => setActiveTab('eosy')}
               disabled={!concludedTabsForSelectedYear.includes('eosy')}
-              className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
+              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 !concludedTabsForSelectedYear.includes('eosy')
                   ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-zinc-600'
                   : activeTab === 'eosy'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs cursor-pointer'
+                  ? 'text-slate-900 dark:text-white cursor-pointer'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white cursor-pointer'
               }`}
-              title={!concludedTabsForSelectedYear.includes('eosy') ? '2nd Semester not yet concluded' : 'Concluded 2nd Semester'}
+              title={!concludedTabsForSelectedYear.includes('eosy') ? '2nd Semester (EOSY • End of School Year • Q3 & Q4) not yet concluded' : 'Concluded 2nd Semester (EOSY • End of School Year • Q3 & Q4)'}
             >
-              <span>EOSY<span className="hidden sm:inline"> (Q3 & Q4)</span></span>
+              <span>EOSY<span className="hidden xl:inline"> &bull; End of School Year</span><span className="hidden sm:inline"> (Q3 & Q4)</span></span>
               {currentSchoolYear?.current_semester === '2nd' && (
                 <span className="text-[9px] sm:text-[10px] font-normal text-slate-400 dark:text-zinc-500">
                   <span className="sm:hidden">(Active)</span>
@@ -1073,14 +1111,17 @@ export const AssessmentsArchive: React.FC = () => {
             </button>
 
             <button
+              ref={setArchivePhaseTabRef(2)}
               type="button"
+              role="tab"
+              aria-selected={activeTab === 'summer'}
               onClick={() => setActiveTab('summer')}
               disabled={!concludedTabsForSelectedYear.includes('summer')}
-              className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
+              className={`relative z-10 px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors duration-200 flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 !concludedTabsForSelectedYear.includes('summer')
                   ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-zinc-600'
                   : activeTab === 'summer'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs cursor-pointer'
+                  ? 'text-slate-900 dark:text-white cursor-pointer'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white cursor-pointer'
               }`}
               title={!concludedTabsForSelectedYear.includes('summer') ? 'Summer period not concluded' : 'Concluded Summer'}
@@ -1111,7 +1152,7 @@ export const AssessmentsArchive: React.FC = () => {
           <TableSkeleton rows={8} cols={7} />
         </div>
       ) : (
-        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm overflow-hidden">
+        <div key={activeTab} className="tab-panel-enter rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm overflow-hidden">
           {/* Table Header / Search Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 sm:px-5 py-3 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div className="space-y-1">

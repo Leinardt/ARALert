@@ -20,6 +20,7 @@ import {
   groupAttendanceBySession,
 } from '../utils/sessionDescriptionHelpers';
 import { trashbinService } from '../utils/trashbinService';
+import { SCHOOL_METADATA_DEFAULTS, computeWeekOfMonth } from '../config/academicConfig';
 
 export interface ExportAttendanceModalProps {
   isOpen: boolean;
@@ -369,10 +370,10 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
   selectedAralLevel = '',
   selectedSubject = '',
 }) => {
-  const [division, setDivision] = useState('DIVISION OF MASBATE');
-  const [district, setDistrict] = useState('PALANAS NORTH DISTRICT');
-  const [schoolName, setSchoolName] = useState('PALANAS NATIONAL AGRICULTURE HIGH SCHOOL');
-  const [schoolAddress, setSchoolAddress] = useState('Sta. Cruz, Palanas, Masbate');
+  const [division, setDivision] = useState<string>(SCHOOL_METADATA_DEFAULTS.division);
+  const [district, setDistrict] = useState<string>(SCHOOL_METADATA_DEFAULTS.district);
+  const [schoolName, setSchoolName] = useState<string>(SCHOOL_METADATA_DEFAULTS.schoolName);
+  const [schoolAddress, setSchoolAddress] = useState<string>(SCHOOL_METADATA_DEFAULTS.schoolAddress);
 
   const [subjectTitle, setSubjectTitle] = useState(() => {
     if (selectedSubject) {
@@ -504,16 +505,6 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
     }
     return acc;
   }, {} as Record<string, number>);
-
-  const computeWeekOfMonth = (dateObj: Date): number => {
-    // School weeks run Mon-Fri. Use Wednesday (school midweek) to determine which month this school week primarily belongs to
-    const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
-    const day = d.getDay();
-    const wedDiff = day === 0 ? 3 : (3 - day);
-    const wednesday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + wedDiff);
-    const firstDay = new Date(wednesday.getFullYear(), wednesday.getMonth(), 1).getDay();
-    return Math.ceil((wednesday.getDate() + (firstDay === 0 ? 6 : firstDay - 1)) / 7);
-  };
 
   useEffect(() => {
     if (!isOpen) return;
