@@ -238,6 +238,9 @@ const TicketsNavIcon: React.FC<{ active?: boolean; theme?: 'light' | 'dark'; siz
   theme = 'light',
   size = 18,
 }) => {
+  const ticketOutlinePath =
+    'M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z';
+
   if (!active) {
     return (
       <svg
@@ -252,11 +255,10 @@ const TicketsNavIcon: React.FC<{ active?: boolean; theme?: 'light' | 'dark'; siz
         className="sidebar-icon"
         style={{ width: size, height: size, flexShrink: 0 }}
       >
-        <rect x="3" y="4" width="18" height="16" rx="2" />
-        <path d="M7.5 10l1.5 1.5L11.5 9" />
-        <line x1="13.5" y1="10" x2="17.5" y2="10" />
-        <path d="M7.5 15l1.5 1.5L11.5 14" />
-        <line x1="13.5" y1="15" x2="17.5" y2="15" />
+        <path d={ticketOutlinePath} />
+        <line x1="14.5" y1="8" x2="14.5" y2="9" />
+        <line x1="14.5" y1="11.5" x2="14.5" y2="12.5" />
+        <line x1="14.5" y1="15" x2="14.5" y2="16" />
       </svg>
     );
   }
@@ -273,11 +275,16 @@ const TicketsNavIcon: React.FC<{ active?: boolean; theme?: 'light' | 'dark'; siz
       className="sidebar-icon active"
       style={{ width: size, height: size, flexShrink: 0 }}
     >
-      <rect x="3" y="4" width="18" height="16" rx="2" fill={fillColor} stroke={fillColor} strokeWidth="0.8" />
-      <path d="M7.5 10l1.5 1.5L11.5 9" fill="none" stroke={detailColor} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <line x1="13.5" y1="10" x2="17.5" y2="10" stroke={detailColor} strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M7.5 15l1.5 1.5L11.5 14" fill="none" stroke={detailColor} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <line x1="13.5" y1="15" x2="17.5" y2="15" stroke={detailColor} strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d={ticketOutlinePath}
+        fill={fillColor}
+        stroke={fillColor}
+        strokeWidth="0.8"
+        strokeLinejoin="round"
+      />
+      <line x1="14.5" y1="8" x2="14.5" y2="9" stroke={detailColor} strokeWidth="1.9" strokeLinecap="round" />
+      <line x1="14.5" y1="11.5" x2="14.5" y2="12.5" stroke={detailColor} strokeWidth="1.9" strokeLinecap="round" />
+      <line x1="14.5" y1="15" x2="14.5" y2="16" stroke={detailColor} strokeWidth="1.9" strokeLinecap="round" />
     </svg>
   );
 };

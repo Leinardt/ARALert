@@ -1,15 +1,14 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
-import { getCompositeWeights, getRiskThresholds } from '../../config/academicConfig';
+import { getCompositeWeights, getRiskThresholds, generateSchoolYearWeeks } from '../../config/academicConfig';
 import { formatChartPeriodRange } from '../../utils/studentFormatters';
-import type { StudentAcademicProfile, Grade, Attendance, StudentEditRequest, User as UserType } from '../../types';
+import type { StudentAcademicProfile, Grade, Attendance, StudentEditRequest, SchoolYear, User as UserType } from '../../types';
 import {
   ArrowLeft,
   GraduationCap,
-  Calendar,
   AlertTriangle,
   Plus,
   Trash2,
@@ -44,6 +43,7 @@ import { ExportStudentQrModal } from '../../components/ExportStudentQrModal';
 import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { SlidingTabBar, SlidingPeriodToggle } from '../../components/SlidingTabs';
+import { HistoryWeekDropdown } from '../../components/HistoryWeekDropdown';
 import {
   TrendChart,
   RiskTrendChart,
@@ -910,17 +910,24 @@ export const TutorStudentProfile: React.FC = () => {
 
             {/* ── Risk Level Trend Chart ── */}
             <section className="rounded-md border border-gray-200 bg-white p-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#111111] shadow-sm" aria-labelledby="student-risk-trend-heading">
-              <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
-                <div>
-                  <h3 id="student-risk-trend-heading" className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-gray-900 dark:text-slate-100">
-                    RISK LEVEL TREND CHART
-                  </h3>
-                  <p className="mt-0.5 text-[11px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">
+              <div className="flex flex-col gap-2 sm:gap-3 border-b border-gray-100 pb-3 sm:pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+                <div className="min-w-0 sm:flex-1">
+                  <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0">
+                    <h3 id="student-risk-trend-heading" className="text-[11px] sm:text-sm font-extrabold uppercase tracking-wider text-gray-900 dark:text-slate-100 truncate">
+                      RISK LEVEL TREND CHART
+                    </h3>
+                    <div className="flex sm:hidden items-center gap-1.5 shrink-0 whitespace-nowrap text-[9px] font-semibold text-gray-600 dark:text-slate-300">
+                      <span className="inline-flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: '#EF4444' }} />High</span>
+                      <span className="inline-flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: '#F59E0B' }} />Mod</span>
+                      <span className="inline-flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: '#22C55E' }} />Low</span>
+                    </div>
+                  </div>
+                  <p className="mt-0.5 text-[10px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider truncate">
                     {profile.student.name}&apos;s Risk Progression
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+                <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-3 w-full sm:w-auto shrink-0 flex-nowrap">
+                  <div className="hidden sm:flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
                     <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#EF4444' }} />High Risk</span>
                     <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#F59E0B' }} />Moderate Risk</span>
                     <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#22C55E' }} />Low Risk</span>
@@ -934,21 +941,21 @@ export const TutorStudentProfile: React.FC = () => {
                     }}
                     ariaLabel="Risk trend period"
                     className="bg-gray-100 dark:bg-[#1A1A1A]"
-                    buttonClassName="px-3 py-1.5 text-[10px] sm:text-[10.5px]"
+                    buttonClassName="px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10.5px]"
                   />
                   {/* Period navigation arrows */}
-                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Scroll between previous and present risk records">
+                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A] shrink-0" role="group" aria-label="Scroll between previous and present risk records">
                     <button
                       type="button"
                       onClick={() => setRiskTrendPage((p) => p + 1)}
                       disabled={riskTrendPage >= 10}
                       aria-label="Previous records"
                       title={riskTrendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
-                      className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                      className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
                     >
-                      <ChevronLeft size={14} className="stroke-[2.5]" />
+                      <ChevronLeft size={13} className="stroke-[2.5] sm:w-[14px] sm:h-[14px]" />
                     </button>
-                    <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                    <span className="inline-flex items-center justify-center min-w-[78px] sm:w-[114px] px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
                       {formatChartPeriodRange(riskTrendFilter, riskTrendPage)}
                     </span>
                     <button
@@ -957,9 +964,9 @@ export const TutorStudentProfile: React.FC = () => {
                       disabled={riskTrendPage === 0}
                       aria-label="Next records"
                       title={riskTrendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
-                      className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                      className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
                     >
-                      <ChevronRight size={14} className="stroke-[2.5]" />
+                      <ChevronRight size={13} className="stroke-[2.5] sm:w-[14px] sm:h-[14px]" />
                     </button>
                   </div>
                 </div>
@@ -1061,17 +1068,22 @@ export const TutorStudentProfile: React.FC = () => {
 
             {/* ── Attendance Rate Trend Chart ── */}
             <section className="w-full rounded-md border border-gray-200 bg-white p-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#111111] shadow-sm" aria-labelledby="student-attendance-trend-heading">
-              <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
-                <div>
-                  <h3 id="student-attendance-trend-heading" className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-gray-900 dark:text-slate-100">
-                    ATTENDANCE RATE TREND CHART
-                  </h3>
-                  <p className="mt-0.5 text-[11px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">
+              <div className="flex flex-col gap-2 sm:gap-3 border-b border-gray-100 pb-3 sm:pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+                <div className="min-w-0 sm:flex-1">
+                  <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0">
+                    <h3 id="student-attendance-trend-heading" className="text-[11px] sm:text-sm font-extrabold uppercase tracking-wider text-gray-900 dark:text-slate-100 truncate">
+                      ATTENDANCE RATE TREND CHART
+                    </h3>
+                    <div className="flex sm:hidden items-center gap-1.5 shrink-0 whitespace-nowrap text-[9px] font-semibold text-gray-600 dark:text-slate-300">
+                      <span className="inline-flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-[#0052B7] shrink-0" />Attendance Rate</span>
+                    </div>
+                  </div>
+                  <p className="mt-0.5 text-[10px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider truncate">
                     {profile.student.name}&apos;s Attendance Progression
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+                <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-3 w-full sm:w-auto shrink-0 flex-nowrap">
+                  <div className="hidden sm:flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
                     <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Attendance Rate</span>
                   </div>
                   <SlidingPeriodToggle
@@ -1083,21 +1095,21 @@ export const TutorStudentProfile: React.FC = () => {
                     }}
                     ariaLabel="Attendance trend period"
                     className="bg-gray-100 dark:bg-[#1A1A1A]"
-                    buttonClassName="px-3 py-1.5 text-[10px] sm:text-[10.5px]"
+                    buttonClassName="px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10.5px]"
                   />
                   {/* Period navigation arrows */}
-                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Scroll between previous and present attendance records">
+                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A] shrink-0" role="group" aria-label="Scroll between previous and present attendance records">
                     <button
                       type="button"
                       onClick={() => setAttendanceTrendPage((p) => p + 1)}
                       disabled={attendanceTrendPage >= 10}
                       aria-label="Previous records"
                       title={attendanceTrendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
-                      className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                      className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
                     >
-                      <ChevronLeft size={14} className="stroke-[2.5]" />
+                      <ChevronLeft size={13} className="stroke-[2.5] sm:w-[14px] sm:h-[14px]" />
                     </button>
-                    <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                    <span className="inline-flex items-center justify-center min-w-[78px] sm:w-[114px] px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
                       {formatChartPeriodRange(attendanceTrendFilter, attendanceTrendPage)}
                     </span>
                     <button
@@ -1106,9 +1118,9 @@ export const TutorStudentProfile: React.FC = () => {
                       disabled={attendanceTrendPage === 0}
                       aria-label="Next records"
                       title={attendanceTrendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
-                      className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                      className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
                     >
-                      <ChevronRight size={14} className="stroke-[2.5]" />
+                      <ChevronRight size={13} className="stroke-[2.5] sm:w-[14px] sm:h-[14px]" />
                     </button>
                   </div>
                 </div>
@@ -1183,17 +1195,22 @@ export const TutorStudentProfile: React.FC = () => {
 
             {/* ── Score Trend Chart ── */}
             <section className="w-full rounded-md border border-gray-200 bg-white p-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#111111] shadow-sm" aria-labelledby="student-score-trend-heading">
-              <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
-                <div>
-                  <h3 id="student-score-trend-heading" className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-gray-900 dark:text-slate-100">
-                    SCORE TREND CHART
-                  </h3>
-                  <p className="mt-0.5 text-[11px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">
+              <div className="flex flex-col gap-2 sm:gap-3 border-b border-gray-100 pb-3 sm:pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+                <div className="min-w-0 sm:flex-1">
+                  <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0">
+                    <h3 id="student-score-trend-heading" className="text-[11px] sm:text-sm font-extrabold uppercase tracking-wider text-gray-900 dark:text-slate-100 truncate">
+                      SCORE TREND CHART
+                    </h3>
+                    <div className="flex sm:hidden items-center gap-1.5 shrink-0 whitespace-nowrap text-[9px] font-semibold text-gray-600 dark:text-slate-300">
+                      <span className="inline-flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-[#0052B7] shrink-0" />Average Score Rate</span>
+                    </div>
+                  </div>
+                  <p className="mt-0.5 text-[10px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider truncate">
                     {profile.student.name}&apos;s Score Progression
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+                <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-3 w-full sm:w-auto shrink-0 flex-nowrap">
+                  <div className="hidden sm:flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
                     <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Average Score Rate</span>
                   </div>
                   <SlidingPeriodToggle
@@ -1205,21 +1222,21 @@ export const TutorStudentProfile: React.FC = () => {
                     }}
                     ariaLabel="Score trend period"
                     className="bg-gray-100 dark:bg-[#1A1A1A]"
-                    buttonClassName="px-3 py-1.5 text-[10px] sm:text-[10.5px]"
+                    buttonClassName="px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10.5px]"
                   />
                   {/* Period navigation arrows */}
-                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Scroll between previous and present score records">
+                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A] shrink-0" role="group" aria-label="Scroll between previous and present score records">
                     <button
                       type="button"
                       onClick={() => setScoreTrendPage((p) => p + 1)}
                       disabled={scoreTrendPage >= 10}
                       aria-label="Previous records"
                       title={scoreTrendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
-                      className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                      className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
                     >
-                      <ChevronLeft size={14} className="stroke-[2.5]" />
+                      <ChevronLeft size={13} className="stroke-[2.5] sm:w-[14px] sm:h-[14px]" />
                     </button>
-                    <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                    <span className="inline-flex items-center justify-center min-w-[78px] sm:w-[114px] px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
                       {formatChartPeriodRange(scoreTrendFilter, scoreTrendPage)}
                     </span>
                     <button
@@ -1228,9 +1245,9 @@ export const TutorStudentProfile: React.FC = () => {
                       disabled={scoreTrendPage === 0}
                       aria-label="Next records"
                       title={scoreTrendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
-                      className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                      className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
                     >
-                      <ChevronRight size={14} className="stroke-[2.5]" />
+                      <ChevronRight size={13} className="stroke-[2.5] sm:w-[14px] sm:h-[14px]" />
                     </button>
                   </div>
                 </div>
@@ -1817,167 +1834,6 @@ export const TutorStudentProfile: React.FC = () => {
   );
 };
 
-
-/* ─── Sub-component: Custom Calendar Dropdown ───────────────── */
-const formatDateKey = (year: number, month: number, day: number) => {
-  const m = String(month + 1).padStart(2, '0');
-  const d = String(day).padStart(2, '0');
-  return `${year}-${m}-${d}`;
-};
-
-const CustomCalendarDropdown: React.FC<{
-  selectedDate: string | null;
-  onSelectDate: (dateStr: string) => void;
-  onClear: () => void;
-  onClose: () => void;
-  loggedDates: Set<string>;
-  className?: string;
-  style?: React.CSSProperties;
-}> = ({ selectedDate, onSelectDate, onClear, onClose, loggedDates, className, style }) => {
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const [viewDate, setViewDate] = useState(() => {
-    if (selectedDate) {
-      const d = new Date(selectedDate + 'T00:00:00');
-      if (!isNaN(d.getTime())) return d;
-    }
-    return new Date();
-  });
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
-
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
-
-  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
-  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
-
-  const firstDayOfWeek = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const monthName = viewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-
-  const calendarCells = [];
-  for (let i = 0; i < firstDayOfWeek; i++) {
-    calendarCells.push(null);
-  }
-  for (let d = 1; d <= daysInMonth; d++) {
-    calendarCells.push(d);
-  }
-
-  const todayStr = new Date().toISOString().slice(0, 10);
-
-  return (
-    <div
-      ref={dropdownRef}
-      className={`${className || 'absolute right-0 top-full mt-2'} z-[60] w-72 rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-xl font-sans select-none text-slate-800 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-150`}
-      style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif", ...style }}
-    >
-      {/* Month & Navigation in Poppins */}
-      <div className="flex items-center justify-between pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-        <button
-          type="button"
-          onClick={prevMonth}
-          className="rounded-md p-1.5 hover:bg-gray-100 dark:hover:bg-[#1A1A1A] text-slate-600 dark:text-slate-400 transition cursor-pointer"
-          aria-label="Previous Month"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <span className="font-bold text-xs text-slate-900 dark:text-white tracking-wide">{monthName}</span>
-        <button
-          type="button"
-          onClick={nextMonth}
-          className="rounded-md p-1.5 hover:bg-gray-100 dark:hover:bg-[#1A1A1A] text-slate-600 dark:text-slate-400 transition cursor-pointer"
-          aria-label="Next Month"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Weekdays in Poppins */}
-      <div className="grid grid-cols-7 gap-1 text-center font-bold text-slate-400 py-2 text-[10px] uppercase tracking-wider">
-        <span>Su</span>
-        <span>Mo</span>
-        <span>Tu</span>
-        <span>We</span>
-        <span>Th</span>
-        <span>Fr</span>
-        <span>Sa</span>
-      </div>
-
-      {/* Day Numbers in Poppins */}
-      <div className="grid grid-cols-7 gap-1">
-        {calendarCells.map((dayNum, idx) => {
-          if (dayNum === null) {
-            return <div key={`empty-${idx}`} className="h-7 w-7" />;
-          }
-
-          const cellDateKey = formatDateKey(year, month, dayNum);
-          const isSelected = selectedDate === cellDateKey;
-          const isToday = todayStr === cellDateKey;
-          const hasLogs = loggedDates.has(cellDateKey);
-
-          return (
-            <button
-              key={cellDateKey}
-              type="button"
-              onClick={() => {
-                onSelectDate(cellDateKey);
-                onClose();
-              }}
-              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold transition-all cursor-pointer ${isSelected
-                ? 'bg-[var(--brand)] text-white font-bold'
-                : isToday
-                  ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
-                  : hasLogs
-                    ? 'bg-slate-100 dark:bg-[#1A1A1A] text-slate-800 dark:text-slate-200 font-semibold hover:bg-slate-200 dark:hover:bg-[#222222]'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#1A1A1A]'
-                }`}
-            >
-              <span>{dayNum}</span>
-              {hasLogs && !isSelected && (
-                <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-[var(--brand)]" />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Footer shortcut buttons */}
-      <div className="mt-3 flex items-center justify-between pt-2 border-t border-gray-100 dark:border-[#1A1A1A] text-[11px] font-semibold">
-        <button
-          type="button"
-          onClick={() => {
-            onSelectDate(todayStr);
-            onClose();
-          }}
-          className="text-[var(--brand)] hover:underline cursor-pointer"
-        >
-          Today
-        </button>
-        {selectedDate && (
-          <button
-            type="button"
-            onClick={() => {
-              onClear();
-              onClose();
-            }}
-            className="text-slate-400 hover:text-red-500 transition cursor-pointer"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-    </div>
-  );
-};
-
 /* ─── Sub-component: Score History Table ───────────────────────── */
 interface ScoreProps {
   studentId: string;
@@ -1996,15 +1852,18 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
   // ── Filter state ────────────────────────────────────────────────────
   type ViewMode = 'day' | 'week' | 'month';
   const [viewMode, setViewMode] = useState<ViewMode>('day');
-  const [jumpDate, setJumpDate] = useState<string | null>(null);
-  const [showCalendarPopover, setShowCalendarPopover] = useState(false);
-
+  const [currentSchoolYearObj, setCurrentSchoolYearObj] = useState<SchoolYear | null>(null);
+  const [selectedWeekMonday, setSelectedWeekMonday] = useState<string>('');
 
   useEffect(() => {
     const fetchGrades = async () => {
       try {
-        const data = await academicService.getGrades({ student_id: studentId });
+        const [data, currentSy] = await Promise.all([
+          academicService.getGrades({ student_id: studentId }),
+          academicService.getCurrentSchoolYear().catch(() => null),
+        ]);
         setGrades(data);
+        if (currentSy) setCurrentSchoolYearObj(currentSy);
         if (onGradesLoaded) onGradesLoaded(data);
       } catch (err) {
         console.error(err);
@@ -2022,27 +1881,64 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
     [grades]
   );
 
-  // When jumpDate is active, we show filtered list for that day
-  const jumpFiltered = useMemo(
-    () => (jumpDate ? sortedHistory.filter((l) => l.date_logged === jumpDate) : null),
-    [sortedHistory, jumpDate]
-  );
-
-  const activeRecords = useMemo(
-    () => (jumpFiltered !== null ? jumpFiltered : sortedHistory),
-    [jumpFiltered, sortedHistory]
-  );
-
-  const paginatedRecords = activeRecords;
-
-  // Group by week key "YYYY-Www" (ISO Mon-Sun)
+  // Group by week key "YYYY-MM-DD" (local Monday)
   const getWeekKey = (dateStr: string) => {
-    const d = new Date(dateStr + 'T00:00:00');
+    const d = new Date(dateStr.slice(0, 10) + 'T00:00:00');
     const day = d.getDay();
     const mon = new Date(d);
     mon.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
-    return mon.toISOString().slice(0, 10);
+    return mon.toLocaleDateString('en-CA');
   };
+
+  const recordedDateKeys = useMemo(
+    () => Array.from(new Set(grades.map((g) => (g.date_logged || g.created_at || '').slice(0, 10)).filter(Boolean))),
+    [grades]
+  );
+  const recordedWeekKeys = useMemo(
+    () => new Set(recordedDateKeys.map((d) => getWeekKey(d))),
+    [recordedDateKeys]
+  );
+  const schoolYearWeeks = useMemo(
+    () => generateSchoolYearWeeks(currentSchoolYearObj, recordedDateKeys),
+    [currentSchoolYearObj, recordedDateKeys]
+  );
+
+  const mostRecentScoreDate = useMemo(
+    () => (sortedHistory.length > 0 ? sortedHistory[0].date_logged?.slice(0, 10) || null : null),
+    [sortedHistory]
+  );
+
+  useEffect(() => {
+    if (schoolYearWeeks.length === 0) return;
+    setSelectedWeekMonday((prev) => {
+      if (prev && schoolYearWeeks.some((w) => w.weekKey === prev)) {
+        return prev;
+      }
+      if (mostRecentScoreDate) {
+        const recentMon = getWeekKey(mostRecentScoreDate);
+        if (schoolYearWeeks.some((w) => w.weekKey === recentMon)) {
+          return recentMon;
+        }
+      }
+      const todayMon = getWeekKey(new Date().toLocaleDateString('en-CA'));
+      if (schoolYearWeeks.some((w) => w.weekKey === todayMon)) {
+        return todayMon;
+      }
+      return schoolYearWeeks[schoolYearWeeks.length - 1].weekKey;
+    });
+  }, [schoolYearWeeks, mostRecentScoreDate]);
+
+  const selectedWeekOption = useMemo(
+    () => schoolYearWeeks.find((w) => w.weekKey === selectedWeekMonday) || schoolYearWeeks[schoolYearWeeks.length - 1] || null,
+    [schoolYearWeeks, selectedWeekMonday]
+  );
+
+  const weeklyRecords = useMemo(() => {
+    if (!selectedWeekOption) return sortedHistory;
+    return sortedHistory.filter((log) => getWeekKey(log.date_logged) === selectedWeekOption.weekKey);
+  }, [sortedHistory, selectedWeekOption]);
+
+  const activeHistoryCount = viewMode === 'week' ? weeklyRecords.length : sortedHistory.length;
 
   const weekLabel = (mondayStr: string) => {
     const mon = new Date(mondayStr + 'T00:00:00');
@@ -2068,9 +1964,8 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
     records: typeof sortedHistory;
   };
   const groupedHistory = useMemo((): Group[] => {
-    if (jumpFiltered !== null) return [];
     const grouped = new Map<string, typeof sortedHistory>();
-    for (const log of paginatedRecords) {
+    for (const log of sortedHistory) {
       const key = viewMode === 'week' ? getWeekKey(log.date_logged) : getMonthKey(log.date_logged);
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key)!.push(log);
@@ -2082,10 +1977,10 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
         label: viewMode === 'week' ? weekLabel(key) : monthLabel(key),
         records,
       }));
-  }, [paginatedRecords, viewMode, jumpFiltered]);
+  }, [sortedHistory, viewMode]);
 
   const timeGroupedHistory = useMemo((): Group[] => {
-    const source = paginatedRecords;
+    const source = sortedHistory;
     const grouped = new Map<string, typeof sortedHistory>();
     for (const log of source) {
       const timeStr = log.created_at ? formatTimeString(log.created_at) : '—';
@@ -2105,7 +2000,7 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
         records,
       };
     });
-  }, [paginatedRecords]);
+  }, [sortedHistory]);
 
   const toggleSort = (key: SortKey) => {
     setSortConfig((prev) => ({
@@ -2285,8 +2180,8 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
         <div className="min-w-0 flex-1 truncate">
           <h3 className="font-extrabold text-gray-900 dark:text-slate-100 text-xs sm:text-sm uppercase tracking-wider truncate">SCORES HISTORY</h3>
           <p className="mt-0.5 text-[11px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider truncate">
-            {jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length} Record
-            {(jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length) !== 1 ? 's' : ''}
+            {activeHistoryCount} Record
+            {activeHistoryCount !== 1 ? 's' : ''}
           </p>
         </div>
 
@@ -2295,98 +2190,20 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
           {/* View mode toggle styled like QR Attendance */}
           <SlidingPeriodToggle
             options={['day', 'week', 'month'] as const}
-            value={jumpDate ? null : viewMode}
+            value={viewMode}
             onChange={(mode) => {
               setViewMode(mode);
-              setJumpDate(null);
             }}
             ariaLabel="Score history view period"
             idPrefix="student-score-view"
             className="bg-gray-100 dark:bg-[#111111]"
             buttonClassName="px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-[10.5px]"
           />
-
-          {/* Custom Calendar Dropdown Button in Poppins */}
-          <div className="relative inline-flex items-center shrink-0">
-            <button
-              type="button"
-              id="student-score-calendar-btn"
-              onClick={() => setShowCalendarPopover((prev) => !prev)}
-              className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all flex items-center justify-center cursor-pointer ${jumpDate
-                ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
-                : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
-                }`}
-              title="Select a specific date from calendar"
-              aria-label="Open Calendar"
-            >
-              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
-
-            {showCalendarPopover && (
-              <CustomCalendarDropdown
-                selectedDate={jumpDate}
-                onSelectDate={(d) => setJumpDate(d)}
-                onClear={() => setJumpDate(null)}
-                onClose={() => setShowCalendarPopover(false)}
-                loggedDates={new Set(grades.map((l) => l.date_logged))}
-              />
-            )}
-          </div>
         </div>
       </div>
 
-      {/* Jump-to-date active chip */}
-      {jumpDate && (
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-emerald-100 bg-emerald-50/60">
-          <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-          <span className="text-xs font-semibold text-emerald-700">
-            {new Date(jumpDate + 'T00:00:00').toLocaleDateString(undefined, {
-              weekday: 'long',
-              month: 'long',
-              day: 'numeric',
-              year: 'numeric',
-            })}
-          </span>
-          <button
-            onClick={() => setJumpDate(null)}
-            className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-800 transition-colors cursor-pointer"
-          >
-            <X className="w-3 h-3" /> Clear
-          </button>
-        </div>
-      )}
-
       {/* Content */}
-      {jumpFiltered !== null ? (
-        /* ── Jump-to-date: flat/time-grouped list for that specific day ── */
-        jumpFiltered.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-12 text-center">
-            <CalendarDays className="w-10 h-10 text-gray-200" />
-            <p className="text-sm font-semibold text-gray-500">No records for this date</p>
-            <p className="text-xs text-gray-400">Try a different date or clear the filter</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {timeGroupedHistory.map((group, idx) => (
-              <div key={group.key} className={idx > 0 ? 'mt-6' : ''}>
-                <EntrySessionSeparator
-                  label={group.sessionLabel || 'RECORD ENTRY'}
-                  time={group.sessionTime}
-                />
-                <div className="mb-3 flex items-center justify-between text-xs text-gray-500">
-                  <span className="font-semibold text-gray-600 dark:text-slate-300">
-                    {group.label}
-                  </span>
-                  <span className="text-[11px] font-semibold text-gray-400">
-                    {group.records.length} Record{group.records.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                {renderTable(sortRecords(group.records))}
-              </div>
-            ))}
-          </div>
-        )
-      ) : viewMode === 'day' ? (
+      {viewMode === 'day' ? (
         /* ── Day: grouped by date and time ── */
         <div className="space-y-6">
           {timeGroupedHistory.map((group, idx) => (
@@ -2407,8 +2224,42 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
             </div>
           ))}
         </div>
+      ) : viewMode === 'week' && selectedWeekOption && schoolYearWeeks.length > 0 ? (
+        /* ── Weekly: Week dropdown selector ── */
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <HistoryWeekDropdown
+              weeks={schoolYearWeeks}
+              selectedWeekKey={selectedWeekOption.weekKey}
+              recordedWeekKeys={recordedWeekKeys}
+              label={selectedWeekOption.label.toUpperCase()}
+              onSelectWeek={(weekKey) => {
+                setSelectedWeekMonday(weekKey);
+                setViewMode('week');
+              }}
+              ariaLabel="Select school year week for student score history"
+            />
+            <div className="flex-1 h-px bg-gray-100 dark:bg-[#1A1A1A]" />
+            <span className="text-[11px] font-semibold text-gray-400 shrink-0">
+              {weeklyRecords.length} Record{weeklyRecords.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          {weeklyRecords.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-1.5 py-10 text-center rounded-md border border-dashed border-gray-200 dark:border-[#1E1E1E] bg-gray-50/50 dark:bg-[#141414]">
+              <CalendarDays className="w-7 h-7 text-gray-300 dark:text-gray-600" />
+              <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">
+                No score records for {selectedWeekOption.label.toUpperCase()}
+              </p>
+              <p className="text-[11px] text-gray-400 dark:text-slate-500">
+                Select another week from the dropdown to view recorded scores.
+              </p>
+            </div>
+          ) : (
+            renderTable(sortRecords(weeklyRecords))
+          )}
+        </div>
       ) : (
-        /* ── Weekly / Monthly: grouped ── */
+        /* ── Monthly: grouped ── */
         groupedHistory.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-12 text-center">
             <CalendarDays className="w-10 h-10 text-gray-200" />
@@ -2457,15 +2308,18 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
   // ── Filter state ────────────────────────────────────────────────────
   type ViewMode = 'day' | 'week' | 'month';
   const [viewMode, setViewMode] = useState<ViewMode>('day');
-  const [jumpDate, setJumpDate] = useState<string | null>(null);
-  const [showCalendarPopover, setShowCalendarPopover] = useState(false);
-
+  const [currentSchoolYearObj, setCurrentSchoolYearObj] = useState<SchoolYear | null>(null);
+  const [selectedWeekMonday, setSelectedWeekMonday] = useState<string>('');
 
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const data = await academicService.getAttendanceHistory({ user_id: studentId });
+        const [data, currentSy] = await Promise.all([
+          academicService.getAttendanceHistory({ user_id: studentId }),
+          academicService.getCurrentSchoolYear().catch(() => null),
+        ]);
         setLogs(data);
+        if (currentSy) setCurrentSchoolYearObj(currentSy);
         if (onAttendanceLoaded) onAttendanceLoaded(data);
       } catch (err) {
         console.error(err);
@@ -2483,27 +2337,64 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
     [logs]
   );
 
-  // When jumpDate is active, we show filtered list for that day
-  const jumpFiltered = useMemo(
-    () => (jumpDate ? sortedHistory.filter((l) => l.date === jumpDate) : null),
-    [sortedHistory, jumpDate]
-  );
-
-  const activeRecords = useMemo(
-    () => (jumpFiltered !== null ? jumpFiltered : sortedHistory),
-    [jumpFiltered, sortedHistory]
-  );
-
-  const paginatedRecords = activeRecords;
-
-  // Group by week key "YYYY-Www" (ISO Mon-Sun)
+  // Group by week key "YYYY-MM-DD" (local Monday)
   const getWeekKey = (dateStr: string) => {
-    const d = new Date(dateStr + 'T00:00:00');
+    const d = new Date(dateStr.slice(0, 10) + 'T00:00:00');
     const day = d.getDay();
     const mon = new Date(d);
     mon.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
-    return mon.toISOString().slice(0, 10);
+    return mon.toLocaleDateString('en-CA');
   };
+
+  const recordedDateKeys = useMemo(
+    () => Array.from(new Set(logs.map((l) => (l.date || '').slice(0, 10)).filter(Boolean))),
+    [logs]
+  );
+  const recordedWeekKeys = useMemo(
+    () => new Set(recordedDateKeys.map((d) => getWeekKey(d))),
+    [recordedDateKeys]
+  );
+  const schoolYearWeeks = useMemo(
+    () => generateSchoolYearWeeks(currentSchoolYearObj, recordedDateKeys),
+    [currentSchoolYearObj, recordedDateKeys]
+  );
+
+  const mostRecentAttDate = useMemo(
+    () => (sortedHistory.length > 0 ? sortedHistory[0].date?.slice(0, 10) || null : null),
+    [sortedHistory]
+  );
+
+  useEffect(() => {
+    if (schoolYearWeeks.length === 0) return;
+    setSelectedWeekMonday((prev) => {
+      if (prev && schoolYearWeeks.some((w) => w.weekKey === prev)) {
+        return prev;
+      }
+      if (mostRecentAttDate) {
+        const recentMon = getWeekKey(mostRecentAttDate);
+        if (schoolYearWeeks.some((w) => w.weekKey === recentMon)) {
+          return recentMon;
+        }
+      }
+      const todayMon = getWeekKey(new Date().toLocaleDateString('en-CA'));
+      if (schoolYearWeeks.some((w) => w.weekKey === todayMon)) {
+        return todayMon;
+      }
+      return schoolYearWeeks[schoolYearWeeks.length - 1].weekKey;
+    });
+  }, [schoolYearWeeks, mostRecentAttDate]);
+
+  const selectedWeekOption = useMemo(
+    () => schoolYearWeeks.find((w) => w.weekKey === selectedWeekMonday) || schoolYearWeeks[schoolYearWeeks.length - 1] || null,
+    [schoolYearWeeks, selectedWeekMonday]
+  );
+
+  const weeklyRecords = useMemo(() => {
+    if (!selectedWeekOption) return sortedHistory;
+    return sortedHistory.filter((log) => getWeekKey(log.date) === selectedWeekOption.weekKey);
+  }, [sortedHistory, selectedWeekOption]);
+
+  const activeHistoryCount = viewMode === 'week' ? weeklyRecords.length : sortedHistory.length;
 
   const weekLabel = (mondayStr: string) => {
     const mon = new Date(mondayStr + 'T00:00:00');
@@ -2529,9 +2420,8 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
     records: typeof sortedHistory;
   };
   const groupedHistory = useMemo((): Group[] => {
-    if (jumpFiltered !== null) return [];
     const grouped = new Map<string, typeof sortedHistory>();
-    for (const log of paginatedRecords) {
+    for (const log of sortedHistory) {
       const key = viewMode === 'week' ? getWeekKey(log.date) : getMonthKey(log.date);
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key)!.push(log);
@@ -2543,10 +2433,10 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
         label: viewMode === 'week' ? weekLabel(key) : monthLabel(key),
         records,
       }));
-  }, [paginatedRecords, viewMode, jumpFiltered]);
+  }, [sortedHistory, viewMode]);
 
   const timeGroupedHistory = useMemo((): Group[] => {
-    const sessionGroups = groupAttendanceBySession(paginatedRecords);
+    const sessionGroups = groupAttendanceBySession(sortedHistory);
     return sessionGroups.map((g) => {
       const displayDate = formatDateString(g.rows[0].date);
       return {
@@ -2557,7 +2447,7 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
         records: g.rows,
       };
     });
-  }, [paginatedRecords]);
+  }, [sortedHistory]);
 
   const toggleSort = (key: SortKey) => {
     setSortConfig((prev) => ({
@@ -2694,8 +2584,8 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
         <div className="min-w-0 flex-1 truncate">
           <h3 className="font-extrabold text-gray-900 dark:text-slate-100 text-xs sm:text-sm uppercase tracking-wider truncate">STUDENT ATTENDANCE HISTORY</h3>
           <p className="mt-0.5 text-[11px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider truncate">
-            {jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length} Record
-            {(jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length) !== 1 ? 's' : ''}
+            {activeHistoryCount} Record
+            {activeHistoryCount !== 1 ? 's' : ''}
           </p>
         </div>
 
@@ -2704,98 +2594,20 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
           {/* View mode toggle styled like QR Attendance */}
           <SlidingPeriodToggle
             options={['day', 'week', 'month'] as const}
-            value={jumpDate ? null : viewMode}
+            value={viewMode}
             onChange={(mode) => {
               setViewMode(mode);
-              setJumpDate(null);
             }}
             ariaLabel="Attendance history view period"
             idPrefix="student-att-view"
             className="bg-gray-100 dark:bg-[#111111]"
             buttonClassName="px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-[10.5px]"
           />
-
-          {/* Custom Calendar Dropdown Button in Poppins */}
-          <div className="relative inline-flex items-center shrink-0">
-            <button
-              type="button"
-              id="student-attendance-calendar-btn"
-              onClick={() => setShowCalendarPopover((prev) => !prev)}
-              className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all flex items-center justify-center cursor-pointer ${jumpDate
-                ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
-                : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
-                }`}
-              title="Select a specific date from calendar"
-              aria-label="Open Calendar"
-            >
-              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
-
-            {showCalendarPopover && (
-              <CustomCalendarDropdown
-                selectedDate={jumpDate}
-                onSelectDate={(d) => setJumpDate(d)}
-                onClear={() => setJumpDate(null)}
-                onClose={() => setShowCalendarPopover(false)}
-                loggedDates={new Set(logs.map((l) => l.date))}
-              />
-            )}
-          </div>
         </div>
       </div>
 
-      {/* Jump-to-date active chip */}
-      {jumpDate && (
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-emerald-100 bg-emerald-50/60">
-          <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-          <span className="text-xs font-semibold text-emerald-700">
-            {new Date(jumpDate + 'T00:00:00').toLocaleDateString(undefined, {
-              weekday: 'long',
-              month: 'long',
-              day: 'numeric',
-              year: 'numeric',
-            })}
-          </span>
-          <button
-            onClick={() => setJumpDate(null)}
-            className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-800 transition-colors cursor-pointer"
-          >
-            <X className="w-3 h-3" /> Clear
-          </button>
-        </div>
-      )}
-
       {/* Content */}
-      {jumpFiltered !== null ? (
-        /* ── Jump-to-date: flat/time-grouped list for that specific day ── */
-        jumpFiltered.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-12 text-center">
-            <CalendarDays className="w-10 h-10 text-gray-200" />
-            <p className="text-sm font-semibold text-gray-500">No records for this date</p>
-            <p className="text-xs text-gray-400">Try a different date or clear the filter</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {timeGroupedHistory.map((group, idx) => (
-              <div key={group.key} className={idx > 0 ? 'mt-6' : ''}>
-                <EntrySessionSeparator
-                  label={group.sessionLabel || 'ATTENDANCE LOG'}
-                  time={group.sessionTime}
-                />
-                <div className="mb-3 flex items-center justify-between text-xs text-gray-500">
-                  <span className="font-semibold text-gray-600 dark:text-slate-300">
-                    {group.label}
-                  </span>
-                  <span className="text-[11px] font-semibold text-gray-400">
-                    {group.records.length} Record{group.records.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                {renderTable(sortRecords(group.records))}
-              </div>
-            ))}
-          </div>
-        )
-      ) : viewMode === 'day' ? (
+      {viewMode === 'day' ? (
         /* ── Day: grouped by date and time ── */
         <div className="space-y-6">
           {timeGroupedHistory.map((group, idx) => (
@@ -2816,8 +2628,42 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
             </div>
           ))}
         </div>
+      ) : viewMode === 'week' && selectedWeekOption && schoolYearWeeks.length > 0 ? (
+        /* ── Weekly: Week dropdown selector ── */
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <HistoryWeekDropdown
+              weeks={schoolYearWeeks}
+              selectedWeekKey={selectedWeekOption.weekKey}
+              recordedWeekKeys={recordedWeekKeys}
+              label={selectedWeekOption.label.toUpperCase()}
+              onSelectWeek={(weekKey) => {
+                setSelectedWeekMonday(weekKey);
+                setViewMode('week');
+              }}
+              ariaLabel="Select school year week for student attendance history"
+            />
+            <div className="flex-1 h-px bg-gray-100 dark:bg-[#1A1A1A]" />
+            <span className="text-[11px] font-semibold text-gray-400 shrink-0">
+              {weeklyRecords.length} Record{weeklyRecords.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          {weeklyRecords.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-1.5 py-10 text-center rounded-md border border-dashed border-gray-200 dark:border-[#1E1E1E] bg-gray-50/50 dark:bg-[#141414]">
+              <CalendarDays className="w-7 h-7 text-gray-300 dark:text-gray-600" />
+              <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">
+                No attendance records for {selectedWeekOption.label.toUpperCase()}
+              </p>
+              <p className="text-[11px] text-gray-400 dark:text-slate-500">
+                Select another week from the dropdown to view recorded attendance.
+              </p>
+            </div>
+          ) : (
+            renderTable(sortRecords(weeklyRecords))
+          )}
+        </div>
       ) : (
-        /* ── Weekly / Monthly: grouped ── */
+        /* ── Monthly: grouped ── */
         groupedHistory.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-12 text-center">
             <CalendarDays className="w-10 h-10 text-gray-200" />

@@ -103,8 +103,8 @@ const InteractivePrincipalPerformanceChart: React.FC<{
 
   const { width, height } = dimensions;
   const isMobile = width < 520;
-  const paddingLeft = isMobile ? 38 : 50;
-  const paddingRight = isMobile ? 18 : 44;
+  const paddingLeft = isMobile ? 36 : 50;
+  const paddingRight = isMobile ? 16 : 44;
   const paddingTop = isMobile ? 16 : 20;
   const paddingBottom = isMobile ? (trendFilter === 'month' ? 24 : 34) : 24;
 
@@ -152,7 +152,8 @@ const InteractivePrincipalPerformanceChart: React.FC<{
       return [label];
     }
     if (trendFilter === 'month') {
-      return [label.split(' ')[0] || label];
+      const monthWord = label.split(' ')[0] || label;
+      return [width < 380 && monthWord.length > 4 ? monthWord.slice(0, 3) : monthWord];
     }
     return [label];
   };
@@ -287,44 +288,44 @@ const InteractivePrincipalPerformanceChart: React.FC<{
 
         {/* X-axis date labels (complete dates for every point matching Student/Tutor Home) */}
         {points.map((p, idx) => {
+          let textAnchor: 'start' | 'middle' | 'end' = 'middle';
+          let labelX = p.x;
+          if (idx === 0) {
+            textAnchor = 'start';
+            labelX = isMobile ? paddingLeft : Math.max(paddingLeft, p.x - 3);
+          } else if (idx === points.length - 1) {
+            textAnchor = 'end';
+            labelX = isMobile ? width - paddingRight : Math.min(width - paddingRight, p.x + 3);
+          }
+
           if (isMobile) {
             const [line1, line2] = getMobileLabelLines(p.label);
             if (line2) {
               return (
                 <text
                   key={`label-${idx}`}
-                  x={p.x}
+                  x={labelX}
                   y={paddingTop + chartH + 13}
-                  className="fill-slate-500 dark:fill-slate-400 font-semibold text-[8.5px] select-none"
-                  textAnchor="middle"
+                  className="fill-slate-500 dark:fill-slate-400 font-semibold text-[8.5px] sm:text-[9px] select-none"
+                  textAnchor={textAnchor}
                 >
-                  <tspan x={p.x} dy="0">{line1}</tspan>
-                  <tspan x={p.x} dy="10">{line2}</tspan>
+                  <tspan x={labelX} dy="0">{line1}</tspan>
+                  <tspan x={labelX} dy="10">{line2}</tspan>
                 </text>
               );
             }
             return (
               <text
                 key={`label-${idx}`}
-                x={p.x}
+                x={labelX}
                 y={height - 6}
                 className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px] select-none"
-                textAnchor="middle"
+                textAnchor={textAnchor}
                 style={{ whiteSpace: 'nowrap' }}
               >
                 {line1}
               </text>
             );
-          }
-
-          let textAnchor: 'start' | 'middle' | 'end' = 'middle';
-          let labelX = p.x;
-          if (idx === 0) {
-            textAnchor = 'start';
-            labelX = Math.max(paddingLeft, p.x - 3);
-          } else if (idx === points.length - 1) {
-            textAnchor = 'end';
-            labelX = Math.min(width - paddingRight, p.x + 3);
           }
 
           return (
@@ -1278,17 +1279,17 @@ export const PrincipalHome: React.FC = () => {
             </div>
           </div>
           <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full min-w-0 max-w-full shadow-sm">
-            {/* ── Row 1: Card Title & Period Toggles (Full width, never truncates title) ── */}
-            <div className="flex items-center justify-between gap-3 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+            {/* ── Row 1: Card Title & Period Toggles ── */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
               <div className="min-w-0">
-                <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">
+                <h3 className="text-[11px] sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight truncate">
                   {selectedTutorObj
                     ? `${selectedTutorObj.name.toUpperCase()}'S STUDENTS PERFORMANCE TREND`
                     : 'PNAHS ARAL PERFORMANCE TREND'}
                 </h3>
               </div>
 
-              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
+              <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2 w-full sm:w-auto shrink-0 flex-nowrap">
                 {/* Period Toggles (DAY / WEEK / MONTH) */}
                 <SlidingPeriodToggle
                   options={['day', 'week', 'month'] as const}
@@ -1298,21 +1299,21 @@ export const PrincipalHome: React.FC = () => {
                     setTrendPage(0);
                   }}
                   ariaLabel="Performance trend period"
-                  buttonClassName="px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-[9px] sm:text-[10px]"
+                  buttonClassName="px-1.5 sm:px-3.5 py-1 sm:py-1.5 text-[9px] sm:text-[10px]"
                 />
                 {/* Period navigation arrows */}
-                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present records">
+                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0" role="group" aria-label="Scroll between previous and present records">
                   <button
                     type="button"
                     onClick={() => setTrendPage((p) => p + 1)}
                     disabled={trendPage >= 10}
                     aria-label="Previous records"
                     title={trendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
-                    className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
                   >
                     <ChevronLeft size={14} className="stroke-[2.5]" />
                   </button>
-                  <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                  <span className="inline-flex items-center justify-center min-w-[78px] sm:w-[114px] px-1 text-[9px] sm:text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
                     {formatChartPeriodRange(trendFilter, trendPage)}
                   </span>
                   <button
@@ -1321,7 +1322,7 @@ export const PrincipalHome: React.FC = () => {
                     disabled={trendPage === 0}
                     aria-label="Next records"
                     title={trendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
-                    className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
                   >
                     <ChevronRight size={14} className="stroke-[2.5]" />
                   </button>
@@ -1477,16 +1478,16 @@ export const PrincipalHome: React.FC = () => {
               {chartTrendData.length > 0 ? (
                 <InteractivePrincipalPerformanceChart data={chartTrendData} trendFilter={trendFilter} />
               ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 select-none">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 sm:gap-2 px-4 text-center select-none">
                   <BarChart2 className="w-8 h-8 text-gray-200 dark:text-gray-700" />
-                  <p className="text-xs font-semibold text-gray-400 dark:text-slate-500 whitespace-nowrap">
+                  <p className="text-xs font-semibold text-gray-400 dark:text-slate-500">
                     {trendFilter === 'day'
                       ? 'No recorded score today'
                       : trendFilter === 'week'
                       ? 'No recorded score this week'
                       : 'No recorded score this month'}
                   </p>
-                  <p className="text-[11px] text-gray-300 dark:text-slate-600 whitespace-nowrap">
+                  <p className="text-[11px] text-gray-300 dark:text-slate-600 max-w-xs leading-snug">
                     Data will appear once scores and attendance are logged for students
                   </p>
                 </div>
@@ -1559,10 +1560,10 @@ export const PrincipalHome: React.FC = () => {
               </div>
               <Link
                 to="/principal/analytics"
-                className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-4 py-2.5 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300 whitespace-nowrap"
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 dark:border-[#222222] bg-gray-50 dark:bg-[#141414] px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#1f1f1f] transition-all whitespace-nowrap cursor-pointer"
               >
                 <span className="whitespace-nowrap">See More</span>
-                <span className="font-bold" aria-hidden="true">&gt;</span>
+                <span className="font-bold text-gray-400" aria-hidden="true">&gt;</span>
               </Link>
             </div>
           </div>

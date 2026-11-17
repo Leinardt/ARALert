@@ -1,14 +1,11 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { academicService } from '../../services/academicService';
-import type { Attendance } from '../../types';
+import type { Attendance, SchoolYear } from '../../types';
 import {
   CheckCircle2,
   AlertCircle,
   Clock,
-  Calendar,
   CalendarDays,
-  ChevronLeft,
-  ChevronRight,
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
@@ -23,6 +20,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { ExportStudentQrModal } from '../../components/ExportStudentQrModal';
 import { SlidingPeriodToggle } from '../../components/SlidingTabs';
+import { HistoryWeekDropdown } from '../../components/HistoryWeekDropdown';
 import {
   exportStudentQrToJpeg,
   exportStudentQrToPdf,
@@ -40,7 +38,11 @@ import {
   groupAttendanceBySession,
 } from '../../utils/sessionDescriptionHelpers';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
-import { computeWeekOfMonth } from '../../config/academicConfig';
+import {
+  computeWeekOfMonth,
+  generateSchoolYearWeeks,
+  type SchoolYearWeekOption,
+} from '../../config/academicConfig';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 
@@ -81,12 +83,6 @@ const formatTimeString = (value: string | null | undefined): string => {
   }
 
   return value;
-};
-
-const formatDateKey = (year: number, month: number, day: number) => {
-  const m = String(month + 1).padStart(2, '0');
-  const d = String(day).padStart(2, '0');
-  return `${year}-${m}-${d}`;
 };
 
 const formatDateButtonLabel = (dateStr: string) => {
@@ -139,164 +135,6 @@ type AttendanceTableGroup = {
   records: Attendance[];
 };
 
-/* ─── Custom Calendar Dropdown (Exact Match to TutorQRGenerator) ── */
-
-const CustomCalendarDropdown: React.FC<{
-  selectedDate: string | null;
-  onSelectDate: (dateStr: string) => void;
-  onClear: () => void;
-  onClose: () => void;
-  loggedDates: Set<string>;
-  className?: string;
-  style?: React.CSSProperties;
-}> = ({ selectedDate, onSelectDate, onClear, onClose, loggedDates, className, style }) => {
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const [viewDate, setViewDate] = useState(() => {
-    if (selectedDate) {
-      const d = new Date(selectedDate + 'T00:00:00');
-      if (!isNaN(d.getTime())) return d;
-    }
-    return new Date();
-  });
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Element | null;
-      if (target?.closest?.('#student-attendance-calendar-btn')) return;
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
-
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
-
-  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
-  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
-
-  const firstDayOfWeek = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const monthName = viewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-
-  const calendarCells = [];
-  for (let i = 0; i < firstDayOfWeek; i++) {
-    calendarCells.push(null);
-  }
-  for (let d = 1; d <= daysInMonth; d++) {
-    calendarCells.push(d);
-  }
-
-  const todayStr = new Date().toISOString().slice(0, 10);
-
-  return (
-    <div
-      ref={dropdownRef}
-      className={`${className || 'absolute right-0 top-full mt-2'} z-[60] w-72 rounded-2xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-2xl font-sans select-none text-gray-800 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-150`}
-      style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif", ...style }}
-    >
-      {/* Month & Navigation */}
-      <div className="flex items-center justify-between pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-        <button
-          type="button"
-          onClick={prevMonth}
-          className="rounded-lg p-1.5 hover:bg-gray-100 dark:hover:bg-[#1A1A1A] text-gray-600 dark:text-slate-300 transition cursor-pointer"
-          aria-label="Previous Month"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <span className="font-bold text-xs text-gray-900 dark:text-slate-100 tracking-wide">{monthName}</span>
-        <button
-          type="button"
-          onClick={nextMonth}
-          className="rounded-lg p-1.5 hover:bg-gray-100 dark:hover:bg-[#1A1A1A] text-gray-600 dark:text-slate-300 transition cursor-pointer"
-          aria-label="Next Month"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Weekdays */}
-      <div className="grid grid-cols-7 gap-1 text-center font-bold text-gray-400 dark:text-slate-500 py-2 text-[10px] uppercase tracking-wider">
-        <span>Su</span>
-        <span>Mo</span>
-        <span>Tu</span>
-        <span>We</span>
-        <span>Th</span>
-        <span>Fr</span>
-        <span>Sa</span>
-      </div>
-
-      {/* Day Numbers */}
-      <div className="grid grid-cols-7 gap-1">
-        {calendarCells.map((dayNum, idx) => {
-          if (dayNum === null) {
-            return <div key={`empty-${idx}`} className="h-7 w-7" />;
-          }
-
-          const cellDateKey = formatDateKey(year, month, dayNum);
-          const isSelected = selectedDate === cellDateKey;
-          const isToday = todayStr === cellDateKey;
-          const hasLogs = loggedDates.has(cellDateKey);
-
-          return (
-            <button
-              key={cellDateKey}
-              type="button"
-              onClick={() => {
-                onSelectDate(cellDateKey);
-                onClose();
-              }}
-              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                isSelected
-                  ? 'bg-[var(--brand)] text-white font-bold shadow-sm'
-                  : isToday
-                  ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
-                  : hasLogs
-                  ? 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-800 dark:text-slate-200 font-semibold hover:bg-gray-200 dark:hover:bg-[#222222]'
-                  : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-              }`}
-            >
-              <span>{dayNum}</span>
-              {hasLogs && !isSelected && (
-                <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-[var(--brand)]" />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Footer shortcut buttons */}
-      <div className="mt-3 flex items-center justify-between pt-2 border-t border-gray-100 dark:border-[#1A1A1A] text-[11px] font-semibold">
-        <button
-          type="button"
-          onClick={() => {
-            onSelectDate(todayStr);
-            onClose();
-          }}
-          className="text-[var(--brand)] dark:text-sky-400 hover:underline cursor-pointer"
-        >
-          Today
-        </button>
-        {selectedDate && (
-          <button
-            type="button"
-            onClick={() => {
-              onClear();
-              onClose();
-            }}
-            className="text-gray-400 dark:text-slate-500 hover:text-red-500 transition cursor-pointer"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-    </div>
-  );
-};
-
 /* ─── AttendanceHistoryGroupSection (matches Tutor Attendance UI & Sorting) ── */
 
 interface AttendanceHistoryGroupSectionProps {
@@ -306,6 +144,10 @@ interface AttendanceHistoryGroupSectionProps {
   formatDateString: (value: string | null | undefined) => string;
   formatTimeString: (value: string | null | undefined) => string;
   studentName?: string;
+  schoolYearWeeks?: SchoolYearWeekOption[];
+  selectedWeekKey?: string;
+  recordedWeekKeys?: Set<string>;
+  onSelectWeek?: (weekKey: string) => void;
 }
 
 const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps> = ({
@@ -315,6 +157,10 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
   formatDateString,
   formatTimeString,
   studentName,
+  schoolYearWeeks,
+  selectedWeekKey,
+  recordedWeekKeys,
+  onSelectWeek,
 }) => {
   const datesWithRecords = useMemo(() => {
     return new Set(group.records.map((r) => r.date?.slice(0, 10)));
@@ -332,6 +178,8 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
     if (!selectedDate) return false;
     return groupDates.includes(selectedDate);
   }, [groupDates, selectedDate]);
+
+  const effectiveIsOpen = isOpen || group.records.length === 0;
 
   const displayRecords = useMemo(() => {
     if (!selectedDate || !isOpen) return group.records;
@@ -399,61 +247,94 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
     );
   };
 
+  const renderDateButton = (dateStr: string) => {
+    const hasRecord = datesWithRecords.has(dateStr);
+    const isSelected = selectedDate === dateStr;
+    const label = formatDateButtonLabel(dateStr);
+    return (
+      <button
+        key={dateStr}
+        type="button"
+        disabled={!hasRecord}
+        onClick={() => onSelectDate(dateStr)}
+        className={`${
+          group.isMonthGroup
+            ? 'shrink-0 px-1.5 sm:px-3 text-[9px] sm:text-[11px]'
+            : 'flex-1 min-w-0 sm:flex-initial justify-center px-0.5 sm:px-3 text-[8.5px] min-[375px]:text-[9.5px] sm:text-[11px] tracking-tight sm:tracking-normal'
+        } h-7 sm:h-7.5 whitespace-nowrap rounded-md font-bold uppercase transition-all inline-flex items-center justify-center gap-0.5 sm:gap-1.5 ${
+          hasRecord
+            ? isSelected
+              ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
+              : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
+            : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
+        }`}
+        title={
+          hasRecord
+            ? isSelected
+              ? `Active: ${label}`
+              : `View ${label}`
+            : `No records on ${label}`
+        }
+        aria-label={label}
+      >
+        {label}
+      </button>
+    );
+  };
+
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3 w-full sm:w-auto min-w-0">
-          <div className="flex items-center justify-between sm:justify-start gap-2 py-0.5">
-            <span className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-slate-100 select-none">
-              {group.title}
-            </span>
-            {isOpen && (
-              <span className="sm:hidden text-[11px] font-semibold text-gray-400">
-                {displayRecords.length} Record{displayRecords.length !== 1 ? 's' : ''}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div
+          className={
+            group.isMonthGroup
+              ? 'flex flex-wrap items-center gap-1 sm:gap-1.5 w-full sm:w-auto min-w-0 py-0.5'
+              : 'flex flex-row items-center gap-1 sm:gap-3 w-full sm:w-auto min-w-0'
+          }
+        >
+          <div className={`flex items-center py-0.5 shrink-0 ${group.isMonthGroup ? 'mr-1 sm:mr-1.5' : ''}`}>
+            {!group.isMonthGroup && schoolYearWeeks && schoolYearWeeks.length > 0 && onSelectWeek ? (
+              <HistoryWeekDropdown
+                weeks={schoolYearWeeks}
+                selectedWeekKey={selectedWeekKey || group.weekMonday || group.key}
+                recordedWeekKeys={recordedWeekKeys || new Set()}
+                label={group.title}
+                onSelectWeek={onSelectWeek}
+                ariaLabel="Select school year week for attendance history"
+              />
+            ) : (
+              <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-gray-900 dark:text-slate-100 select-none whitespace-nowrap">
+                {group.title}
               </span>
             )}
           </div>
-          <div className="flex flex-nowrap sm:flex-wrap items-center gap-1 sm:gap-1.5 w-full sm:w-auto overflow-x-auto no-scrollbar">
-            {groupDates.map((dateStr) => {
-              const hasRecord = datesWithRecords.has(dateStr);
-              const isSelected = selectedDate === dateStr;
-              const label = formatDateButtonLabel(dateStr);
-              return (
-                <button
-                  key={dateStr}
-                  type="button"
-                  disabled={!hasRecord}
-                  onClick={() => onSelectDate(dateStr)}
-                  className={`h-7 sm:h-7.5 flex-1 sm:flex-initial justify-center whitespace-nowrap rounded-md px-1.5 sm:px-3 text-[9px] sm:text-[11px] font-bold uppercase transition-all inline-flex items-center gap-1 sm:gap-1.5 shrink-0 ${
-                    hasRecord
-                      ? isSelected
-                        ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
-                        : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
-                      : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
-                  }`}
-                  title={
-                    hasRecord
-                      ? isSelected
-                        ? `Active: ${label}`
-                        : `View ${label}`
-                      : `No records on ${label}`
-                  }
-                  aria-label={label}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+          {group.isMonthGroup ? (
+            groupDates.map(renderDateButton)
+          ) : (
+            <div className="flex items-center gap-0.5 sm:gap-1.5 flex-1 min-w-0 sm:flex-initial py-0.5">
+              {groupDates.map(renderDateButton)}
+            </div>
+          )}
         </div>
-        {isOpen && (
-          <span className="hidden sm:inline text-[11px] font-semibold text-gray-400">
+        {effectiveIsOpen && (
+          <span className="text-[11px] font-semibold text-gray-400 shrink-0">
             {displayRecords.length} Record{displayRecords.length !== 1 ? 's' : ''}
           </span>
         )}
       </div>
 
-      {isOpen && (
+      {effectiveIsOpen && (
+        group.records.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-1.5 py-10 text-center rounded-md border border-dashed border-gray-200 dark:border-[#1E1E1E] bg-gray-50/50 dark:bg-[#141414]">
+            <CalendarDays className="w-7 h-7 text-gray-300 dark:text-gray-600" />
+            <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">
+              No attendance records for {group.title}
+            </p>
+            <p className="text-[11px] text-gray-400 dark:text-slate-500">
+              Select another week from the dropdown to view recorded attendance.
+            </p>
+          </div>
+        ) : (
         <div className="space-y-6">
           {attendanceSessions.map((session, sIdx) => (
             <div key={session.key} className={sIdx > 0 ? 'mt-6' : ''}>
@@ -522,6 +403,7 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
             </div>
           ))}
         </div>
+        )
       )}
     </div>
   );
@@ -536,8 +418,7 @@ export const StudentQRAttendance: React.FC = () => {
   const [logsError, setLogsError] = useState<string | null>(null);
 
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
-  const [jumpDate, setJumpDate] = useState<string | null>(null);
-  const [showCalendarPopover, setShowCalendarPopover] = useState(false);
+  const [currentSchoolYearObj, setCurrentSchoolYearObj] = useState<SchoolYear | null>(null);
 
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
@@ -613,40 +494,93 @@ export const StudentQRAttendance: React.FC = () => {
     return [...attendanceLogs].sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
   }, [attendanceLogs]);
 
-  const activeRecords = useMemo(
-    () => (jumpDate ? sortedHistory.filter((l) => l.date?.slice(0, 10) === jumpDate) : sortedHistory),
-    [sortedHistory, jumpDate]
+  const loggedDates = useMemo(() => {
+    const set = new Set<string>();
+    attendanceLogs.forEach((l) => {
+      if (l.date) set.add(l.date.slice(0, 10));
+    });
+    return set;
+  }, [attendanceLogs]);
+
+  const recordedDateKeys = useMemo(() => Array.from(loggedDates), [loggedDates]);
+  const recordedWeekKeys = useMemo(
+    () => new Set(recordedDateKeys.map((d) => getWeekKey(d))),
+    [recordedDateKeys]
   );
 
+  const schoolYearWeeks = useMemo(
+    () => generateSchoolYearWeeks(currentSchoolYearObj, recordedDateKeys),
+    [currentSchoolYearObj, recordedDateKeys]
+  );
+
+  const [selectedWeekMonday, setSelectedWeekMonday] = useState<string>('');
+
   const mostRecentDateWithEntry = useMemo(() => {
-    if (activeRecords.length === 0) return null;
-    return activeRecords[0].date?.slice(0, 10) || null;
-  }, [activeRecords]);
+    if (sortedHistory.length === 0) return null;
+    return sortedHistory[0].date?.slice(0, 10) || null;
+  }, [sortedHistory]);
+
+  useEffect(() => {
+    if (schoolYearWeeks.length === 0) return;
+    setSelectedWeekMonday((prev) => {
+      if (prev && schoolYearWeeks.some((w) => w.weekKey === prev)) {
+        return prev;
+      }
+      if (mostRecentDateWithEntry) {
+        const recentMon = getWeekKey(mostRecentDateWithEntry);
+        if (schoolYearWeeks.some((w) => w.weekKey === recentMon)) {
+          return recentMon;
+        }
+      }
+      const todayMon = getWeekKey(new Date().toLocaleDateString('en-CA'));
+      if (schoolYearWeeks.some((w) => w.weekKey === todayMon)) {
+        return todayMon;
+      }
+      return schoolYearWeeks[schoolYearWeeks.length - 1].weekKey;
+    });
+  }, [schoolYearWeeks, mostRecentDateWithEntry]);
+
+  const selectedWeekOption = useMemo(
+    () => schoolYearWeeks.find((w) => w.weekKey === selectedWeekMonday) || schoolYearWeeks[schoolYearWeeks.length - 1] || null,
+    [schoolYearWeeks, selectedWeekMonday]
+  );
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
-    if (jumpDate) {
-      setSelectedDate(jumpDate);
+    if (viewMode === 'week' && selectedWeekOption) {
+      const firstMatchInWeek = sortedHistory.find(
+        (l) => getWeekKey(l.date?.slice(0, 10) || '') === selectedWeekOption.weekKey
+      );
+      setSelectedDate(firstMatchInWeek ? firstMatchInWeek.date.slice(0, 10) : selectedWeekOption.weekKey);
     } else if (mostRecentDateWithEntry) {
       setSelectedDate(mostRecentDateWithEntry);
     } else {
       setSelectedDate(null);
     }
-  }, [jumpDate, mostRecentDateWithEntry, viewMode]);
+  }, [mostRecentDateWithEntry, viewMode, selectedWeekOption, sortedHistory]);
+
+  const displayedHistory = useMemo(() => {
+    if (viewMode === 'week' && selectedWeekOption) {
+      return sortedHistory.filter(
+        (log) => getWeekKey(log.date?.slice(0, 10) || '') === selectedWeekOption.weekKey
+      );
+    }
+    return sortedHistory;
+  }, [viewMode, selectedWeekOption, sortedHistory]);
 
   const groupedHistory = useMemo((): AttendanceTableGroup[] => {
-    if (jumpDate) {
+    if (viewMode === 'week' && selectedWeekOption) {
       return [{
-        key: jumpDate,
-        title: viewMode === 'week' ? getWeekTitle(getWeekKey(jumpDate)) : getMonthTitle(getMonthKey(jumpDate)),
-        weekMonday: getWeekKey(jumpDate),
-        isMonthGroup: viewMode === 'month',
-        records: activeRecords,
+        key: selectedWeekOption.weekKey,
+        title: selectedWeekOption.label.toUpperCase(),
+        weekMonday: selectedWeekOption.weekKey,
+        isMonthGroup: false,
+        records: displayedHistory,
       }];
     }
     const grouped = new Map<string, Attendance[]>();
-    for (const log of activeRecords) {
+    for (const log of sortedHistory) {
       const dateKey = log.date?.slice(0, 10) || log.date;
       if (!dateKey) continue;
       const key = viewMode === 'week' ? getWeekKey(dateKey) : getMonthKey(dateKey);
@@ -662,17 +596,9 @@ export const StudentQRAttendance: React.FC = () => {
         isMonthGroup: viewMode === 'month',
         records,
       }));
-  }, [activeRecords, jumpDate, viewMode]);
+  }, [sortedHistory, displayedHistory, viewMode, selectedWeekOption]);
 
-  const currentRecordsCount = activeRecords.length;
-
-  const loggedDates = useMemo(() => {
-    const set = new Set<string>();
-    attendanceLogs.forEach((l) => {
-      if (l.date) set.add(l.date.slice(0, 10));
-    });
-    return set;
-  }, [attendanceLogs]);
+  const currentRecordsCount = displayedHistory.length;
 
   // Fetch student's attendance records
   const fetchAttendanceLogs = useCallback(async () => {
@@ -680,10 +606,14 @@ export const StudentQRAttendance: React.FC = () => {
     setLogsLoading(true);
     setLogsError(null);
     try {
-      const logs = await academicService.getAttendanceHistory({ user_id: user.id });
+      const [logs, currentSy] = await Promise.all([
+        academicService.getAttendanceHistory({ user_id: user.id }),
+        academicService.getCurrentSchoolYear().catch(() => null),
+      ]);
       // Strict student isolation
       const myLogs = logs.filter((l) => String(l.user) === String(user.id));
       setAttendanceLogs(myLogs);
+      if (currentSy) setCurrentSchoolYearObj(currentSy);
     } catch (err: any) {
       console.error(err);
       setLogsError('Failed to load attendance history.');
@@ -915,7 +845,7 @@ export const StudentQRAttendance: React.FC = () => {
 
       {/* ── Attendance History ──── */}
       <div className="mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm relative">
-        {/* Section Header with Pills and Calendar */}
+        {/* Section Header with Period Toggle */}
         <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
           <div className="min-w-0 flex-1 truncate">
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-[10px] sm:text-sm tracking-tight uppercase whitespace-nowrap truncate">
@@ -931,72 +861,16 @@ export const StudentQRAttendance: React.FC = () => {
             {/* View Mode Toggle */}
             <SlidingPeriodToggle
               options={['week', 'month'] as const}
-              value={jumpDate ? null : viewMode}
+              value={viewMode}
               onChange={(mode) => {
                 setViewMode(mode);
-                setJumpDate(null);
               }}
               ariaLabel="Attendance history view period"
               idPrefix="student-att-view"
               buttonClassName="h-7.5 sm:h-7 px-2 sm:px-3 text-[9px] sm:text-[10px]"
             />
-
-            {/* Custom Calendar Dropdown Button */}
-            <div className="relative inline-flex items-center shrink-0">
-              <button
-                type="button"
-                id="student-attendance-calendar-btn"
-                onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`flex h-7.5 w-7.5 sm:h-8 sm:w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border p-0 transition-all ${
-                  jumpDate
-                    ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
-                    : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)]'
-                }`}
-                title="Select a specific date from calendar"
-                aria-label="Open Calendar"
-              >
-                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
-
-              {showCalendarPopover && (
-                <CustomCalendarDropdown
-                  selectedDate={jumpDate}
-                  onSelectDate={(d) => {
-                    setJumpDate(d);
-                    setShowCalendarPopover(false);
-                  }}
-                  onClear={() => {
-                    setJumpDate(null);
-                    setShowCalendarPopover(false);
-                  }}
-                  onClose={() => setShowCalendarPopover(false)}
-                  loggedDates={loggedDates}
-                />
-              )}
-            </div>
           </div>
         </div>
-
-        {/* Jump-to-date Active Chip */}
-        {jumpDate && (
-          <div className="flex items-center gap-2 px-5 py-2 border-b border-gray-50 dark:border-[#1A1A1A] bg-emerald-50/60 dark:bg-emerald-950/20">
-            <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-              {new Date(jumpDate + 'T00:00:00').toLocaleDateString(undefined, {
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric',
-              })}
-            </span>
-            <button
-              onClick={() => setJumpDate(null)}
-              className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 transition-colors cursor-pointer"
-            >
-              <X className="w-3 h-3" /> Clear
-            </button>
-          </div>
-        )}
 
         {/* Content Area */}
         <div className="p-3 sm:p-5">
@@ -1020,14 +894,14 @@ export const StudentQRAttendance: React.FC = () => {
               <AlertCircle className="w-5 h-5" />
               <span>{logsError}</span>
             </div>
-          ) : activeRecords.length === 0 ? (
+          ) : (displayedHistory.length === 0 && !(viewMode === 'week' && groupedHistory.length > 0)) ? (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
               <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
               <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">
-                {jumpDate ? 'No records for this date' : 'No attendance records yet'}
+                No attendance records yet
               </p>
               <p className="text-xs text-gray-400 dark:text-slate-500">
-                {jumpDate ? 'Try a different date or clear the filter' : 'Records will appear once attendance is logged for you'}
+                Records will appear once attendance is logged for you
               </p>
             </div>
           ) : (
@@ -1041,6 +915,13 @@ export const StudentQRAttendance: React.FC = () => {
                   formatDateString={formatDateString}
                   formatTimeString={formatTimeString}
                   studentName={user?.full_name || studentFirstName}
+                  schoolYearWeeks={schoolYearWeeks}
+                  selectedWeekKey={selectedWeekOption?.weekKey}
+                  recordedWeekKeys={recordedWeekKeys}
+                  onSelectWeek={(weekKey) => {
+                    setSelectedWeekMonday(weekKey);
+                    setViewMode('week');
+                  }}
                 />
               ))}
             </div>

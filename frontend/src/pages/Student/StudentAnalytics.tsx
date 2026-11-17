@@ -553,7 +553,8 @@ const MobileRiskTrendChart: React.FC<{
       return [label];
     }
     if (trendFilter === 'month') {
-      return [label.split(' ')[0] || label];
+      const monthWord = label.split(' ')[0] || label;
+      return [width < 380 && monthWord.length > 4 ? monthWord.slice(0, 3) : monthWord];
     }
     return [label];
   };
@@ -703,27 +704,31 @@ const MobileRiskTrendChart: React.FC<{
                 )}
 
                 {/* Complete X-Axis Date Labels Under Every Bar */}
-                {line2 ? (
-                  <text
-                    x={x}
-                    y={paddingTop + chartHeight + 13}
-                    textAnchor="middle"
-                    className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[8.5px]"
-                  >
-                    <tspan x={x} dy="0">{line1}</tspan>
-                    <tspan x={x} dy="10">{line2}</tspan>
-                  </text>
-                ) : (
-                  <text
-                    x={x}
-                    y={height - 6}
-                    textAnchor="middle"
-                    className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[9px]"
-                    style={{ whiteSpace: 'nowrap' }}
-                  >
-                    {line1}
-                  </text>
-                )}
+                {(() => {
+                  const labelAnchor = index === 0 ? 'start' : index === data.length - 1 ? 'end' : 'middle';
+                  const labelX = index === 0 ? paddingLeft : index === data.length - 1 ? width - paddingRight : x;
+                  return line2 ? (
+                    <text
+                      x={labelX}
+                      y={paddingTop + chartHeight + 13}
+                      textAnchor={labelAnchor}
+                      className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[8.5px]"
+                    >
+                      <tspan x={labelX} dy="0">{line1}</tspan>
+                      <tspan x={labelX} dy="10">{line2}</tspan>
+                    </text>
+                  ) : (
+                    <text
+                      x={labelX}
+                      y={height - 6}
+                      textAnchor={labelAnchor}
+                      className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[9px]"
+                      style={{ whiteSpace: 'nowrap' }}
+                    >
+                      {line1}
+                    </text>
+                  );
+                })()}
 
                 {/* Hit region */}
                 <rect
@@ -1104,18 +1109,34 @@ export const StudentAnalytics: React.FC = () => {
         className="rounded-md border border-gray-200 bg-white px-3 py-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#111111] shadow-sm"
         aria-labelledby="risk-overview-heading"
       >
-        <div className="flex flex-col gap-1.5 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
-          <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0">
-            <div className="min-w-0 flex-1 truncate">
+        <div className="flex flex-col gap-2 sm:gap-1.5 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0">
+            <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0 sm:flex-1">
               <h3
                 id="risk-overview-heading"
-                className="text-[10px] sm:text-sm font-bold uppercase tracking-tight text-gray-900 dark:text-slate-100 whitespace-nowrap truncate"
+                className="text-[11px] sm:text-sm font-bold uppercase tracking-tight text-gray-900 dark:text-slate-100 truncate"
+                title="RISK LEVEL TREND CHART"
               >
                 RISK LEVEL TREND CHART
               </h3>
+              {/* Mobile Legend Row (< 640px) inline with Chart Name */}
+              <div className="flex sm:hidden items-center gap-1.5 shrink-0 whitespace-nowrap text-[9px] font-semibold text-gray-600 dark:text-slate-300">
+                <span className="inline-flex items-center gap-1">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: '#EF4444' }} />
+                  High
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: '#F59E0B' }} />
+                  Moderate
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: '#22C55E' }} />
+                  Low
+                </span>
+              </div>
             </div>
 
-            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap">
+            <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-3 w-full sm:w-auto shrink-0 flex-nowrap">
               <div className="hidden sm:flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
                 <span className="inline-flex items-center gap-1.5">
                   <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#EF4444' }} />
@@ -1141,18 +1162,18 @@ export const StudentAnalytics: React.FC = () => {
                 buttonClassName="px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px]"
               />
               {/* Period navigation arrows */}
-              <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present records">
+              <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0" role="group" aria-label="Scroll between previous and present records">
                 <button
                   type="button"
                   onClick={() => setTrendPage((p) => p + 1)}
                   disabled={trendPage >= 10}
                   aria-label="Previous records"
                   title={trendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
-                  className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                  className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
                 >
                   <ChevronLeft size={14} className="stroke-[2.5]" />
                 </button>
-                <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                <span className="inline-flex items-center justify-center min-w-[78px] sm:w-[114px] px-1 text-[9px] sm:text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
                   {formatChartPeriodRange(trendFilter, trendPage)}
                 </span>
                 <button
@@ -1161,28 +1182,12 @@ export const StudentAnalytics: React.FC = () => {
                   disabled={trendPage === 0}
                   aria-label="Next records"
                   title={trendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
-                  className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                  className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
                 >
                   <ChevronRight size={14} className="stroke-[2.5]" />
                 </button>
               </div>
             </div>
-          </div>
-
-          {/* Mobile Legend Row (< 640px) */}
-          <div className="flex sm:hidden items-center gap-3 flex-wrap text-[11px] font-semibold text-gray-600 dark:text-slate-300">
-            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-              <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: '#EF4444' }} />
-              High Risk
-            </span>
-            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-              <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: '#F59E0B' }} />
-              Moderate Risk
-            </span>
-            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-              <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: '#22C55E' }} />
-              Low Risk
-            </span>
           </div>
         </div>
 
