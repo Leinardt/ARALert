@@ -122,11 +122,11 @@ export const HistoryWeekDropdown: React.FC<HistoryWeekDropdownProps> = ({
         onClick={handleToggle}
         aria-label={ariaLabel}
         aria-expanded={isOpen}
-        className="inline-flex h-7.5 items-center justify-between gap-1.5 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-xs font-black uppercase tracking-wider text-[var(--brand)] outline-none transition hover:bg-gray-100 dark:hover:bg-[#222222] focus:border-[var(--brand)] cursor-pointer whitespace-nowrap select-none"
+        className="inline-flex h-7 sm:h-7.5 items-center justify-between gap-1 sm:gap-1.5 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-1.5 sm:px-2.5 text-[10px] sm:text-xs font-black uppercase tracking-wider text-[var(--brand)] outline-none transition hover:bg-gray-100 dark:hover:bg-[#222222] focus:border-[var(--brand)] cursor-pointer whitespace-nowrap select-none"
       >
         <span>{label}</span>
         <ChevronDown
-          className={`h-3.5 w-3.5 shrink-0 opacity-75 transition-transform duration-150 ${
+          className={`h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 opacity-75 transition-transform duration-150 ${
             isOpen ? 'rotate-180' : ''
           }`}
         />

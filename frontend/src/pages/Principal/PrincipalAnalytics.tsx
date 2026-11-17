@@ -461,8 +461,8 @@ const TrendChart: React.FC<{
 
   const { width, height } = dimensions;
   const isMobile = width < 520;
-  const paddingLeft = isMobile ? 38 : 50;
-  const paddingRight = isMobile ? 24 : 44;
+  const paddingLeft = isMobile ? 36 : 50;
+  const paddingRight = isMobile ? 16 : 44;
   const paddingTop = isMobile ? 16 : 20;
   const paddingBottom = isMobile ? (trendFilter === 'month' ? 24 : 34) : 24;
 
@@ -510,14 +510,15 @@ const TrendChart: React.FC<{
       return [label];
     }
     if (trendFilter === 'month') {
-      return [label.split(' ')[0] || label];
+      const monthWord = label.split(' ')[0] || label;
+      return [width < 380 && monthWord.length > 4 ? monthWord.slice(0, 3) : monthWord];
     }
     return [label];
   };
 
   if (data.length === 0) {
     return (
-      <div ref={containerRef} className="flex h-full w-full items-center justify-center text-xs font-medium text-gray-400 dark:text-slate-500">
+      <div ref={containerRef} className="flex h-full w-full items-center justify-center px-4 text-center text-xs font-medium text-gray-400 dark:text-slate-500">
         {emptyLabel}
       </div>
     );
@@ -628,7 +629,7 @@ const TrendChart: React.FC<{
                 x={paddingLeft - 8}
                 y={y + 3.5}
                 textAnchor="end"
-                className="fill-slate-400 font-bold text-[9px] xs:text-[10px]"
+                className="fill-slate-400 font-bold text-[9px] sm:text-[10px]"
               >
                 {val}%
               </text>
@@ -641,27 +642,38 @@ const TrendChart: React.FC<{
           const rawFormatted = formatShortDateRange(p.label);
           if (isMobile) {
             const [line1, line2] = getMobileLabelLines(rawFormatted);
+            let mobileAnchor: 'start' | 'middle' | 'end' = 'middle';
+            let mobileX = p.x;
+            if (points.length > 1) {
+              if (idx === 0) {
+                mobileAnchor = 'start';
+                mobileX = Math.max(paddingLeft, p.x);
+              } else if (idx === points.length - 1) {
+                mobileAnchor = 'end';
+                mobileX = Math.min(width - paddingRight, p.x);
+              }
+            }
             if (line2) {
               return (
                 <text
                   key={`label-${idx}`}
-                  x={p.x}
+                  x={mobileX}
                   y={paddingTop + chartH + 13}
                   className="fill-slate-500 dark:fill-slate-400 font-semibold text-[8.5px] select-none"
-                  textAnchor="middle"
+                  textAnchor={mobileAnchor}
                 >
-                  <tspan x={p.x} dy="0">{line1}</tspan>
-                  <tspan x={p.x} dy="10">{line2}</tspan>
+                  <tspan x={mobileX} dy="0">{line1}</tspan>
+                  <tspan x={mobileX} dy="10">{line2}</tspan>
                 </text>
               );
             }
             return (
               <text
                 key={`label-${idx}`}
-                x={p.x}
+                x={mobileX}
                 y={height - 6}
                 className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px] select-none"
-                textAnchor="middle"
+                textAnchor={mobileAnchor}
                 style={{ whiteSpace: 'nowrap' }}
               >
                 {line1}
@@ -1190,7 +1202,8 @@ const MobileRiskTrendChart: React.FC<{
       return [label];
     }
     if (trendFilter === 'month') {
-      return [label.split(' ')[0] || label];
+      const monthWord = label.split(' ')[0] || label;
+      return [width < 380 && monthWord.length > 4 ? monthWord.slice(0, 3) : monthWord];
     }
     return [label];
   };
@@ -1264,6 +1277,17 @@ const MobileRiskTrendChart: React.FC<{
           {data.map((point, index) => {
             const x = getBarX(index);
             const [line1, line2] = getLabelLines(point.label);
+            let labelAnchor: 'start' | 'middle' | 'end' = 'middle';
+            let labelX = x;
+            if (data.length > 1) {
+              if (index === 0) {
+                labelAnchor = 'start';
+                labelX = Math.max(paddingLeft, x - barWidth / 2);
+              } else if (index === data.length - 1) {
+                labelAnchor = 'end';
+                labelX = Math.min(width - paddingRight, x + barWidth / 2);
+              }
+            }
 
             const highCount = point.high || 0;
             const medCount = point.moderate ?? point.medium ?? 0;
@@ -1342,19 +1366,19 @@ const MobileRiskTrendChart: React.FC<{
                 {/* Complete X-Axis Date Labels Under Every Bar */}
                 {line2 ? (
                   <text
-                    x={x}
+                    x={labelX}
                     y={paddingTop + chartHeight + 13}
-                    textAnchor="middle"
+                    textAnchor={labelAnchor}
                     className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[8.5px]"
                   >
-                    <tspan x={x} dy="0">{line1}</tspan>
-                    <tspan x={x} dy="10">{line2}</tspan>
+                    <tspan x={labelX} dy="0">{line1}</tspan>
+                    <tspan x={labelX} dy="10">{line2}</tspan>
                   </text>
                 ) : (
                   <text
-                    x={x}
+                    x={labelX}
                     y={height - 6}
-                    textAnchor="middle"
+                    textAnchor={labelAnchor}
                     className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[9px]"
                     style={{ whiteSpace: 'nowrap' }}
                   >
@@ -2469,19 +2493,24 @@ export const PrincipalAnalytics: React.FC = () => {
 
           {/* ── Risk Level Trend Chart ── */}
           <section className="rounded-md border border-gray-200 bg-white p-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#111111] shadow-sm" aria-labelledby="risk-overview-heading">
-            <div className="flex flex-col gap-2.5 sm:gap-3 border-b border-gray-100 pb-3 sm:pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
-              <div>
-                <h3 id="risk-overview-heading" className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100">
+            <div className="flex flex-col gap-2 sm:gap-3 border-b border-gray-100 pb-3 sm:pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+              <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0 sm:flex-1">
+                <h3 id="risk-overview-heading" className="text-[11px] sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">
                   {riskLevelTrendTitle}
                 </h3>
+                <div className="flex sm:hidden items-center gap-1.5 shrink-0 whitespace-nowrap text-[9px] font-semibold text-gray-600 dark:text-slate-300">
+                  <span className="inline-flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: '#EF4444' }} />High</span>
+                  <span className="inline-flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: '#F59E0B' }} />Mod</span>
+                  <span className="inline-flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: '#22C55E' }} />Low</span>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 w-full sm:w-auto shrink-0">
+                <div className="hidden sm:flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#EF4444' }} />High Risk</span>
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#F59E0B' }} />Moderate Risk</span>
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#22C55E' }} />Low Risk</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0 relative">
+                <div className="order-2 sm:order-1 flex items-center justify-end sm:justify-start gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0 relative">
                   <StudentRiskFilter
                     rows={rows}
                     value={riskScope}
@@ -2491,40 +2520,43 @@ export const PrincipalAnalytics: React.FC = () => {
                     }}
                   />
                 </div>
-                <SlidingPeriodToggle
-                  options={['day', 'week', 'month'] as const}
-                  value={riskTrendFilter}
-                  onChange={(filter) => {
-                    setRiskTrendFilter(filter);
-                    setRiskTrendPage(0);
-                  }}
-                  ariaLabel="Filter risk chart by time period"
-                />
-                {/* Period navigation arrows to scroll between previous and present records */}
-                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present risk records">
-                  <button
-                    type="button"
-                    onClick={() => setRiskTrendPage((p) => p + 1)}
-                    disabled={riskTrendPage >= 10}
-                    aria-label="Previous records"
-                    title={riskTrendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
-                    className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
-                  >
-                    <ChevronLeft size={14} className="stroke-[2.5]" />
-                  </button>
-                  <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
-                    {formatChartPeriodRange(riskTrendFilter, riskTrendPage)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setRiskTrendPage((p) => Math.max(0, p - 1))}
-                    disabled={riskTrendPage === 0}
-                    aria-label="Next records"
-                    title={riskTrendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
-                    className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
-                  >
-                    <ChevronRight size={14} className="stroke-[2.5]" />
-                  </button>
+                <div className="order-1 sm:order-2 flex items-center justify-between sm:justify-end gap-1.5 sm:gap-3 w-full sm:w-auto flex-nowrap">
+                  <SlidingPeriodToggle
+                    options={['day', 'week', 'month'] as const}
+                    value={riskTrendFilter}
+                    onChange={(filter) => {
+                      setRiskTrendFilter(filter);
+                      setRiskTrendPage(0);
+                    }}
+                    ariaLabel="Filter risk chart by time period"
+                    buttonClassName="px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px]"
+                  />
+                  {/* Period navigation arrows to scroll between previous and present records */}
+                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0" role="group" aria-label="Scroll between previous and present risk records">
+                    <button
+                      type="button"
+                      onClick={() => setRiskTrendPage((p) => p + 1)}
+                      disabled={riskTrendPage >= 10}
+                      aria-label="Previous records"
+                      title={riskTrendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
+                      className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    >
+                      <ChevronLeft size={13} className="stroke-[2.5] sm:w-[14px] sm:h-[14px]" />
+                    </button>
+                    <span className="inline-flex items-center justify-center min-w-[78px] sm:w-[114px] px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                      {formatChartPeriodRange(riskTrendFilter, riskTrendPage)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setRiskTrendPage((p) => Math.max(0, p - 1))}
+                      disabled={riskTrendPage === 0}
+                      aria-label="Next records"
+                      title={riskTrendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
+                      className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    >
+                      <ChevronRight size={13} className="stroke-[2.5] sm:w-[14px] sm:h-[14px]" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2613,17 +2645,20 @@ export const PrincipalAnalytics: React.FC = () => {
 
           {/* Attendance Trend Chart */}
           <div className="w-full rounded-md border border-gray-200 bg-white p-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#111111] shadow-sm">
-            <div className="flex flex-col gap-2.5 sm:gap-3 border-b border-gray-100 pb-3 sm:pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
-              <div>
-                <h3 className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100">
+            <div className="flex flex-col gap-2 sm:gap-3 border-b border-gray-100 pb-3 sm:pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+              <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0 sm:flex-1">
+                <h3 className="text-[11px] sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">
                   {attendanceTrendTitle}
                 </h3>
+                <div className="flex sm:hidden items-center gap-1.5 shrink-0 whitespace-nowrap text-[9px] font-semibold text-gray-600 dark:text-slate-300">
+                  <span className="inline-flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-[#0052B7] shrink-0" />Attendance Rate</span>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 w-full sm:w-auto shrink-0">
+                <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0">
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Attendance Rate</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0 relative">
+                <div className="order-2 sm:order-1 flex items-center justify-end sm:justify-start gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0 relative">
                   <StudentRiskFilter
                     rows={rows}
                     value={attendanceScope}
@@ -2633,40 +2668,43 @@ export const PrincipalAnalytics: React.FC = () => {
                     }}
                   />
                 </div>
-                <SlidingPeriodToggle
-                  options={['day', 'week', 'month'] as const}
-                  value={attendanceFilter}
-                  onChange={(filter) => {
-                    setAttendanceFilter(filter);
-                    setAttendanceTrendPage(0);
-                  }}
-                  ariaLabel="Attendance trend period"
-                />
-                {/* Period navigation arrows */}
-                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present attendance records">
-                  <button
-                    type="button"
-                    onClick={() => setAttendanceTrendPage((p) => p + 1)}
-                    disabled={attendanceTrendPage >= 10}
-                    aria-label="Previous records"
-                    title={attendanceTrendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
-                    className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
-                  >
-                    <ChevronLeft size={14} className="stroke-[2.5]" />
-                  </button>
-                  <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
-                    {formatChartPeriodRange(attendanceFilter, attendanceTrendPage)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setAttendanceTrendPage((p) => Math.max(0, p - 1))}
-                    disabled={attendanceTrendPage === 0}
-                    aria-label="Next records"
-                    title={attendanceTrendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
-                    className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
-                  >
-                    <ChevronRight size={14} className="stroke-[2.5]" />
-                  </button>
+                <div className="order-1 sm:order-2 flex items-center justify-between sm:justify-end gap-1.5 sm:gap-3 w-full sm:w-auto flex-nowrap">
+                  <SlidingPeriodToggle
+                    options={['day', 'week', 'month'] as const}
+                    value={attendanceFilter}
+                    onChange={(filter) => {
+                      setAttendanceFilter(filter);
+                      setAttendanceTrendPage(0);
+                    }}
+                    ariaLabel="Attendance trend period"
+                    buttonClassName="px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px]"
+                  />
+                  {/* Period navigation arrows */}
+                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0" role="group" aria-label="Scroll between previous and present attendance records">
+                    <button
+                      type="button"
+                      onClick={() => setAttendanceTrendPage((p) => p + 1)}
+                      disabled={attendanceTrendPage >= 10}
+                      aria-label="Previous records"
+                      title={attendanceTrendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
+                      className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    >
+                      <ChevronLeft size={13} className="stroke-[2.5] sm:w-[14px] sm:h-[14px]" />
+                    </button>
+                    <span className="inline-flex items-center justify-center min-w-[78px] sm:w-[114px] px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                      {formatChartPeriodRange(attendanceFilter, attendanceTrendPage)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setAttendanceTrendPage((p) => Math.max(0, p - 1))}
+                      disabled={attendanceTrendPage === 0}
+                      aria-label="Next records"
+                      title={attendanceTrendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
+                      className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    >
+                      <ChevronRight size={13} className="stroke-[2.5] sm:w-[14px] sm:h-[14px]" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2751,17 +2789,20 @@ export const PrincipalAnalytics: React.FC = () => {
 
           {/* Score Trend Chart */}
           <div className="w-full rounded-md border border-gray-200 bg-white p-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#111111] shadow-sm">
-            <div className="flex flex-col gap-2.5 sm:gap-3 border-b border-gray-100 pb-3 sm:pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
-              <div>
-                <h3 className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100">
+            <div className="flex flex-col gap-2 sm:gap-3 border-b border-gray-100 pb-3 sm:pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+              <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0 sm:flex-1">
+                <h3 className="text-[11px] sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">
                   {scoreTrendTitle}
                 </h3>
+                <div className="flex sm:hidden items-center gap-1.5 shrink-0 whitespace-nowrap text-[9px] font-semibold text-gray-600 dark:text-slate-300">
+                  <span className="inline-flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-[#0052B7] shrink-0" />Average Score Rate</span>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 w-full sm:w-auto shrink-0">
+                <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0">
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Average Score Rate</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0 relative">
+                <div className="order-2 sm:order-1 flex items-center justify-end sm:justify-start gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0 relative">
                   <StudentRiskFilter
                     rows={rows}
                     value={scoreScope}
@@ -2771,40 +2812,43 @@ export const PrincipalAnalytics: React.FC = () => {
                     }}
                   />
                 </div>
-                <SlidingPeriodToggle
-                  options={['day', 'week', 'month'] as const}
-                  value={scoreFilter}
-                  onChange={(filter) => {
-                    setScoreFilter(filter);
-                    setScoreTrendPage(0);
-                  }}
-                  ariaLabel="Score trend period"
-                />
-                {/* Period navigation arrows */}
-                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present score records">
-                  <button
-                    type="button"
-                    onClick={() => setScoreTrendPage((p) => p + 1)}
-                    disabled={scoreTrendPage >= 10}
-                    aria-label="Previous records"
-                    title={scoreTrendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
-                    className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
-                  >
-                    <ChevronLeft size={14} className="stroke-[2.5]" />
-                  </button>
-                  <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
-                    {formatChartPeriodRange(scoreFilter, scoreTrendPage)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setScoreTrendPage((p) => Math.max(0, p - 1))}
-                    disabled={scoreTrendPage === 0}
-                    aria-label="Next records"
-                    title={scoreTrendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
-                    className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
-                  >
-                    <ChevronRight size={14} className="stroke-[2.5]" />
-                  </button>
+                <div className="order-1 sm:order-2 flex items-center justify-between sm:justify-end gap-1.5 sm:gap-3 w-full sm:w-auto flex-nowrap">
+                  <SlidingPeriodToggle
+                    options={['day', 'week', 'month'] as const}
+                    value={scoreFilter}
+                    onChange={(filter) => {
+                      setScoreFilter(filter);
+                      setScoreTrendPage(0);
+                    }}
+                    ariaLabel="Score trend period"
+                    buttonClassName="px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px]"
+                  />
+                  {/* Period navigation arrows */}
+                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0" role="group" aria-label="Scroll between previous and present score records">
+                    <button
+                      type="button"
+                      onClick={() => setScoreTrendPage((p) => p + 1)}
+                      disabled={scoreTrendPage >= 10}
+                      aria-label="Previous records"
+                      title={scoreTrendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
+                      className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    >
+                      <ChevronLeft size={13} className="stroke-[2.5] sm:w-[14px] sm:h-[14px]" />
+                    </button>
+                    <span className="inline-flex items-center justify-center min-w-[78px] sm:w-[114px] px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                      {formatChartPeriodRange(scoreFilter, scoreTrendPage)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setScoreTrendPage((p) => Math.max(0, p - 1))}
+                      disabled={scoreTrendPage === 0}
+                      aria-label="Next records"
+                      title={scoreTrendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
+                      className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    >
+                      <ChevronRight size={13} className="stroke-[2.5] sm:w-[14px] sm:h-[14px]" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

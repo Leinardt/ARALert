@@ -87,8 +87,8 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
 
   const { width, height } = dimensions;
   const isMobile = width < 520;
-  const paddingLeft = isMobile ? 38 : 50;
-  const paddingRight = isMobile ? 18 : 44;
+  const paddingLeft = isMobile ? 36 : 50;
+  const paddingRight = isMobile ? 16 : 44;
   const paddingTop = isMobile ? 16 : 20;
   const paddingBottom = isMobile ? (trendFilter === 'month' ? 24 : 34) : 24;
 
@@ -135,7 +135,8 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
       return [label];
     }
     if (trendFilter === 'month') {
-      return [label.split(' ')[0] || label];
+      const monthWord = label.split(' ')[0] || label;
+      return [width < 380 && monthWord.length > 4 ? monthWord.slice(0, 3) : monthWord];
     }
     return [label];
   };
@@ -235,9 +236,9 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
                 opacity="0.6"
               />
               <text
-                x={paddingLeft - 8}
+                x={paddingLeft - 7}
                 y={y + 3}
-                className="fill-slate-400 font-semibold text-[9px] xs:text-[10px]"
+                className="fill-slate-400 font-semibold text-[9px] sm:text-[10px]"
                 textAnchor="end"
               >
                 {val}%
@@ -268,44 +269,44 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
 
         {/* X-axis date labels (complete dates for every point) */}
         {points.map((p, idx) => {
+          let textAnchor: 'start' | 'middle' | 'end' = 'middle';
+          let labelX = p.x;
+          if (idx === 0) {
+            textAnchor = 'start';
+            labelX = isMobile ? paddingLeft : Math.max(paddingLeft, p.x - 3);
+          } else if (idx === points.length - 1) {
+            textAnchor = 'end';
+            labelX = isMobile ? width - paddingRight : Math.min(width - paddingRight, p.x + 3);
+          }
+
           if (isMobile) {
             const [line1, line2] = getMobileLabelLines(p.label);
             if (line2) {
               return (
                 <text
                   key={`label-${idx}`}
-                  x={p.x}
+                  x={labelX}
                   y={paddingTop + chartH + 13}
-                  className="fill-slate-500 dark:fill-slate-400 font-semibold text-[8.5px]"
-                  textAnchor="middle"
+                  className="fill-slate-500 dark:fill-slate-400 font-semibold text-[8.5px] sm:text-[9px]"
+                  textAnchor={textAnchor}
                 >
-                  <tspan x={p.x} dy="0">{line1}</tspan>
-                  <tspan x={p.x} dy="10">{line2}</tspan>
+                  <tspan x={labelX} dy="0">{line1}</tspan>
+                  <tspan x={labelX} dy="10">{line2}</tspan>
                 </text>
               );
             }
             return (
               <text
                 key={`label-${idx}`}
-                x={p.x}
+                x={labelX}
                 y={height - 6}
                 className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px]"
-                textAnchor="middle"
+                textAnchor={textAnchor}
                 style={{ whiteSpace: 'nowrap' }}
               >
                 {line1}
               </text>
             );
-          }
-
-          let textAnchor: 'start' | 'middle' | 'end' = 'middle';
-          let labelX = p.x;
-          if (idx === 0) {
-            textAnchor = 'start';
-            labelX = Math.max(paddingLeft, p.x - 3);
-          } else if (idx === points.length - 1) {
-            textAnchor = 'end';
-            labelX = Math.min(width - paddingRight, p.x + 3);
           }
 
           return (
@@ -1037,14 +1038,25 @@ export const StudentHome: React.FC = () => {
       <div className="flex-1 flex flex-col min-h-0 w-full min-w-0 max-w-full">
         <div className="w-full max-w-full min-w-0 bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3 py-3.5 sm:px-5 flex flex-col h-full min-h-0 shadow-sm">
           {/* Chart Header */}
-          <div className="flex flex-col gap-1.5 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
-            <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0">
-              <div className="min-w-0 flex-1">
-                <h3 className="text-[10px] sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight whitespace-nowrap truncate">
+          <div className="flex flex-col gap-2 sm:gap-1.5 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0">
+              <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0 sm:flex-1">
+                <h3 className="text-[11px] sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight truncate" title={`${studentFirstName}'s Performance Trend`}>
                   {studentFirstName}'s Performance Trend
                 </h3>
+                {/* Mobile Legend Row (< 640px) inline with Chart Name */}
+                <div className="flex sm:hidden items-center gap-1.5 shrink-0 whitespace-nowrap text-[9px] font-semibold">
+                  <div className="flex items-center gap-1 text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] inline-block shrink-0" />
+                    <span>Composite rating</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-sky-600 dark:text-sky-400 whitespace-nowrap">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#38BDF8] inline-block shrink-0" />
+                    <span className="truncate max-w-[64px]">{studentMilestone}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap">
+              <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-3 w-full sm:w-auto shrink-0 flex-nowrap">
                 <div className="hidden sm:flex items-center gap-3 shrink-0 whitespace-nowrap">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300 whitespace-nowrap">
                     <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
@@ -1066,18 +1078,18 @@ export const StudentHome: React.FC = () => {
                   buttonClassName="px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px]"
                 />
                 {/* Period navigation arrows */}
-                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present records">
+                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0" role="group" aria-label="Scroll between previous and present records">
                   <button
                     type="button"
                     onClick={() => setTrendPage((p) => p + 1)}
                     disabled={trendPage >= 10}
                     aria-label="Previous records"
                     title={trendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
-                    className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
                   >
                     <ChevronLeft size={14} className="stroke-[2.5]" />
                   </button>
-                  <span className="inline-flex items-center justify-center w-[114px] px-1 text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
+                  <span className="inline-flex items-center justify-center min-w-[78px] sm:w-[114px] px-1 text-[9px] sm:text-[10px] font-bold text-center tabular-nums text-gray-600 dark:text-slate-300 whitespace-nowrap select-none">
                     {formatChartPeriodRange(trendFilter, trendPage)}
                   </span>
                   <button
@@ -1086,22 +1098,11 @@ export const StudentHome: React.FC = () => {
                     disabled={trendPage === 0}
                     aria-label="Next records"
                     title={trendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
-                    className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    className="flex items-center justify-center h-[24px] w-[22px] sm:h-[26px] sm:w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
                   >
                     <ChevronRight size={14} className="stroke-[2.5]" />
                   </button>
                 </div>
-              </div>
-            </div>
-            {/* Mobile Legend Row (< 640px) */}
-            <div className="flex sm:hidden items-center gap-3 flex-wrap text-[11px] font-semibold">
-              <div className="flex items-center gap-1.5 text-gray-600 dark:text-slate-300 whitespace-nowrap">
-                <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
-                <span>Composite rating</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-sky-600 dark:text-sky-400 whitespace-nowrap">
-                <span className="h-2 w-2 rounded-full bg-[#38BDF8] inline-block shrink-0" />
-                <span>{studentMilestone}</span>
               </div>
             </div>
           </div>
@@ -1182,10 +1183,10 @@ export const StudentHome: React.FC = () => {
 
               <Link
                 to="/student/analytics"
-                className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-4 py-2.5 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300 cursor-pointer"
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 dark:border-[#222222] bg-gray-50 dark:bg-[#141414] px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#1f1f1f] transition-all whitespace-nowrap cursor-pointer"
               >
-                <span className="decoration-[var(--brand)]/60 dark:decoration-sky-400/60">See More</span>
-                <span className="font-bold no-underline" aria-hidden="true">&gt;</span>
+                <span className="whitespace-nowrap">See More</span>
+                <span className="font-bold text-gray-400" aria-hidden="true">&gt;</span>
               </Link>
             </div>
           </div>

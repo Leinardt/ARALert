@@ -187,7 +187,7 @@ export const Login: React.FC = () => {
             auto_select: false,
           });
 
-          const btnWidth = Math.min(340, Math.max(220, window.innerWidth - 72));
+          const btnWidth = Math.min(340, Math.max(220, window.innerWidth - 56));
           window.google.accounts.id.renderButton(googleBtnRef.current, {
             theme: 'outline',
             size: 'large',
@@ -234,7 +234,7 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-h-[100dvh] flex flex-col items-center justify-center px-3.5 sm:px-6 py-12 sm:py-16 box-border bg-white dark:bg-black text-slate-900 dark:text-white transition-colors">
+    <div className="w-full min-h-[100dvh] flex flex-col items-center justify-center px-7 sm:px-6 pt-20 pb-12 sm:py-16 box-border bg-white dark:bg-black text-slate-900 dark:text-white transition-colors">
       <div className="w-full max-w-[480px] mx-auto animate-view-fade-in">
         {/* Session expired alert */}
         {isSessionExpired && (

@@ -3,13 +3,7 @@ import {
   Search,
   RefreshCw,
   Check,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
   ChevronDown,
-  RotateCcw,
-  ClipboardList,
   X,
 } from 'lucide-react';
 import { ticketService, SupportTicketItem } from '../../services/ticketService';
@@ -318,19 +312,14 @@ export const Tickets: React.FC = () => {
     >
       {/* ── Checklist Progress Summary Card ─────────────────────────────── */}
       <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-4 sm:p-5 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-[var(--brand)]/10 border border-[var(--brand)]/20 flex items-center justify-center text-[var(--brand)] shrink-0">
-              <ClipboardList className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white tracking-tight">
-                Support Ticket Checklist
-              </h2>
-              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-slate-400">
-                Track problem reports from submission to in-progress investigation and resolution
-              </p>
-            </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white tracking-tight">
+              Support Tickets
+            </h2>
+            <p className="text-[11px] sm:text-xs text-gray-500 dark:text-slate-400">
+              Track problem reports from submission to investigation and resolution
+            </p>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -489,7 +478,6 @@ export const Tickets: React.FC = () => {
                         }`}
                       >
                         <span>{opt.label}</span>
-                        {selected && <Check className="w-3 h-3" />}
                       </button>
                     );
                   })}
@@ -527,23 +515,46 @@ export const Tickets: React.FC = () => {
         {/* Checklist Items Body */}
         <div key={activeTab} className="tab-panel-enter">
         {isLoading ? (
-          <div className="divide-y divide-gray-100 dark:divide-[#1A1A1A]">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={`tkt-skel-${i}`} className="p-4 flex items-start gap-3 animate-pulse">
-                <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-800 shrink-0 mt-0.5" />
-                <div className="flex-1 space-y-2">
+          <div className="p-3 sm:p-5 space-y-3.5 bg-[#F8FAFC] dark:bg-[#0B0B0B]">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={`tkt-skel-${i}`}
+                className="relative rounded-xl border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#121212] flex flex-col md:flex-row animate-pulse"
+              >
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -left-[1px] top-1/2 -translate-y-1/2 w-4 h-7 overflow-hidden z-10"
+                >
+                  <span className="block w-7 h-7 -ml-3.5 rounded-full bg-[#F8FAFC] dark:bg-[#0B0B0B] border border-gray-200 dark:border-[#222222]" />
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -right-[1px] top-1/2 -translate-y-1/2 w-4 h-7 overflow-hidden z-10"
+                >
+                  <span className="block w-7 h-7 ml-0.5 rounded-full bg-[#F8FAFC] dark:bg-[#0B0B0B] border border-gray-200 dark:border-[#222222]" />
+                </span>
+
+                <div className="flex-1 pl-6 sm:pl-7 pr-6 md:pr-5 py-3.5 space-y-2.5">
                   <div className="flex items-center justify-between gap-4">
-                    <div className="h-4 w-40 rounded bg-gray-200 dark:bg-gray-800" />
-                    <div className="h-5 w-24 rounded-full bg-gray-200 dark:bg-gray-800" />
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-800 shrink-0" />
+                      <div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-800" />
+                      <div className="h-5 w-20 rounded-full bg-gray-200 dark:bg-gray-800" />
+                    </div>
+                    <div className="h-3 w-28 rounded bg-gray-200 dark:bg-gray-800" />
                   </div>
-                  <div className="h-3 w-full max-w-lg rounded bg-gray-200 dark:bg-gray-800" />
+                  <div className="h-3.5 w-48 rounded bg-gray-200 dark:bg-gray-800" />
+                  <div className="h-12 w-full rounded-md bg-gray-100 dark:bg-gray-800/70" />
+                </div>
+
+                <div className="relative md:w-48 lg:w-52 shrink-0 border-t md:border-t-0 md:border-l border-dashed border-gray-200 dark:border-[#262626] bg-gray-50/70 dark:bg-[#151515] rounded-b-[11px] md:rounded-bl-none md:rounded-r-[11px] pl-6 md:pl-5 pr-6 sm:pr-7 py-3.5 flex items-center justify-end md:justify-center">
+                  <div className="h-7 w-28 rounded-md bg-gray-200 dark:bg-gray-800" />
                 </div>
               </div>
             ))}
           </div>
         ) : error ? (
           <div className="p-10 text-center text-rose-600 dark:text-rose-400">
-            <AlertCircle className="w-8 h-8 mx-auto mb-2" />
             <p className="text-xs font-semibold">{error}</p>
             <button
               type="button"
@@ -555,18 +566,17 @@ export const Tickets: React.FC = () => {
           </div>
         ) : paginatedTickets.length === 0 ? (
           <div className="py-14 px-4 text-center">
-            <ClipboardList className="w-10 h-10 mx-auto text-gray-300 dark:text-zinc-700 mb-2" />
             <p className="text-sm font-semibold text-gray-700 dark:text-slate-300">
-              No tickets in this checklist view
+              No tickets found
             </p>
             <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
               {searchQuery || roleFilter !== 'all'
                 ? 'Try clearing your search or role filter.'
-                : 'Submitted problem reports will appear here as checklist items.'}
+                : 'Submitted problem reports will appear here.'}
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+          <div className="p-3 sm:p-5 space-y-3.5 bg-[#F8FAFC] dark:bg-[#0B0B0B]">
             {paginatedTickets.map((t) => {
               const isPending = t.status === 'UNDER_REVIEW';
               const isInProgress = t.status === 'IN_PROGRESS';
@@ -576,336 +586,345 @@ export const Tickets: React.FC = () => {
               const isUpdating = updatingTicketId === t.ticket_id;
               const isDrawerOpen = activeAction?.ticketId === t.ticket_id;
 
+              const ticketBorderColor = isResolved
+                ? 'border-emerald-200 dark:border-emerald-900/60'
+                : isInProgress
+                ? 'border-amber-200 dark:border-amber-900/60'
+                : isDismissed
+                ? 'border-gray-200 dark:border-[#242424]'
+                : 'border-gray-200 dark:border-[#262626]';
+
+              const ticketCardSurface = isResolved
+                ? 'bg-white dark:bg-[#101613]'
+                : isDismissed
+                ? 'bg-white/85 dark:bg-[#101010] opacity-85'
+                : 'bg-white dark:bg-[#121212]';
+
+              const stubSurface = isResolved
+                ? 'bg-emerald-50/45 dark:bg-[#121C17]'
+                : isInProgress
+                ? 'bg-amber-50/45 dark:bg-[#1A160E]'
+                : isDismissed
+                ? 'bg-gray-50/80 dark:bg-[#141414]'
+                : 'bg-slate-50/80 dark:bg-[#151515]';
+
               return (
-                <div
+                <article
                   key={t.id}
-                  className={`p-3.5 sm:p-4 transition-colors ${
-                    isResolved
-                      ? 'bg-emerald-50/20 dark:bg-emerald-950/[0.08]'
-                      : isInProgress
-                      ? 'bg-amber-50/25 dark:bg-amber-950/[0.08]'
-                      : isDismissed
-                      ? 'bg-gray-50/60 dark:bg-[#0D0D0D] opacity-80'
-                      : 'hover:bg-gray-50/70 dark:hover:bg-white/[0.02]'
-                  }`}
+                  className={`relative rounded-xl border ${ticketBorderColor} ${ticketCardSurface} transition-colors flex flex-col md:flex-row`}
                 >
-                  <div className="flex items-start gap-3">
-                    {/* Interactive Checklist Checkbox */}
-                    <button
-                      type="button"
-                      disabled={isUpdating}
-                      onClick={() => handleCheckboxToggle(t)}
-                      aria-label={
-                        isDone
-                          ? `Reopen ticket ${t.ticket_id}`
-                          : `Resolve ticket ${t.ticket_id}`
-                      }
-                      title={
-                        isDone
-                          ? 'Click to uncheck and reopen ticket'
-                          : 'Click to mark ticket as resolved'
-                      }
-                      className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors cursor-pointer disabled:opacity-50 ${
-                        isResolved
-                          ? 'bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700'
-                          : isDismissed
-                          ? 'bg-slate-500 border-slate-500 text-white hover:bg-slate-600'
-                          : isInProgress
-                          ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 hover:bg-amber-100'
-                          : 'border-gray-300 dark:border-zinc-600 bg-white dark:bg-[#151515] hover:border-[var(--brand)]'
-                      }`}
-                    >
-                      {isResolved && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                      {isDismissed && <X className="w-3.5 h-3.5 stroke-[3]" />}
-                      {isInProgress && <Clock className="w-3 h-3 stroke-[2.5]" />}
-                    </button>
+                  {/* Left & Right Semicircular Ticket Notches breaking the outer border cleanly */}
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -left-[1px] top-1/2 -translate-y-1/2 w-4 h-7 overflow-hidden z-10"
+                  >
+                    <span
+                      className={`block w-7 h-7 -ml-3.5 rounded-full bg-[#F8FAFC] dark:bg-[#0B0B0B] border ${ticketBorderColor}`}
+                    />
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -right-[1px] top-1/2 -translate-y-1/2 w-4 h-7 overflow-hidden z-10"
+                  >
+                    <span
+                      className={`block w-7 h-7 ml-0.5 rounded-full bg-[#F8FAFC] dark:bg-[#0B0B0B] border ${ticketBorderColor}`}
+                    />
+                  </span>
 
-                    {/* Ticket Content */}
-                    <div className="flex-1 min-w-0 space-y-2">
-                      {/* Header Row */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-2 min-w-0">
-                          <span
-                            className={`font-mono text-xs sm:text-sm font-bold ${
-                              isDone
-                                ? 'line-through text-gray-500 dark:text-slate-400'
-                                : 'text-gray-900 dark:text-slate-100'
-                            }`}
-                          >
-                            #{t.ticket_id}
-                          </span>
-
-                          {/* Status Pill */}
-                          {isPending && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-slate-100 dark:bg-[#1E1E1E] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#2A2A2A]">
-                              Under Review
-                            </span>
-                          )}
+                  {/* Main Ticket Body */}
+                  <div className="relative flex-1 min-w-0 rounded-t-[11px] md:rounded-tr-none md:rounded-l-[11px] pl-6 sm:pl-7 pr-6 md:pr-5 py-3.5 space-y-2.5">
+                    {/* Ticket Header Bar */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-dashed border-gray-200 dark:border-[#242424]">
+                      <div className="flex flex-wrap items-center gap-2 min-w-0">
+                        {/* Interactive Checklist Checkbox */}
+                        <button
+                          type="button"
+                          disabled={isUpdating}
+                          onClick={() => handleCheckboxToggle(t)}
+                          aria-label={
+                            isDone
+                              ? `Reopen ticket ${t.ticket_id}`
+                              : `Resolve ticket ${t.ticket_id}`
+                          }
+                          title={
+                            isDone
+                              ? 'Click to uncheck and reopen ticket'
+                              : 'Click to mark ticket as resolved'
+                          }
+                          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors cursor-pointer disabled:opacity-50 ${
+                            isResolved
+                              ? 'bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700'
+                              : isDismissed
+                              ? 'bg-slate-500 border-slate-500 text-white hover:bg-slate-600'
+                              : isInProgress
+                              ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100'
+                              : 'border-gray-300 dark:border-zinc-600 bg-white dark:bg-[#151515] hover:border-[var(--brand)]'
+                          }`}
+                        >
+                          {isResolved && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                          {isDismissed && <X className="w-3.5 h-3.5 stroke-[3]" />}
                           {isInProgress && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/70">
-                              <Clock className="w-2.5 h-2.5" />
-                              In Progress
-                            </span>
+                            <span className="w-2 h-2 rounded-full bg-amber-500" />
                           )}
-                          {isResolved && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/70">
-                              <CheckCircle2 className="w-2.5 h-2.5" />
-                              Resolved
-                            </span>
-                          )}
-                          {isDismissed && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-slate-100 dark:bg-[#1E1E1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-[#2A2A2A]">
-                              <XCircle className="w-2.5 h-2.5" />
-                              Closed
-                            </span>
-                          )}
+                        </button>
 
-                          {/* Submitter & Role */}
-                          <span className="text-xs font-semibold text-gray-700 dark:text-slate-200">
-                            {t.submitter_name}
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-100 dark:bg-[#1A1A1A] text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-[#262626]">
-                            {t.submitter_role}
-                          </span>
-                        </div>
-
-                        <span className="text-[11px] font-medium text-gray-400 dark:text-slate-500 whitespace-nowrap shrink-0">
-                          {formatDateTime(t.created_at)}
+                        <span
+                          className={`font-mono text-xs sm:text-sm font-extrabold tracking-tight ${
+                            isDone
+                              ? 'line-through text-gray-500 dark:text-slate-400'
+                              : 'text-gray-900 dark:text-slate-100'
+                          }`}
+                        >
+                          #{t.ticket_id}
                         </span>
-                      </div>
 
-                      {/* Contact & Student Details */}
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500 dark:text-slate-400">
-                        <span className="font-mono break-all">{t.contact_email}</span>
-                        {t.lrn && (
-                          <span className="font-mono">
-                            • LRN: {t.lrn}
-                            {t.grade_level ? ` • Grade ${t.grade_level}` : ''}
-                            {t.section ? ` • ${t.section}` : ''}
-                            {t.tutor_name ? ` • Tutor: ${t.tutor_name}` : ''}
+                        {/* Status Pill */}
+                        {isPending && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-slate-100 dark:bg-[#1E1E1E] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#2A2A2A]">
+                            Under Review
+                          </span>
+                        )}
+                        {isInProgress && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/70">
+                            In Progress
+                          </span>
+                        )}
+                        {isResolved && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/70">
+                            Resolved
+                          </span>
+                        )}
+                        {isDismissed && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-slate-100 dark:bg-[#1E1E1E] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-[#2A2A2A]">
+                            Closed
                           </span>
                         )}
                       </div>
 
-                      {/* Problem Description */}
-                      <div
-                        className={`rounded-md border px-3 py-2 text-xs sm:text-[13px] leading-relaxed whitespace-pre-wrap ${
-                          isDone
-                            ? 'border-gray-200/70 dark:border-[#1E1E1E] bg-white/60 dark:bg-[#0D0D0D] text-gray-500 dark:text-slate-400'
-                            : 'border-gray-200 dark:border-[#1F1F1F] bg-gray-50/70 dark:bg-[#151515] text-gray-800 dark:text-slate-200'
-                        }`}
-                      >
-                        {t.description}
+                      <span className="text-[11px] font-medium text-gray-400 dark:text-slate-500 whitespace-nowrap shrink-0">
+                        {formatDateTime(t.created_at)}
+                      </span>
+                    </div>
+
+                    {/* Submitter Identity & Contact Details */}
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-gray-500 dark:text-slate-400">
+                      <span className="text-xs sm:text-[13px] font-bold text-gray-800 dark:text-slate-100">
+                        {t.submitter_name}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-100 dark:bg-[#1A1A1A] text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-[#262626]">
+                        {t.submitter_role}
+                      </span>
+                      <span className="font-mono break-all text-gray-500 dark:text-slate-400">
+                        {t.contact_email}
+                      </span>
+                      {t.lrn && (
+                        <span className="font-mono">
+                          • LRN: {t.lrn}
+                          {t.grade_level ? ` • Grade ${t.grade_level}` : ''}
+                          {t.section ? ` • ${t.section}` : ''}
+                          {t.tutor_name ? ` • Tutor: ${t.tutor_name}` : ''}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Problem Description */}
+                    <div
+                      className={`rounded-lg border px-3 py-2.5 text-xs sm:text-[13px] leading-relaxed whitespace-pre-wrap ${
+                        isDone
+                          ? 'border-gray-200/70 dark:border-[#1E1E1E] bg-gray-50/60 dark:bg-[#0E0E0E] text-gray-500 dark:text-slate-400'
+                          : 'border-gray-200 dark:border-[#222222] bg-gray-50/70 dark:bg-[#161616] text-gray-800 dark:text-slate-200'
+                      }`}
+                    >
+                      {t.description}
+                    </div>
+
+                    {/* Attribution / Notes */}
+                    {isInProgress && t.claimed_by_name && (
+                      <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                        In Progress — Handled by {t.claimed_by_name}
+                      </p>
+                    )}
+
+                    {isResolved && t.admin_reply && (
+                      <div className="rounded-md border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/70 dark:bg-emerald-950/25 px-3 py-2 text-xs text-emerald-900 dark:text-emerald-300">
+                        <strong>Resolution Note:</strong> {t.admin_reply}
+                        {(t.resolved_by_name || t.resolved_at) && (
+                          <span className="block text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5">
+                            {t.resolved_by_name ? `Resolved by ${t.resolved_by_name}` : 'Resolved'}
+                            {t.resolved_at ? ` • ${formatDateTime(t.resolved_at)}` : ''}
+                          </span>
+                        )}
                       </div>
+                    )}
 
-                      {/* Attribution / Notes */}
-                      {isInProgress && t.claimed_by_name && (
-                        <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
-                          In Progress — Handled by {t.claimed_by_name}
-                        </p>
-                      )}
-
-                      {isResolved && t.admin_reply && (
-                        <div className="rounded-md border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/70 dark:bg-emerald-950/25 px-3 py-2 text-xs text-emerald-900 dark:text-emerald-300">
-                          <strong>Resolution Note:</strong> {t.admin_reply}
-                          {(t.resolved_by_name || t.resolved_at) && (
-                            <span className="block text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5">
-                              {t.resolved_by_name ? `Resolved by ${t.resolved_by_name}` : 'Resolved'}
-                              {t.resolved_at ? ` • ${formatDateTime(t.resolved_at)}` : ''}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {isDismissed && t.admin_reply && (
-                        <div className="rounded-md border border-gray-200 dark:border-[#242424] bg-gray-100/70 dark:bg-[#161616] px-3 py-2 text-xs text-gray-700 dark:text-slate-300">
-                          <strong>Closure Note:</strong> {t.admin_reply}
-                          {(t.resolved_by_name || t.resolved_at) && (
-                            <span className="block text-[10px] text-gray-500 dark:text-slate-400 mt-0.5">
-                              {t.resolved_by_name ? `Closed by ${t.resolved_by_name}` : 'Closed'}
-                              {t.resolved_at ? ` • ${formatDateTime(t.resolved_at)}` : ''}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Checklist Action Controls */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                        {/* Stepper Progress Indicator */}
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider">
-                          <span
-                            className={`px-2 py-0.5 rounded border ${
-                              isPending
-                                ? 'border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100'
-                                : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/30 dark:text-emerald-400'
-                            }`}
-                          >
-                            1. Review
+                    {isDismissed && t.admin_reply && (
+                      <div className="rounded-md border border-gray-200 dark:border-[#242424] bg-gray-100/70 dark:bg-[#161616] px-3 py-2 text-xs text-gray-700 dark:text-slate-300">
+                        <strong>Closure Note:</strong> {t.admin_reply}
+                        {(t.resolved_by_name || t.resolved_at) && (
+                          <span className="block text-[10px] text-gray-500 dark:text-slate-400 mt-0.5">
+                            {t.resolved_by_name ? `Closed by ${t.resolved_by_name}` : 'Closed'}
+                            {t.resolved_at ? ` • ${formatDateTime(t.resolved_at)}` : ''}
                           </span>
-                          <span className="text-gray-300 dark:text-zinc-600">→</span>
-                          <span
-                            className={`px-2 py-0.5 rounded border ${
-                              isInProgress
-                                ? 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300'
-                                : isResolved
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/30 dark:text-emerald-400'
-                                : 'border-gray-200 bg-gray-50 text-gray-400 dark:border-[#242424] dark:bg-[#151515] dark:text-zinc-500'
-                            }`}
-                          >
-                            2. In Progress
-                          </span>
-                          <span className="text-gray-300 dark:text-zinc-600">→</span>
-                          <span
-                            className={`px-2 py-0.5 rounded border ${
-                              isResolved
-                                ? 'border-emerald-500 bg-emerald-600 text-white'
-                                : isDismissed
-                                ? 'border-slate-400 bg-slate-500 text-white'
-                                : 'border-gray-200 bg-gray-50 text-gray-400 dark:border-[#242424] dark:bg-[#151515] dark:text-zinc-500'
-                            }`}
-                          >
-                            {isDismissed ? '3. Closed' : '3. Resolved'}
-                          </span>
-                        </div>
-
-                        {/* Buttons */}
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {isPending && (
-                            <button
-                              type="button"
-                              disabled={isUpdating}
-                              onClick={() => handleQuickAction(t.ticket_id, 'claim')}
-                              className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-500 hover:bg-amber-600 text-white transition-colors cursor-pointer disabled:opacity-50"
-                            >
-                              Mark In Progress
-                            </button>
-                          )}
-
-                          {(isPending || isInProgress) && (
-                            <>
-                              <button
-                                type="button"
-                                disabled={isUpdating}
-                                onClick={() => {
-                                  setActiveAction({ ticketId: t.ticket_id, type: 'resolve' });
-                                  setActionReply('');
-                                }}
-                                className="px-3 py-1 rounded-md text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
-                              >
-                                <Check className="w-3 h-3" />
-                                Resolve
-                              </button>
-                              <button
-                                type="button"
-                                disabled={isUpdating}
-                                onClick={() => {
-                                  setActiveAction({ ticketId: t.ticket_id, type: 'dismiss' });
-                                  setActionReply('');
-                                }}
-                                className="px-2.5 py-1 rounded-md text-[11px] font-semibold border border-gray-200 dark:border-[#262626] text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1C1C1C] transition-colors cursor-pointer disabled:opacity-50"
-                              >
-                                Close
-                              </button>
-                            </>
-                          )}
-
-                          {isDone && (
-                            <button
-                              type="button"
-                              disabled={isUpdating}
-                              onClick={() => handleQuickAction(t.ticket_id, 'reopen')}
-                              className="px-2.5 py-1 rounded-md text-[11px] font-semibold border border-gray-200 dark:border-[#262626] text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1C1C1C] transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
-                            >
-                              <RotateCcw className="w-3 h-3" />
-                              Reopen
-                            </button>
-                          )}
-                        </div>
+                        )}
                       </div>
+                    )}
 
-                      {/* Inline Resolution / Closure Note Drawer */}
-                      {isDrawerOpen && activeAction && (
-                        <div className="mt-2.5 p-3 rounded-lg border border-gray-200 dark:border-[#262626] bg-gray-50 dark:bg-[#151515] space-y-2.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <label className="text-xs font-bold text-gray-800 dark:text-slate-200">
-                              {activeAction.type === 'resolve'
-                                ? 'Resolution Note (optional or select preset)'
-                                : 'Reason for Closing Ticket (required)'}
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveAction(null);
-                                setActionReply('');
-                              }}
-                              className="p-0.5 text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer"
-                              aria-label="Cancel action"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
+                    {/* Inline Resolution / Closure Note Drawer */}
+                    {isDrawerOpen && activeAction && (
+                      <div className="p-3 rounded-lg border border-gray-200 dark:border-[#262626] bg-gray-50/60 dark:bg-[#151515] space-y-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="text-xs font-bold text-gray-800 dark:text-slate-200">
+                            {activeAction.type === 'resolve'
+                              ? 'Resolution Note (optional or select preset)'
+                              : 'Reason for Closing Ticket (required)'}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveAction(null);
+                              setActionReply('');
+                            }}
+                            className="p-0.5 text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer"
+                            aria-label="Cancel action"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {activeAction.type === 'resolve' && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {QUICK_RESOLUTION_NOTES.map((preset) => (
+                              <button
+                                key={preset}
+                                type="button"
+                                onClick={() => setActionReply(preset)}
+                                className="px-2 py-1 rounded text-[10.5px] font-semibold border border-gray-200 dark:border-[#282828] bg-white dark:bg-[#161616] text-gray-600 dark:text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)] transition-colors cursor-pointer"
+                              >
+                                {preset}
+                              </button>
+                            ))}
                           </div>
+                        )}
 
-                          {activeAction.type === 'resolve' && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {QUICK_RESOLUTION_NOTES.map((preset) => (
-                                <button
-                                  key={preset}
-                                  type="button"
-                                  onClick={() => setActionReply(preset)}
-                                  className="px-2 py-1 rounded text-[10.5px] font-semibold border border-gray-200 dark:border-[#282828] bg-white dark:bg-[#111111] text-gray-600 dark:text-slate-300 hover:border-[var(--brand)] hover:text-[var(--brand)] transition-colors cursor-pointer"
-                                >
-                                  {preset}
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                        <textarea
+                          rows={2}
+                          value={actionReply}
+                          onChange={(e) => setActionReply(e.target.value)}
+                          placeholder={
+                            activeAction.type === 'resolve'
+                              ? 'Enter resolution details (leave blank to use default resolved message)...'
+                              : 'Provide reason for closing this ticket...'
+                          }
+                          className="w-full px-3 py-2 rounded-md border border-gray-200 dark:border-[#262626] bg-white dark:bg-[#111111] text-xs text-gray-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15"
+                        />
 
-                          <textarea
-                            rows={2}
-                            value={actionReply}
-                            onChange={(e) => setActionReply(e.target.value)}
-                            placeholder={
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            disabled={isUpdating}
+                            onClick={() => {
+                              setActiveAction(null);
+                              setActionReply('');
+                            }}
+                            className="px-3 py-1.5 rounded-md border border-gray-200 dark:border-[#262626] text-xs font-semibold text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1E1E1E] cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isUpdating}
+                            onClick={handleSubmitActionForm}
+                            className={`px-3.5 py-1.5 rounded-md text-xs font-bold text-white cursor-pointer disabled:opacity-50 transition-colors ${
                               activeAction.type === 'resolve'
-                                ? 'Enter resolution details (leave blank to use default resolved message)...'
-                                : 'Provide reason for closing this ticket...'
-                            }
-                            className="w-full px-3 py-2 rounded-md border border-gray-200 dark:border-[#262626] bg-white dark:bg-[#111111] text-xs text-gray-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15"
-                          />
-
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              type="button"
-                              disabled={isUpdating}
-                              onClick={() => {
-                                setActiveAction(null);
-                                setActionReply('');
-                              }}
-                              className="px-3 py-1.5 rounded-md border border-gray-200 dark:border-[#262626] text-xs font-semibold text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1E1E1E] cursor-pointer"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              disabled={isUpdating}
-                              onClick={handleSubmitActionForm}
-                              className={`px-3.5 py-1.5 rounded-md text-xs font-bold text-white cursor-pointer disabled:opacity-50 transition-colors ${
-                                activeAction.type === 'resolve'
-                                  ? 'bg-emerald-600 hover:bg-emerald-700'
-                                  : 'bg-slate-700 hover:bg-slate-800'
-                              }`}
-                            >
-                              {isUpdating
-                                ? 'Saving...'
-                                : activeAction.type === 'resolve'
-                                ? 'Confirm & Mark Resolved'
-                                : 'Confirm Closure'}
-                            </button>
-                          </div>
+                                ? 'bg-emerald-600 hover:bg-emerald-700'
+                                : 'bg-slate-700 hover:bg-slate-800'
+                            }`}
+                          >
+                            {isUpdating
+                              ? 'Saving...'
+                              : activeAction.type === 'resolve'
+                              ? 'Confirm & Mark Resolved'
+                              : 'Confirm Closure'}
+                          </button>
                         </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tear-Off Action Stub with Perforated Tear Seam & Top/Bottom Notches */}
+                  <div
+                    className={`relative md:w-48 lg:w-52 shrink-0 border-t md:border-t-0 md:border-l border-dashed border-gray-300 dark:border-[#2A2A2A] ${stubSurface} rounded-b-[11px] md:rounded-bl-none md:rounded-r-[11px] pl-6 md:pl-5 pr-6 sm:pr-7 py-3.5 flex flex-col justify-center`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="hidden md:block pointer-events-none absolute -top-[1px] -left-2.5 w-5 h-3 overflow-hidden z-10"
+                    >
+                      <span
+                        className={`block w-5 h-5 -mt-2.5 rounded-full bg-[#F8FAFC] dark:bg-[#0B0B0B] border ${ticketBorderColor}`}
+                      />
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className="hidden md:block pointer-events-none absolute -bottom-[1px] -left-2.5 w-5 h-3 overflow-hidden z-10"
+                    >
+                      <span
+                        className={`block w-5 h-5 mt-0.5 rounded-full bg-[#F8FAFC] dark:bg-[#0B0B0B] border ${ticketBorderColor}`}
+                      />
+                    </span>
+
+                    {/* Stub Action Buttons */}
+                    <div className="flex flex-wrap md:flex-col items-stretch gap-2">
+                      {isPending && (
+                        <button
+                          type="button"
+                          disabled={isUpdating}
+                          onClick={() => handleQuickAction(t.ticket_id, 'claim')}
+                          className="px-3 py-1.5 rounded-md text-[11px] font-bold bg-amber-500 hover:bg-amber-600 text-white transition-colors cursor-pointer disabled:opacity-50 text-center"
+                        >
+                          Mark In Progress
+                        </button>
+                      )}
+
+                      {(isPending || isInProgress) && (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            disabled={isUpdating}
+                            onClick={() => {
+                              setActiveAction({ ticketId: t.ticket_id, type: 'resolve' });
+                              setActionReply('');
+                            }}
+                            className="flex-1 px-3 py-1.5 rounded-md text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer disabled:opacity-50 text-center"
+                          >
+                            Resolve
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isUpdating}
+                            onClick={() => {
+                              setActiveAction({ ticketId: t.ticket_id, type: 'dismiss' });
+                              setActionReply('');
+                            }}
+                            className="px-2.5 py-1.5 rounded-md text-[11px] font-semibold border border-gray-200 dark:border-[#262626] bg-white dark:bg-[#191919] text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#222222] transition-colors cursor-pointer disabled:opacity-50 text-center"
+                          >
+                            Close
+                          </button>
+                        </div>
+                      )}
+
+                      {isDone && (
+                        <button
+                          type="button"
+                          disabled={isUpdating}
+                          onClick={() => handleQuickAction(t.ticket_id, 'reopen')}
+                          className="px-3 py-1.5 rounded-md text-[11px] font-semibold border border-gray-200 dark:border-[#262626] bg-white dark:bg-[#191919] text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#222222] transition-colors cursor-pointer disabled:opacity-50 text-center"
+                        >
+                          Reopen
+                        </button>
                       )}
                     </div>
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>
@@ -929,43 +948,34 @@ export const Tickets: React.FC = () => {
           className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
         >
           <div
-            className={`flex items-start gap-3 rounded-lg border p-3.5 shadow-xl bg-white dark:bg-[#111111] ${
+            className={`rounded-lg border p-3.5 shadow-xl bg-white dark:bg-[#111111] ${
               toast.type === 'error'
                 ? 'border-rose-200 dark:border-rose-800/60'
                 : 'border-emerald-200 dark:border-emerald-800/60'
             }`}
           >
-            <div
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${
-                toast.type === 'error'
-                  ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-800/60'
-                  : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60'
-              }`}
-            >
-              {toast.type === 'error' ? (
-                <AlertCircle className="h-4 w-4" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4" />
-              )}
+            <div className="flex items-center justify-between gap-2">
+              <h3
+                className={`text-xs font-bold ${
+                  toast.type === 'error'
+                    ? 'text-rose-600 dark:text-rose-400'
+                    : 'text-emerald-600 dark:text-emerald-400'
+                }`}
+              >
+                {toast.title}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setToast((prev) => ({ ...prev, show: false }))}
+                className="rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-white/10 transition cursor-pointer"
+                aria-label="Close notification"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
-                  {toast.title}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setToast((prev) => ({ ...prev, show: false }))}
-                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-white/10 transition cursor-pointer"
-                  aria-label="Close notification"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
-                {toast.message}
-              </p>
-            </div>
+            <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+              {toast.message}
+            </p>
           </div>
         </aside>
       )}

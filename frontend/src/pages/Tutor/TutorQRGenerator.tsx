@@ -946,11 +946,66 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
 
   const daysRemaining = currentTrashedEntry ? trashbinService.getDaysRemaining(currentTrashedEntry) : 30;
 
+  const renderDateButton = (dateStr: string) => {
+    const hasRecord = datesWithRecords.has(dateStr);
+    const isSelected = selectedDate === dateStr;
+    const isTrashed = trashbinService.isDateTrashed('attendance', dateStr, userId);
+    const label = formatDateButtonLabel(dateStr);
+    return (
+      <div
+        key={dateStr}
+        className={`inline-flex items-center gap-1 ${
+          group.isMonthGroup ? 'shrink-0' : 'flex-1 min-w-0 sm:flex-initial'
+        }`}
+      >
+        <button
+          type="button"
+          disabled={!hasRecord}
+          onClick={() => onSelectDate(dateStr)}
+          className={`${
+            group.isMonthGroup ? 'px-1.5 sm:px-3 text-[9px] sm:text-[11px]' : 'w-full sm:w-auto px-0.5 sm:px-3 text-[8.5px] min-[375px]:text-[9.5px] sm:text-[11px] tracking-tight sm:tracking-normal'
+          } h-7 sm:h-7.5 whitespace-nowrap rounded-md font-bold uppercase transition-all inline-flex items-center justify-center gap-0.5 sm:gap-1 ${
+            hasRecord
+              ? isTrashed
+                ? isSelected
+                  ? 'bg-gray-500 text-white shadow-xs font-bold border border-gray-500 cursor-pointer'
+                  : 'bg-gray-100 text-gray-500 border border-dashed border-gray-300 dark:bg-[#1A1A1A] dark:text-gray-400 dark:border-gray-700 cursor-pointer font-semibold'
+                : isSelected
+                ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
+                : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
+              : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
+          }`}
+          title={
+            hasRecord
+              ? isTrashed
+                ? `${label} (In Trashbin - 30 days retention)`
+                : isSelected
+                ? `Active: ${label}`
+                : `View ${label}`
+              : `No records on ${label}`
+          }
+          aria-label={label}
+        >
+          {isTrashed && (
+            <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-gray-400 shrink-0" />
+          )}
+          {label}
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-3">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
-          <div className="flex items-center gap-2 py-0.5 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-2.5 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div
+          className={
+            group.isMonthGroup
+              ? 'flex flex-wrap items-center gap-1 sm:gap-1.5 min-w-0 w-full sm:w-auto py-0.5'
+              : 'flex flex-row items-center gap-1 sm:gap-3 min-w-0 w-full sm:w-auto'
+          }
+        >
+          <div className={`flex items-center py-0.5 shrink-0 ${group.isMonthGroup ? 'mr-1 sm:mr-1.5' : ''}`}>
             {!group.isMonthGroup && schoolYearWeeks && schoolYearWeeks.length > 0 && onSelectWeek ? (
               <HistoryWeekDropdown
                 weeks={schoolYearWeeks}
@@ -961,59 +1016,21 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
                 ariaLabel="Select school year week for attendance history"
               />
             ) : (
-              <span className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-slate-100 select-none">
+              <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-gray-900 dark:text-slate-100 select-none whitespace-nowrap">
                 {group.title}
               </span>
             )}
           </div>
-          <div className={`flex items-center gap-1 sm:gap-1.5 py-0.5 max-w-full ${group.isMonthGroup ? 'overflow-x-auto no-scrollbar' : 'w-full'}`}>
-            {groupDates.map((dateStr) => {
-              const hasRecord = datesWithRecords.has(dateStr);
-              const isSelected = selectedDate === dateStr;
-              const isTrashed = trashbinService.isDateTrashed('attendance', dateStr, userId);
-              const label = formatDateButtonLabel(dateStr);
-              const isDayEditMode = editDayModeDate === dateStr;
-              return (
-                <div key={dateStr} className={`inline-flex items-center gap-1 ${group.isMonthGroup ? 'shrink-0' : 'flex-1 min-w-0 sm:flex-initial'}`}>
-                  <button
-                    key={dateStr}
-                    type="button"
-                    disabled={!hasRecord}
-                    onClick={() => onSelectDate(dateStr)}
-                    className={`w-full sm:w-auto h-7.5 whitespace-nowrap rounded-md px-1 sm:px-3 text-[10px] min-[360px]:text-[10.5px] sm:text-[11px] font-bold uppercase transition-all inline-flex items-center justify-center gap-1 ${
-                      hasRecord
-                        ? isTrashed
-                          ? isSelected
-                            ? 'bg-gray-500 text-white shadow-xs font-bold border border-gray-500 cursor-pointer'
-                            : 'bg-gray-100 text-gray-500 border border-dashed border-gray-300 dark:bg-[#1A1A1A] dark:text-gray-400 dark:border-gray-700 cursor-pointer font-semibold'
-                          : isSelected
-                          ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
-                          : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
-                        : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
-                    }`}
-                    title={
-                      hasRecord
-                        ? isTrashed
-                          ? `${label} (In Trashbin - 30 days retention)`
-                          : isSelected
-                          ? `Active: ${label}`
-                          : `View ${label}`
-                        : `No records on ${label}`
-                    }
-                    aria-label={label}
-                  >
-                    {isTrashed && (
-                      <Trash2 className="w-3 h-3 text-gray-400 shrink-0" />
-                    )}
-                    {label}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+          {group.isMonthGroup ? (
+            groupDates.map(renderDateButton)
+          ) : (
+            <div className="flex items-center gap-0.5 sm:gap-1.5 py-0.5 flex-1 min-w-0 sm:flex-initial">
+              {groupDates.map(renderDateButton)}
+            </div>
+          )}
         </div>
         {effectiveIsOpen && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="text-[11px] font-normal text-gray-400 dark:text-slate-400">
               <span className="font-bold text-gray-700 dark:text-slate-200">{displayRecords.length}</span> Record{displayRecords.length !== 1 ? 's' : ''}
             </span>
