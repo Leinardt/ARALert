@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
+import { useAnimatedPresence } from '../hooks/useAnimatedPresence';
 import {
   LayoutDashboard, Users, User as UserIcon, UserCheck, LogOut, QrCode, Scan,
   Award, Bell, ChevronDown, ChevronUp, ChevronLeft, Shield, BookOpen, X, FileText, Moon, Sun,
@@ -15,6 +16,14 @@ import { RISK_THRESHOLDS } from '../config/academicConfig';
 import { computeStudentRiskRows, type StudentRiskRow } from '../utils/analyticsHelpers';
 import { parseTutorRoleDetailsFromUser, isStudentInCohort, buildTutorClassSections, parseStudentGradeAndSection } from '../utils/tutorCohortHelpers';
 import { getReviewerLabel } from '../utils/studentFormatters';
+import {
+  parsePrincipalTutorNote,
+  formatPrincipalTutorNote,
+  formatTutorStudentNote,
+  formatStudentClassContext,
+  formatStudentSectionOnly,
+  parseAcademicRiskNote,
+} from '../utils/academicRiskNotes';
 
 import type { AcademicRisk, StudentEditRequest, User } from '../types';
 import { TutorGreetingIntro, checkGreetingEligibility } from '../components/TutorGreetingIntro';
@@ -384,9 +393,8 @@ const SynchronizedPulseBadge: React.FC<{
 
   return (
     <span
-      className={`animate-badge-pulse transition-all duration-200 ${
-        count > 0 ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none'
-      }`}
+      className={`animate-badge-pulse transition-all duration-200 ${count > 0 ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none'
+        }`}
       style={{
         position: 'absolute',
         top: '-4px',
@@ -526,9 +534,56 @@ export const DashboardLayout: React.FC = () => {
     }
   });
   const [acknowledgedRiskIds, setAcknowledgedRiskIds] = useState<Record<string, number>>({});
-  const highRiskCount = useMemo(() => {
-    return highRiskStudents.filter((r) => !acknowledgedAlerts[r.student.id]).length;
-  }, [highRiskStudents, acknowledgedAlerts]);
+  const [studentAlertNotes, setStudentAlertNotes] = useState<Record<string, string>>({});
+  const [studentNoteRecipientAck, setStudentNoteRecipientAck] = useState<Record<string, boolean>>({});
+  const [studentNoteInputByStudent, setStudentNoteInputByStudent] = useState<Record<string, string>>({});
+  const [editingStudentNoteId, setEditingStudentNoteId] = useState<string | null>(null);
+  const [principalTutorNotes, setPrincipalTutorNotes] = useState<
+    Record<string, { riskId?: number; note: string; classLabel?: string; studentId?: string; acknowledgedByTutor?: boolean }>
+  >(() => {
+    try {
+      const currentUserId = user?.id ? String(user.id) : (user?.username ? user.username : 'user');
+      const raw = localStorage.getItem(`aralert_principal_tutor_notes_${currentUserId}`);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [tutorNoteInputByTutor, setTutorNoteInputByTutor] = useState<Record<string, string>>({});
+  const [tutorNoteClassByTutor, setTutorNoteClassByTutor] = useState<Record<string, string>>({});
+  const [editingTutorNoteId, setEditingTutorNoteId] = useState<string | null>(null);
+  const [rawRiskRecords, setRawRiskRecords] = useState<AcademicRisk[]>([]);
+  const [studentProfileMeta, setStudentProfileMeta] = useState<{ classLabel?: string; tutorName?: string } | null>(null);
+  const [acknowledgingRiskId, setAcknowledgingRiskId] = useState<number | null>(null);
+  const [alertNoteToast, setAlertNoteToast] = useState<{
+    title: string;
+    message: string;
+    tone: 'success' | 'error';
+  } | null>(null);
+  const alertNoteToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showAlertNoteToast = useCallback(
+    (title: string, message: string, tone: 'success' | 'error' = 'success') => {
+      if (alertNoteToastTimerRef.current) {
+        clearTimeout(alertNoteToastTimerRef.current);
+      }
+      setAlertNoteToast({ title, message, tone });
+      alertNoteToastTimerRef.current = setTimeout(() => {
+        setAlertNoteToast(null);
+        alertNoteToastTimerRef.current = null;
+      }, 4500);
+    },
+    []
+  );
+
+  useEffect(() => {
+    return () => {
+      if (alertNoteToastTimerRef.current) {
+        clearTimeout(alertNoteToastTimerRef.current);
+      }
+    };
+  }, []);
+  const [submittingAlertKey, setSubmittingAlertKey] = useState<string | null>(null);
   const [moderateRiskStudents, setModerateRiskStudents] = useState<StudentRiskRow[]>([]);
   const [showRiskList, setShowRiskList] = useState(false);
   const [selectedAlertClass, setSelectedAlertClass] = useState<string>('all');
@@ -620,7 +675,7 @@ export const DashboardLayout: React.FC = () => {
   const [myTickets, setMyTickets] = useState<SupportTicketItem[]>([]);
   const [pendingTicketsCount, setPendingTicketsCount] = useState<number>(0);
   const [systemAnnouncements, setSystemAnnouncements] = useState<SystemAnnouncementItem[]>([]);
-  const [userNotificationFilter, setUserNotificationFilter] = useState<'all' | 'tickets' | 'edits' | 'updates'>('all');
+  const [userNotificationFilter, setUserNotificationFilter] = useState<'all' | 'notes' | 'tickets' | 'edits' | 'updates'>('all');
   const [isClearingResolved, setIsClearingResolved] = useState<boolean>(false);
   const activeTicketNotificationCount =
     user?.is_superuser || user?.role === 'admin'
@@ -635,12 +690,19 @@ export const DashboardLayout: React.FC = () => {
   const [isEditBellRinging, setIsEditBellRinging] = useState<boolean>(false);
   const [editBellRingKey, setEditBellRingKey] = useState<number>(0);
   const [showTutorNotifications, setShowTutorNotifications] = useState<boolean>(false);
+  const { shouldRender: shouldRenderRiskList, isClosing: isRiskListClosing } =
+    useAnimatedPresence(showRiskList, 170);
+  const { shouldRender: shouldRenderTutorNotif, isClosing: isTutorNotifClosing } =
+    useAnimatedPresence(showTutorNotifications, 170);
+  const { shouldRender: shouldRenderStudentNotif, isClosing: isStudentNotifClosing } =
+    useAnimatedPresence(showStudentEditRequests, 170);
   const [isRiskShaking, setIsRiskShaking] = useState<boolean>(false);
   const [riskShakeKey, setRiskShakeKey] = useState<number>(0);
 
   // Scoped to the authenticated user ID so view status and acknowledgments persist across logout, laptop restart, and page refresh
   const userId = user?.id ? String(user.id) : (user?.username ? user.username : 'user');
   const ackStorageKey = `aralert_ack_alerts_${userId}`;
+  const principalTutorNoteStorageKey = `aralert_principal_tutor_notes_${userId}`;
   const notifStorageKey = `aralert_seen_notif_ids_${userId}`;
   const notifTimeStorageKey = `aralert_notif_last_seen_${userId}`;
 
@@ -671,6 +733,15 @@ export const DashboardLayout: React.FC = () => {
       const rawAck = localStorage.getItem(ackStorageKey);
       if (rawAck) {
         setAcknowledgedAlerts(JSON.parse(rawAck));
+      } else {
+        setAcknowledgedAlerts({});
+      }
+
+      const rawPrincipalTutorNotes = localStorage.getItem(principalTutorNoteStorageKey);
+      if (rawPrincipalTutorNotes) {
+        setPrincipalTutorNotes(JSON.parse(rawPrincipalTutorNotes));
+      } else {
+        setPrincipalTutorNotes({});
       }
 
       const rawNotif = localStorage.getItem(notifStorageKey);
@@ -681,10 +752,97 @@ export const DashboardLayout: React.FC = () => {
     } catch {
       // ignore
     }
-  }, [ackStorageKey, notifStorageKey, notifTimeStorageKey]);
+  }, [ackStorageKey, principalTutorNoteStorageKey, notifStorageKey, notifTimeStorageKey]);
+
+  interface RiskNoteNotificationItem {
+    id: number;
+    authorLabel: string;
+    targetLabel?: string;
+    classLabel?: string;
+    tutorLabel?: string;
+    note: string;
+    created_at: string;
+    student_acknowledged: boolean;
+    risk_level: AcademicRisk['risk_level'];
+  }
+
+  const riskNoteNotifications = useMemo<RiskNoteNotificationItem[]>(() => {
+    if (!user || (user.role !== 'tutor' && user.role !== 'student')) return [];
+    const tutorIdStr = String(user.id || '');
+    const items: RiskNoteNotificationItem[] = [];
+    const sorted = [...rawRiskRecords].sort(
+      (a, b) => new Date(b.date_created).getTime() - new Date(a.date_created).getTime() || b.id - a.id
+    );
+
+    const tutorStudentMap = new Map<string, User>();
+    tutorAssignedStudents.forEach((s) => tutorStudentMap.set(String(s.id), s));
+
+    const getTutorStudentFallbackClass = (studentId?: string | number | null): string => {
+      if (!studentId) return '';
+      const found = tutorStudentMap.get(String(studentId));
+      return found ? formatStudentClassContext(found) : '';
+    };
+
+    const tutorSelfClassFallback =
+      user.role === 'tutor'
+        ? Array.from(
+            new Set(
+              tutorAssignedStudents
+                .map((s) => formatStudentSectionOnly(s))
+                .filter(Boolean)
+            )
+          ).join(', ') || (user.grade_level || '').trim()
+        : '';
+
+    for (const risk of sorted) {
+      const parsed = parseAcademicRiskNote(risk);
+      if (!parsed || !parsed.note) continue;
+
+      if (user.role === 'student') {
+        if (parsed.kind !== 'tutor_student' || risk.risk_level !== 'high') continue;
+        const resolvedClass =
+          parsed.classLabel ||
+          studentProfileMeta?.classLabel ||
+          formatStudentClassContext(user);
+        const resolvedTutor =
+          parsed.tutorName ||
+          studentProfileMeta?.tutorName ||
+          '';
+        items.push({
+          id: risk.id,
+          authorLabel: 'Tutor Note',
+          classLabel: resolvedClass || undefined,
+          tutorLabel: resolvedTutor || undefined,
+          note: parsed.note,
+          created_at: risk.date_created,
+          student_acknowledged: Boolean(risk.student_acknowledged),
+          risk_level: risk.risk_level,
+        });
+      } else if (user.role === 'tutor') {
+        if (parsed.kind === 'principal_tutor' && parsed.tutorId === tutorIdStr) {
+          const resolvedClass =
+            parsed.classLabel ||
+            getTutorStudentFallbackClass(risk.student) ||
+            tutorSelfClassFallback;
+          items.push({
+            id: risk.id,
+            authorLabel: 'Principal Note',
+            targetLabel: resolvedClass ? undefined : 'Class Advisory',
+            classLabel: resolvedClass || undefined,
+            note: parsed.note,
+            created_at: risk.date_created,
+            student_acknowledged: Boolean(risk.student_acknowledged),
+            risk_level: risk.risk_level,
+          });
+        }
+      }
+    }
+    return items;
+  }, [rawRiskRecords, user, tutorAssignedStudents, studentProfileMeta]);
 
   // Helper to get a stable unique ID for any notification item
   const getInboxItemId = (item: { itemKind: string; id?: any; ticket_id?: any }) => {
+    if (item.itemKind === 'note') return `note_${item.id}`;
     if (item.itemKind === 'ticket') return `ticket_${item.ticket_id || item.id}`;
     if (item.itemKind === 'edit') return `edit_${item.id}`;
     if (item.itemKind === 'announcement') return `announcement_${item.id}`;
@@ -696,6 +854,7 @@ export const DashboardLayout: React.FC = () => {
   const markNotificationsAsSeen = useCallback(() => {
     const nowIso = new Date().toISOString();
     const items = [
+      ...riskNoteNotifications.map((n) => ({ ...n, itemKind: 'note' as const })),
       ...systemAnnouncements.map((a) => ({ ...a, itemKind: 'announcement' as const })),
       ...SYSTEM_UPDATES.map((u) => ({ ...u, itemKind: 'system' as const })),
       ...myEditRequests.map((req) => ({ ...req, itemKind: 'edit' as const })),
@@ -707,11 +866,11 @@ export const DashboardLayout: React.FC = () => {
       try {
         localStorage.setItem(notifStorageKey, JSON.stringify(Array.from(updated)));
         localStorage.setItem(notifTimeStorageKey, nowIso);
-      } catch {}
+      } catch { }
       return updated;
     });
     setLastSeenNotifTimestamp(nowIso);
-  }, [systemAnnouncements, myEditRequests, myTickets, notifStorageKey, notifTimeStorageKey]);
+  }, [riskNoteNotifications, systemAnnouncements, myEditRequests, myTickets, notifStorageKey, notifTimeStorageKey, user?.role, user?.is_superuser]);
 
   const isAnyNotificationOpen = showTutorNotifications || showEditRequestsModal || showStudentEditRequests;
 
@@ -720,11 +879,12 @@ export const DashboardLayout: React.FC = () => {
     if (isAnyNotificationOpen) {
       markNotificationsAsSeen();
     }
-  }, [isAnyNotificationOpen, systemAnnouncements, myEditRequests, myTickets, markNotificationsAsSeen]);
+  }, [isAnyNotificationOpen, riskNoteNotifications, systemAnnouncements, myEditRequests, myTickets, markNotificationsAsSeen]);
 
   // Notifications unread count: items NOT yet seen and created after the last view timestamp
   const unreadNotificationsCount = useMemo(() => {
     const items = [
+      ...riskNoteNotifications.map((n) => ({ ...n, itemKind: 'note' as const })),
       ...systemAnnouncements.map((a) => ({ ...a, itemKind: 'announcement' as const })),
       ...SYSTEM_UPDATES.map((u) => ({ ...u, itemKind: 'system' as const })),
       ...myEditRequests.map((req) => ({ ...req, itemKind: 'edit' as const })),
@@ -744,10 +904,8 @@ export const DashboardLayout: React.FC = () => {
       }
       return true;
     }).length;
-  }, [systemAnnouncements, myEditRequests, myTickets, seenNotifItemIds, lastSeenNotifTimestamp]);
+  }, [riskNoteNotifications, systemAnnouncements, myEditRequests, myTickets, seenNotifItemIds, lastSeenNotifTimestamp, user?.role, user?.is_superuser]);
 
-  // Disappear instantly while open; keep count of unacknowledged alerts when closed
-  const displayRiskBadgeCount = showRiskList ? 0 : highRiskCount;
   const displayNotifBadgeCount = isAnyNotificationOpen ? 0 : unreadNotificationsCount;
 
   const formatAralLevel = (level?: string) => {
@@ -767,7 +925,26 @@ export const DashboardLayout: React.FC = () => {
     `sidebar-item ${active ? 'active' : ''} ${collapsed ? 'justify-center !p-0 w-10 h-10 mx-auto' : ''}`;
 
   const fetchRiskStudents = async () => {
-    if (!user || (user.role !== 'tutor' && user.role !== 'principal')) return;
+    if (!user) return;
+    if (user.role === 'student') {
+      try {
+        const [risks, myProf] = await Promise.all([
+          academicService.getAcademicRisks({ student_id: user.id }).catch(() => [] as AcademicRisk[]),
+          academicService.getMyProfile().catch(() => null),
+        ]);
+        setRawRiskRecords(Array.isArray(risks) ? risks : []);
+        if (myProf?.student) {
+          setStudentProfileMeta({
+            classLabel: formatStudentClassContext(myProf.student),
+            tutorName: myProf.assigned_tutor?.name || '',
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load student risk notes', error);
+      }
+      return;
+    }
+    if (user.role !== 'tutor' && user.role !== 'principal') return;
     try {
       const isPrincipal = user.role === 'principal';
       const [studentRes, gradesRaw, attRaw, risksRaw, tutorsRes] = await Promise.all([
@@ -785,8 +962,10 @@ export const DashboardLayout: React.FC = () => {
       const students = Array.isArray(studentRes) ? studentRes : [];
       const grades = Array.isArray(gradesRaw) ? gradesRaw : (gradesRaw as any)?.results ?? [];
       const attendanceLogs = Array.isArray(attRaw) ? attRaw : (attRaw as any)?.results ?? [];
-      const riskRecords = Array.isArray(risksRaw) ? risksRaw : (risksRaw as any)?.results ?? [];
+      const riskRecords: AcademicRisk[] = Array.isArray(risksRaw) ? risksRaw : (risksRaw as any)?.results ?? [];
       const tutors = Array.isArray(tutorsRes) ? tutorsRes : [];
+
+      setRawRiskRecords(riskRecords);
 
       if (isPrincipal) {
         setPrincipalTutors(tutors);
@@ -796,20 +975,48 @@ export const DashboardLayout: React.FC = () => {
 
       const rows = computeStudentRiskRows(students, grades, attendanceLogs);
       const highRiskRows = rows.filter((r) => r.riskTier === 'High').sort((a, b) => b.compositeScore - a.compositeScore);
-      const moderateRiskRows = rows.filter((r) => r.riskTier === 'Moderate' || r.riskTier === 'Medium').sort((a, b) => b.compositeScore - a.compositeScore).slice(0, 5);
 
-      const latestResolvedRiskByStudent = (riskRecords as AcademicRisk[])
-        .filter((risk: AcademicRisk) => risk.resolved)
-        .sort((a: AcademicRisk, b: AcademicRisk) => new Date(b.date_created).getTime() - new Date(a.date_created).getTime())
-        .reduce((acc: Record<string, AcademicRisk>, risk: AcademicRisk) => {
-          if (!acc[risk.student]) acc[risk.student] = risk;
-          return acc;
-        }, {} as Record<string, AcademicRisk>);
+      const sortedRisks = [...riskRecords].sort(
+        (a: AcademicRisk, b: AcademicRisk) =>
+          new Date(b.date_created).getTime() - new Date(a.date_created).getTime() || b.id - a.id
+      );
+
+      const latestResolvedRiskByStudent: Record<string, AcademicRisk> = {};
+      const latestStudentAckByStudent: Record<string, boolean> = {};
+      const latestPrincipalNoteByTutor: Record<
+        string,
+        { riskId: number; note: string; classLabel?: string; studentId: string; acknowledgedByTutor: boolean }
+      > = {};
+
+      for (const risk of sortedRisks) {
+        const parsedTutorNote = parsePrincipalTutorNote(risk.details);
+        if (parsedTutorNote) {
+          if (!latestPrincipalNoteByTutor[parsedTutorNote.tutorId]) {
+            latestPrincipalNoteByTutor[parsedTutorNote.tutorId] = {
+              riskId: risk.id,
+              note: parsedTutorNote.note,
+              classLabel: parsedTutorNote.classLabel,
+              studentId: String(risk.student),
+              acknowledgedByTutor: Boolean(risk.student_acknowledged),
+            };
+          }
+          continue;
+        }
+
+        if (!risk.details?.startsWith('[PRINCIPAL_STUDENT_NOTE')) {
+          const stId = String(risk.student);
+          if (risk.resolved && !latestResolvedRiskByStudent[stId]) {
+            latestResolvedRiskByStudent[stId] = risk;
+          }
+          if (risk.student_acknowledged) {
+            latestStudentAckByStudent[stId] = true;
+          }
+        }
+      }
 
       setHighRiskStudents(highRiskRows);
       setModerateRiskStudents([]);
-      // The alert badge and High Risk section both represent every student
-      // currently classified as High risk.
+
       const backendResolvedMap = Object.fromEntries(
         Object.keys(latestResolvedRiskByStudent).map((id) => [id, true])
       );
@@ -817,10 +1024,37 @@ export const DashboardLayout: React.FC = () => {
         const merged = { ...prev, ...backendResolvedMap };
         try {
           localStorage.setItem(ackStorageKey, JSON.stringify(merged));
-        } catch {}
+        } catch { }
         return merged;
       });
-      setAcknowledgedRiskIds(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.id])));
+      setAcknowledgedRiskIds(
+        Object.fromEntries(
+          Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.id])
+        )
+      );
+      setStudentAlertNotes(
+        Object.fromEntries(
+          Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [
+            id,
+            parseAcademicRiskNote(r)?.note || r.details || '',
+          ])
+        )
+      );
+      setStudentNoteRecipientAck(
+        Object.fromEntries(
+          Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [
+            id,
+            Boolean(r.student_acknowledged) || Boolean(latestStudentAckByStudent[id]),
+          ])
+        )
+      );
+      setPrincipalTutorNotes((prev) => {
+        const merged = { ...prev, ...latestPrincipalNoteByTutor };
+        try {
+          localStorage.setItem(principalTutorNoteStorageKey, JSON.stringify(merged));
+        } catch { }
+        return merged;
+      });
     } catch (error) {
       console.error('Failed to load risk alerts', error);
     }
@@ -874,13 +1108,9 @@ export const DashboardLayout: React.FC = () => {
 
       const classesSet = new Set<string>();
       assignedStudents.forEach((r) => {
-        const { grade, section } = parseStudentGradeAndSection(r.student);
-        if (grade && section) {
-          classesSet.add(`${grade} - ${section}`);
-        } else if (grade) {
-          classesSet.add(grade);
-        } else if (section) {
-          classesSet.add(section);
+        const classLabel = formatStudentClassContext(r.student);
+        if (classLabel) {
+          classesSet.add(classLabel);
         }
       });
       if (classesSet.size === 0 && tutor.grade_level) {
@@ -889,13 +1119,15 @@ export const DashboardLayout: React.FC = () => {
           if (trimmed) classesSet.add(trimmed);
         });
       }
-      const classesHandled = classesSet.size > 0 ? Array.from(classesSet).sort().join(', ') : 'No Section Specified';
+      const classesList = Array.from(classesSet).sort();
+      const classesHandled = classesList.length > 0 ? classesList.join(', ') : 'No Section Specified';
 
       return {
         tutor,
         tutorId: tutorIdStr,
         tutorName: tutorFullName,
         classesHandled,
+        classesList,
         students: assignedStudents,
       };
     });
@@ -904,11 +1136,15 @@ export const DashboardLayout: React.FC = () => {
     const assignedStudentIds = new Set(groups.flatMap((g) => g.students.map((s) => s.student.id)));
     const unassignedStudents = highRiskStudents.filter((r) => !assignedStudentIds.has(r.student.id));
     if (unassignedStudents.length > 0) {
+      const unassignedClasses = Array.from(
+        new Set(unassignedStudents.map((r) => formatStudentClassContext(r.student)).filter(Boolean))
+      ).sort();
       groups.push({
         tutor: { id: 'unassigned', full_name: 'Unassigned Students' } as any,
         tutorId: 'unassigned',
         tutorName: 'Unassigned Students',
-        classesHandled: 'General',
+        classesHandled: unassignedClasses.length > 0 ? unassignedClasses.join(', ') : 'General',
+        classesList: unassignedClasses,
         students: unassignedStudents,
       });
     }
@@ -927,6 +1163,18 @@ export const DashboardLayout: React.FC = () => {
     if (selectedAlertTutor === 'all') return withHighRisk;
     return withHighRisk.filter((g) => g.tutorId === selectedAlertTutor);
   }, [allPrincipalTutorGroups, selectedAlertTutor]);
+
+  const highRiskCount = useMemo(() => {
+    if (user?.role === 'principal') {
+      return allPrincipalTutorGroups.filter(
+        (g) => g.students.length > 0 && !principalTutorNotes[g.tutorId]?.note
+      ).length;
+    }
+    return highRiskStudents.filter((r) => !acknowledgedAlerts[r.student.id]).length;
+  }, [user?.role, allPrincipalTutorGroups, principalTutorNotes, highRiskStudents, acknowledgedAlerts]);
+
+  // Disappear instantly while open; keep count of unacknowledged alerts when closed
+  const displayRiskBadgeCount = showRiskList ? 0 : highRiskCount;
 
   const [isAlertClassDropdownOpen, setIsAlertClassDropdownOpen] = useState(false);
   const alertClassDropdownRef = useRef<HTMLDivElement>(null);
@@ -1002,35 +1250,165 @@ export const DashboardLayout: React.FC = () => {
     return null;
   }, [user?.role, allPrincipalTutorGroups, selectedAlertTutor, highRiskStudents.length, tutorClassSections, selectedAlertClass]);
 
-  const handleAcknowledgeAlert = async (row: StudentRiskRow) => {
-    const existingRiskId = acknowledgedRiskIds[row.student.id];
+  const handleSaveStudentAlertNote = async (row: StudentRiskRow) => {
+    const studentId = String(row.student.id);
+    const noteText = (studentNoteInputByStudent[studentId] ?? studentAlertNotes[studentId] ?? '').trim();
+    if (!noteText) return;
+
+    const existingRiskId = acknowledgedRiskIds[studentId];
     const studentRiskLevel: AcademicRisk['risk_level'] =
       row.riskTier === 'High' ? 'high'
         : (row.riskTier === 'Moderate' || row.riskTier === 'Medium') ? 'moderate'
           : 'low';
+    const classLabel = formatStudentClassContext(row.student);
+    const tutorName =
+      user?.full_name ||
+      `${user?.first_name || ''} ${user?.last_name || ''}`.trim() ||
+      'Tutor';
+    const formattedDetails = formatTutorStudentNote(noteText, classLabel, tutorName);
+
+    setSubmittingAlertKey(`student_${studentId}`);
     try {
-      const actorLabel = user?.role === 'principal' ? (user?.first_name ? `Principal ${user.first_name}` : 'Principal') : (user?.first_name || 'tutor');
-      const detailsMsg = `High risk alert acknowledged by ${actorLabel}.`;
       if (existingRiskId) {
-        await academicService.updateAcademicRisk(existingRiskId, { resolved: true, details: detailsMsg });
+        await academicService.updateAcademicRisk(existingRiskId, {
+          resolved: true,
+          details: formattedDetails,
+          student_acknowledged: false,
+        });
       } else {
         const newRisk = await academicService.createAcademicRisk({
           student: row.student.id,
           risk_level: studentRiskLevel,
-          details: detailsMsg,
+          details: formattedDetails,
           resolved: true,
         });
-        setAcknowledgedRiskIds((prev) => ({ ...prev, [row.student.id]: newRisk.id }));
+        setAcknowledgedRiskIds((prev) => ({ ...prev, [studentId]: newRisk.id }));
       }
+      setStudentAlertNotes((prev) => ({ ...prev, [studentId]: noteText }));
+      setStudentNoteRecipientAck((prev) => ({ ...prev, [studentId]: false }));
       setAcknowledgedAlerts((prev) => {
-        const updated = { ...prev, [row.student.id]: true };
+        const updated = { ...prev, [studentId]: true };
         try {
           localStorage.setItem(ackStorageKey, JSON.stringify(updated));
-        } catch {}
+        } catch { }
         return updated;
       });
+      setEditingStudentNoteId((prev) => (prev === studentId ? null : prev));
+      window.dispatchEvent(new CustomEvent('aralert:refresh-risk-alerts'));
+      const studentDisplayName = row.student.full_name || 'Student';
+      showAlertNoteToast(
+        'Note Saved',
+        classLabel
+          ? `Note to ${studentDisplayName} (${classLabel}) has been saved.`
+          : `Note to ${studentDisplayName} has been saved.`
+      );
     } catch (error) {
-      console.error('Failed to acknowledge risk alert', error);
+      console.error('Failed to save student risk alert note', error);
+      showAlertNoteToast(
+        'Save Failed',
+        'Could not save the note. Please try again.',
+        'error'
+      );
+    } finally {
+      setSubmittingAlertKey(null);
+    }
+  };
+
+  const handleSavePrincipalTutorNote = async (group: {
+    tutorId: string;
+    tutorName: string;
+    classesHandled: string;
+    classesList: string[];
+    students: StudentRiskRow[];
+  }) => {
+    const tutorId = String(group.tutorId);
+    const noteText = (tutorNoteInputByTutor[tutorId] ?? principalTutorNotes[tutorId]?.note ?? '').trim();
+    if (!noteText) return;
+
+    const existingEntry = principalTutorNotes[tutorId];
+    const targetClassLabel =
+      (tutorNoteClassByTutor[tutorId] ?? existingEntry?.classLabel ?? group.classesHandled ?? '').trim();
+    const anchorStudentId = existingEntry?.studentId || String(group.students[0]?.student?.id || '');
+    const formattedDetails = formatPrincipalTutorNote(tutorId, noteText, targetClassLabel);
+
+    setSubmittingAlertKey(`tutor_${tutorId}`);
+    try {
+      let savedRiskId = existingEntry?.riskId;
+      if (savedRiskId) {
+        await academicService.updateAcademicRisk(savedRiskId, {
+          resolved: true,
+          details: formattedDetails,
+          student_acknowledged: false,
+        });
+      } else if (anchorStudentId) {
+        const newRisk = await academicService.createAcademicRisk({
+          student: anchorStudentId,
+          risk_level: 'high',
+          details: formattedDetails,
+          resolved: true,
+        });
+        savedRiskId = newRisk.id;
+      }
+
+      setPrincipalTutorNotes((prev) => {
+        const updated = {
+          ...prev,
+          [tutorId]: {
+            riskId: savedRiskId,
+            note: noteText,
+            classLabel: targetClassLabel || undefined,
+            studentId: anchorStudentId || undefined,
+            acknowledgedByTutor: false,
+          },
+        };
+        try {
+          localStorage.setItem(principalTutorNoteStorageKey, JSON.stringify(updated));
+        } catch { }
+        return updated;
+      });
+      setEditingTutorNoteId((prev) => (prev === tutorId ? null : prev));
+      window.dispatchEvent(new CustomEvent('aralert:refresh-risk-alerts'));
+      showAlertNoteToast(
+        'Note Saved',
+        targetClassLabel
+          ? `Note to ${group.tutorName} (${targetClassLabel}) has been saved.`
+          : `Note to ${group.tutorName} has been saved.`
+      );
+    } catch (error) {
+      console.error('Failed to save principal tutor note', error);
+      showAlertNoteToast(
+        'Save Failed',
+        'Could not save the note. Please try again.',
+        'error'
+      );
+    } finally {
+      setSubmittingAlertKey(null);
+    }
+  };
+
+  const handleAcknowledgeStudentRiskNote = async (riskId: number) => {
+    setAcknowledgingRiskId(riskId);
+    try {
+      await academicService.updateAcademicRisk(riskId, { student_acknowledged: true });
+      setRawRiskRecords((prev) =>
+        prev.map((r) => (r.id === riskId ? { ...r, student_acknowledged: true } : r))
+      );
+      window.dispatchEvent(new CustomEvent('aralert:refresh-risk-alerts'));
+      showAlertNoteToast(
+        'Note Acknowledged',
+        user?.role === 'tutor'
+          ? 'Principal advisory note has been marked as acknowledged.'
+          : 'Your tutor note has been marked as acknowledged.'
+      );
+    } catch (error) {
+      console.error('Failed to acknowledge note', error);
+      showAlertNoteToast(
+        'Action Failed',
+        'Could not acknowledge the note. Please try again.',
+        'error'
+      );
+    } finally {
+      setAcknowledgingRiskId(null);
     }
   };
 
@@ -1278,6 +1656,96 @@ export const DashboardLayout: React.FC = () => {
     );
   };
 
+  const renderRiskNoteNotificationCard = (
+    item: RiskNoteNotificationItem,
+    allowStudentAcknowledge: boolean
+  ) => {
+    const isPrincipalNote = item.authorLabel === 'Principal Note';
+    const cardBg = isPrincipalNote ? 'rgba(0, 82, 183, 0.05)' : 'rgba(245, 158, 11, 0.05)';
+    const cardBorder = isPrincipalNote ? 'rgba(0, 82, 183, 0.28)' : 'rgba(245, 158, 11, 0.3)';
+    const badgeColor = isPrincipalNote ? '#0052B7' : '#D97706';
+    const badgeBg = isPrincipalNote ? 'rgba(0, 82, 183, 0.12)' : 'rgba(245, 158, 11, 0.15)';
+    const isAcknowledging = acknowledgingRiskId === item.id;
+
+    return (
+      <div
+        key={`risk-note-${item.id}`}
+        style={{
+          background: cardBg,
+          border: `1px solid ${cardBorder}`,
+          borderRadius: '10px',
+          padding: '0.75rem 0.85rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.4rem',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+            <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {item.targetLabel ? `${item.authorLabel} • ${item.targetLabel}` : item.authorLabel}
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', background: badgeBg, color: badgeColor, fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                {isPrincipalNote ? 'Principal' : 'Tutor'}
+              </span>
+              {item.student_acknowledged && allowStudentAcknowledge && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                  Acknowledged
+                </span>
+              )}
+            </div>
+          </div>
+          {(item.classLabel || item.tutorLabel) && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem 0.65rem', fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+              {item.classLabel && (
+                <span>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>Class:</span> {item.classLabel}
+                </span>
+              )}
+              {item.tutorLabel && (
+                <span>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>Tutor:</span> {item.tutorLabel}
+                </span>
+              )}
+            </div>
+          )}
+          {item.created_at && (
+            <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              {new Date(item.created_at).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}{' '}
+              •{' '}
+              {new Date(item.created_at).toLocaleTimeString(undefined, {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+          )}
+        </div>
+
+        <div style={{ fontSize: '0.76rem', color: 'var(--text-primary)', background: 'var(--surface-muted)', borderRadius: '6px', padding: '7px 9px', lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>
+          {item.note}
+        </div>
+
+        {allowStudentAcknowledge && !item.student_acknowledged && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
+            <button
+              type="button"
+              disabled={isAcknowledging}
+              onClick={() => handleAcknowledgeStudentRiskNote(item.id)}
+              className="py-1 px-2.5 rounded-md text-[11px] font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {isAcknowledging ? 'Acknowledging...' : 'Acknowledge Note'}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Sync active ARAL Program Configuration and auto-refresh high risk student alerts
   useEffect(() => {
     if (!user) return;
@@ -1291,7 +1759,7 @@ export const DashboardLayout: React.FC = () => {
     };
     window.addEventListener('aralert:weights-changed', handleConfigChange);
     window.addEventListener('system_semester_changed', handleConfigChange);
-    if (user?.role === 'tutor' || user?.role === 'principal') {
+    if (user?.role === 'tutor' || user?.role === 'principal' || user?.role === 'student') {
       const interval = setInterval(() => {
         if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
           fetchRiskStudents();
@@ -1335,6 +1803,9 @@ export const DashboardLayout: React.FC = () => {
       fetchEditRequests();
       fetchTickets();
       fetchAnnouncements();
+      if (showTutorNotifications || showStudentEditRequests) {
+        fetchRiskStudents();
+      }
     }
   }, [showTutorNotifications, showStudentEditRequests, showEditRequestsModal, fetchTickets, fetchAnnouncements]);
   useEffect(() => {
@@ -1936,14 +2407,14 @@ export const DashboardLayout: React.FC = () => {
                   src={user.avatar}
                   alt={getDisplayName()}
                   className={`w-7 h-7 rounded-full object-cover border transition-colors ${isProfileActive
-                      ? 'border-[var(--brand)] ring-1 ring-[var(--brand)]/30'
-                      : 'border-slate-200 dark:border-zinc-700'
+                    ? 'border-[var(--brand)] ring-1 ring-[var(--brand)]/30'
+                    : 'border-slate-200 dark:border-zinc-700'
                     }`}
                 />
               ) : (
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center font-medium text-xs border transition-colors ${isProfileActive
-                    ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] border-[var(--sidebar-active-border)]'
-                    : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700'
+                  ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] border-[var(--sidebar-active-border)]'
+                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700'
                   }`}>
                   <UserIcon size={14} strokeWidth={isProfileActive ? 2.2 : 1.8} />
                 </div>
@@ -1969,22 +2440,22 @@ export const DashboardLayout: React.FC = () => {
                   src={user.avatar}
                   alt={getDisplayName()}
                   className={`w-8 h-8 rounded-full object-cover border shrink-0 transition-colors ${isProfileActive
-                      ? 'border-[var(--brand)] ring-1 ring-[var(--brand)]/30'
-                      : 'border-slate-200/80 dark:border-zinc-700'
+                    ? 'border-[var(--brand)] ring-1 ring-[var(--brand)]/30'
+                    : 'border-slate-200/80 dark:border-zinc-700'
                     }`}
                 />
               ) : (
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-xs border shrink-0 transition-colors ${isProfileActive
-                    ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] border-[var(--sidebar-active-border)]'
-                    : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border-slate-200/80 dark:border-zinc-700'
+                  ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] border-[var(--sidebar-active-border)]'
+                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border-slate-200/80 dark:border-zinc-700'
                   }`}>
                   <UserIcon size={15} strokeWidth={isProfileActive ? 2.2 : 1.8} />
                 </div>
               )}
               <div className="flex-1 min-w-0 flex flex-col justify-center">
                 <span className={`text-xs truncate leading-tight transition-colors ${isProfileActive
-                    ? 'font-bold text-[var(--sidebar-active-text)]'
-                    : 'font-semibold text-slate-800 dark:text-slate-200'
+                  ? 'font-bold text-[var(--sidebar-active-text)]'
+                  : 'font-semibold text-slate-800 dark:text-slate-200'
                   }`}>
                   {getDisplayName()}
                 </span>
@@ -2135,22 +2606,22 @@ export const DashboardLayout: React.FC = () => {
                 src={user.avatar}
                 alt={getDisplayName()}
                 className={`w-8 h-8 rounded-full object-cover border shrink-0 transition-colors ${isProfileActive
-                    ? 'border-[var(--brand)] ring-1 ring-[var(--brand)]/30'
-                    : 'border-slate-200/80 dark:border-zinc-700'
+                  ? 'border-[var(--brand)] ring-1 ring-[var(--brand)]/30'
+                  : 'border-slate-200/80 dark:border-zinc-700'
                   }`}
               />
             ) : (
               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-xs border shrink-0 transition-colors ${isProfileActive
-                  ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] border-[var(--sidebar-active-border)]'
-                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border-slate-200/80 dark:border-zinc-700'
+                ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] border-[var(--sidebar-active-border)]'
+                : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border-slate-200/80 dark:border-zinc-700'
                 }`}>
                 <UserIcon size={15} strokeWidth={isProfileActive ? 2.2 : 1.8} />
               </div>
             )}
             <div className="flex-1 min-w-0 flex flex-col justify-center">
               <span className={`text-xs truncate leading-tight transition-colors ${isProfileActive
-                  ? 'font-bold text-[var(--sidebar-active-text)]'
-                  : 'font-semibold text-slate-800 dark:text-slate-200'
+                ? 'font-bold text-[var(--sidebar-active-text)]'
+                : 'font-semibold text-slate-800 dark:text-slate-200'
                 }`}>
                 {getDisplayName()}
               </span>
@@ -2175,11 +2646,10 @@ export const DashboardLayout: React.FC = () => {
 
         {/* ── Top Bar ── */}
         <header
-          className={`h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 sticky top-0 transition-colors duration-150 ${
-            showRiskList || showTutorNotifications || showStudentEditRequests || (profileMenuOpen && !isMobileDrawerOpen)
-              ? 'z-[80]'
-              : 'z-30'
-          }`}
+          className={`h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 sticky top-0 transition-colors duration-150 ${shouldRenderRiskList || shouldRenderTutorNotif || shouldRenderStudentNotif || (profileMenuOpen && !isMobileDrawerOpen)
+            ? 'z-[80]'
+            : 'z-30'
+            }`}
           style={{
             background: 'var(--glass-bg)',
             backdropFilter: 'blur(12px)',
@@ -2221,7 +2691,7 @@ export const DashboardLayout: React.FC = () => {
           <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 relative shrink-0">
             {/* High Risk Alert (Warning Triangle Icon - Tutor & Principal roles) */}
             {(user?.role === 'tutor' || user?.role === 'principal') && (
-              <div style={{ position: 'relative', zIndex: showRiskList ? 80 : 1 }}>
+              <div style={{ position: 'relative', zIndex: shouldRenderRiskList ? 80 : 1 }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -2304,18 +2774,22 @@ export const DashboardLayout: React.FC = () => {
                 </button>
 
                 {/* Risk dropdown */}
-                {showRiskList && (
+                {shouldRenderRiskList && (
                   <>
                     {/* Mobile Backdrop */}
                     <div
-                      className="fixed inset-0 z-[75] bg-transparent sm:hidden"
-                      onClick={() => setShowRiskList(false)}
+                      className={`fixed inset-0 z-[75] bg-transparent sm:hidden ${isRiskListClosing ? 'pointer-events-none' : ''
+                        }`}
+                      onClick={() => {
+                        if (!isRiskListClosing) setShowRiskList(false);
+                      }}
                       aria-hidden="true"
                     />
 
                     {/* Notification Panel */}
                     <div
-                      className={`animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] ${user?.role === 'principal' ? 'sm:w-[410px]' : 'sm:w-[380px]'} max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-[80] overflow-visible`}
+                      className={`${isRiskListClosing ? 'popover-pop-out' : 'popover-pop-in'
+                        } fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] ${user?.role === 'principal' ? 'sm:w-[410px]' : 'sm:w-[380px]'} max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-[80] overflow-visible`}
                     >
                       {/* Dropdown header */}
                       <div
@@ -2385,8 +2859,8 @@ export const DashboardLayout: React.FC = () => {
                                     aria-selected={alertFilterConfig.selectedValue === 'all'}
                                     onClick={() => alertFilterConfig.onSelect('all')}
                                     className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-2.5 py-2 text-xs font-bold transition-colors cursor-pointer ${alertFilterConfig.selectedValue === 'all'
-                                        ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
-                                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-800'
+                                      ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
+                                      : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-800'
                                       }`}
                                     title={alertFilterConfig.allLabel}
                                   >
@@ -2403,8 +2877,8 @@ export const DashboardLayout: React.FC = () => {
                                         aria-selected={isSelected}
                                         onClick={() => alertFilterConfig.onSelect(opt.key)}
                                         className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-2.5 py-2 text-xs font-bold transition-colors cursor-pointer ${isSelected
-                                            ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
-                                            : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-800'
+                                          ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
+                                          : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-800'
                                           }`}
                                         title={opt.label}
                                       >
@@ -2447,6 +2921,17 @@ export const DashboardLayout: React.FC = () => {
                               {principalTutorGroups.map((group, groupIdx) => {
                                 const isExpanded = expandedPrincipalTutorId === group.tutorId;
                                 const groupCascadeDelay = Math.min(groupIdx * 50, 500);
+                                const tutorIdStr = String(group.tutorId);
+                                const savedTutorNoteEntry = principalTutorNotes[tutorIdStr];
+                                const savedTutorNote = savedTutorNoteEntry?.note || '';
+                                const savedTutorClass = savedTutorNoteEntry?.classLabel || group.classesHandled;
+                                const selectedTutorNoteClass = tutorNoteClassByTutor[tutorIdStr] ?? savedTutorClass;
+                                const hasTutorNote = Boolean(savedTutorNote);
+                                const isTutorConfirmed = Boolean(savedTutorNoteEntry?.acknowledgedByTutor);
+                                const isEditingTutor = editingTutorNoteId === tutorIdStr;
+                                const draftTutorNote = tutorNoteInputByTutor[tutorIdStr] ?? savedTutorNote;
+                                const isSubmittingTutor = submittingAlertKey === `tutor_${tutorIdStr}`;
+
                                 return (
                                   <div
                                     key={`principal-tutor-${group.tutorId}`}
@@ -2471,6 +2956,11 @@ export const DashboardLayout: React.FC = () => {
                                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
                                             {group.students.length} HIGH RISK
                                           </span>
+                                          {isTutorConfirmed && (
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60">
+                                              ACKNOWLEDGED
+                                            </span>
+                                          )}
                                         </div>
                                         <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5">
                                           {group.classesHandled}
@@ -2481,12 +2971,144 @@ export const DashboardLayout: React.FC = () => {
                                           {isExpanded ? 'Hide' : 'View'}
                                         </span>
                                         <ChevronDown
-                                          className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
-                                            isExpanded ? 'rotate-180 text-[var(--brand)]' : ''
-                                          }`}
+                                          className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-[var(--brand)]' : ''
+                                            }`}
                                         />
                                       </div>
                                     </button>
+
+                                    {/* Principal Note & Acknowledge Section per Tutor */}
+                                    <div className="px-3.5 pb-3 pt-2.5 border-t border-slate-100 dark:border-neutral-800/80 bg-white dark:bg-[#0A0A0A]">
+                                      {isEditingTutor ? (
+                                        <div className="space-y-2">
+                                          <div className="space-y-1">
+                                            <label className="block text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                              Referring to Class
+                                            </label>
+                                            {group.classesList.length > 1 ? (
+                                              <select
+                                                value={selectedTutorNoteClass}
+                                                onChange={(e) =>
+                                                  setTutorNoteClassByTutor((prev) => ({
+                                                    ...prev,
+                                                    [tutorIdStr]: e.target.value,
+                                                  }))
+                                                }
+                                                className="w-full rounded-lg border border-slate-200 dark:border-neutral-800 bg-slate-50/70 dark:bg-[#121212] px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none"
+                                              >
+                                                <option value={group.classesHandled}>
+                                                  All High-Risk Classes ({group.classesHandled})
+                                                </option>
+                                                {group.classesList.map((clsLabel) => (
+                                                  <option key={clsLabel} value={clsLabel}>
+                                                    {clsLabel}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            ) : (
+                                              <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-[#121212] border border-slate-200 dark:border-neutral-800 rounded-lg px-2.5 py-1.5 m-0">
+                                                {group.classesHandled}
+                                              </p>
+                                            )}
+                                          </div>
+                                          <textarea
+                                            rows={2}
+                                            value={draftTutorNote}
+                                            onChange={(e) =>
+                                              setTutorNoteInputByTutor((prev) => ({
+                                                ...prev,
+                                                [tutorIdStr]: e.target.value,
+                                              }))
+                                            }
+                                            placeholder="Add a note"
+                                            className="w-full rounded-lg border border-slate-200 dark:border-neutral-800 bg-slate-50/70 dark:bg-[#121212] px-2.5 py-2 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none resize-none"
+                                          />
+                                          <div className="flex items-center justify-end gap-2">
+                                            <button
+                                              type="button"
+                                              disabled={isSubmittingTutor}
+                                              onClick={() => setEditingTutorNoteId(null)}
+                                              className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer disabled:opacity-50"
+                                            >
+                                              Cancel
+                                            </button>
+                                            <button
+                                              type="button"
+                                              disabled={!draftTutorNote.trim() || isSubmittingTutor}
+                                              onClick={() => handleSavePrincipalTutorNote(group)}
+                                              className="py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+                                            >
+                                              {isSubmittingTutor
+                                                ? 'Saving...'
+                                                : 'Save Note'}
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : hasTutorNote ? (
+                                        <div
+                                          className={`rounded-lg border p-2.5 space-y-1 ${
+                                            isTutorConfirmed
+                                              ? 'border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/60 dark:bg-emerald-950/25'
+                                              : 'border-amber-200 dark:border-amber-800/40 bg-amber-50/50 dark:bg-amber-950/20'
+                                          }`}
+                                        >
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span
+                                              className={`text-[10.5px] font-extrabold uppercase tracking-wider ${
+                                                isTutorConfirmed
+                                                  ? 'text-emerald-700 dark:text-emerald-400'
+                                                  : 'text-amber-700 dark:text-amber-400'
+                                              }`}
+                                            >
+                                              {isTutorConfirmed ? 'Acknowledged • Note to Tutor' : 'Note to Tutor'}
+                                            </span>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setTutorNoteInputByTutor((prev) => ({
+                                                  ...prev,
+                                                  [tutorIdStr]: savedTutorNote,
+                                                }));
+                                                setTutorNoteClassByTutor((prev) => ({
+                                                  ...prev,
+                                                  [tutorIdStr]: savedTutorClass,
+                                                }));
+                                                setEditingTutorNoteId(tutorIdStr);
+                                              }}
+                                              className="text-[10.5px] font-bold text-[var(--brand)] hover:underline cursor-pointer"
+                                            >
+                                              Edit Note
+                                            </button>
+                                          </div>
+                                          {savedTutorClass && (
+                                            <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 m-0">
+                                              Class: {savedTutorClass}
+                                            </p>
+                                          )}
+                                          <p className="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap leading-relaxed m-0">
+                                            {savedTutorNote}
+                                          </p>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setTutorNoteInputByTutor((prev) => ({
+                                              ...prev,
+                                              [tutorIdStr]: prev[tutorIdStr] ?? '',
+                                            }));
+                                            setTutorNoteClassByTutor((prev) => ({
+                                              ...prev,
+                                              [tutorIdStr]: prev[tutorIdStr] ?? group.classesHandled,
+                                            }));
+                                            setEditingTutorNoteId(tutorIdStr);
+                                          }}
+                                          className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer flex items-center justify-center shadow-2xs"
+                                        >
+                                          Add Note
+                                        </button>
+                                      )}
+                                    </div>
 
                                     {/* Collapsible Dropdown of Handled High-Risk Students */}
                                     {isExpanded && (
@@ -2528,62 +3150,43 @@ export const DashboardLayout: React.FC = () => {
                                                       LRN: {row.student.lrn || 'N/A'} {stGrade && stSection ? `• ${stGrade} - ${stSection}` : ''}
                                                     </p>
                                                   </div>
-                                                <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
-                                                  HIGH RISK
-                                                </span>
-                                              </div>
+                                                  <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
+                                                    HIGH RISK
+                                                  </span>
+                                                </div>
 
-                                              {/* Metrics */}
-                                              <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
-                                                <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Composite Rating:</span>
-                                                <span className="font-extrabold text-rose-600 dark:text-rose-400">{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
-                                              </div>
+                                                {/* Metrics */}
+                                                <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
+                                                  <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Composite Rating:</span>
+                                                  <span className="font-extrabold text-rose-600 dark:text-rose-400">{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
+                                                </div>
 
-                                              {/* Safety Gate or Recovery Targets Remark */}
-                                              <div className="flex flex-col gap-1 pt-0.5">
-                                                {row.compositeScore >= RISK_THRESHOLDS.moderateMinComposite && row.attendanceRate <= RISK_THRESHOLDS.highAttendanceGate && (
-                                                  <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-900 dark:text-amber-200 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 leading-snug">
-                                                    Despite current composite rating, student is marked high risk due to the attendance rate being {RISK_THRESHOLDS.highAttendanceGate}% or less.
-                                                  </span>
-                                                )}
-                                                {row.neededPresentAttendance > 0 && (
-                                                  <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10.5px] font-semibold text-amber-800 dark:text-amber-300 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50">
-                                                    Need +{row.neededPresentAttendance} more Present records to improve risk level
-                                                  </span>
-                                                )}
-                                                {row.neededPassedScores > 0 && (
-                                                  <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[10.5px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
-                                                    Need +{row.neededPassedScores} more Passed records to improve risk level
-                                                  </span>
-                                                )}
-                                                {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
-                                                  <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[10.5px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
-                                                    Need +1 more Passed record to improve risk level
-                                                  </span>
-                                                )}
+                                                {/* Safety Gate or Recovery Targets Remark */}
+                                                <div className="flex flex-col gap-1 pt-0.5">
+                                                  {row.compositeScore >= RISK_THRESHOLDS.moderateMinComposite && row.attendanceRate <= RISK_THRESHOLDS.highAttendanceGate && (
+                                                    <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-900 dark:text-amber-200 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 leading-snug">
+                                                      Despite current composite rating, student is marked high risk due to the attendance rate being {RISK_THRESHOLDS.highAttendanceGate}% or less.
+                                                    </span>
+                                                  )}
+                                                  {row.neededPresentAttendance > 0 && (
+                                                    <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10.5px] font-semibold text-amber-800 dark:text-amber-300 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50">
+                                                      Need +{row.neededPresentAttendance} more Present records to improve risk level
+                                                    </span>
+                                                  )}
+                                                  {row.neededPassedScores > 0 && (
+                                                    <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[10.5px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
+                                                      Need +{row.neededPassedScores} more Passed records to improve risk level
+                                                    </span>
+                                                  )}
+                                                  {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
+                                                    <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[10.5px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
+                                                      Need +1 more Passed record to improve risk level
+                                                    </span>
+                                                  )}
+                                                </div>
                                               </div>
-
-                                              {/* Direct Acknowledge Alert button for Principal */}
-                                              <div className="pt-2 border-t border-slate-100 dark:border-neutral-800">
-                                                {acknowledgedAlerts[row.student.id] ? (
-                                                  <div className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-lg">
-                                                    <Check size={14} className="stroke-[3]" />
-                                                    <span>Alert Addressed</span>
-                                                  </div>
-                                                ) : (
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => handleAcknowledgeAlert(row)}
-                                                    className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
-                                                  >
-                                                    <CheckCircle2 size={14} />
-                                                    <span>Acknowledge Alert</span>
-                                                  </button>
-                                                )}
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
+                                            );
+                                          })}
                                         </div>
                                       </div>
                                     )}
@@ -2593,125 +3196,222 @@ export const DashboardLayout: React.FC = () => {
                             </div>
                           )
                         ) : (
-                          /* Existing Tutor View */
+                          /* Tutor View */
                           (() => {
                             const visibleSections = selectedAlertClass === 'all'
-                            ? tutorClassSections
-                            : tutorClassSections.filter((cls) => cls.key === selectedAlertClass);
-                          return visibleSections.map((cls) => {
-                            const sortedClassStudents = [...cls.students].sort((a, b) => {
-                              const aAck = Boolean(acknowledgedAlerts[a.student.id]);
-                              const bAck = Boolean(acknowledgedAlerts[b.student.id]);
-                              if (aAck !== bAck) {
-                                return aAck ? 1 : -1;
-                              }
-                              return 0;
-                            });
+                              ? tutorClassSections
+                              : tutorClassSections.filter((cls) => cls.key === selectedAlertClass);
 
                             return (
-                              <div key={`${selectedAlertClass}-${cls.key}`} className="flex flex-col gap-2">
-                                {/* Class label shown only in "all" view or when more than one section exists */}
-                                {(selectedAlertClass === 'all' && tutorClassSections.length > 1) && (
-                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.125rem' }}>
-                                    <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: 'var(--risk-high-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                      {cls.label}
-                                    </p>
-                                    <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.72rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid var(--risk-high-border)' }}>
-                                      {cls.students.length}
-                                    </span>
-                                  </div>
-                                )}
+                              <>
+                                {visibleSections.map((cls) => {
+                                  const sortedClassStudents = [...cls.students].sort((a, b) => {
+                                    const aAck = Boolean(acknowledgedAlerts[a.student.id]);
+                                    const bAck = Boolean(acknowledgedAlerts[b.student.id]);
+                                    if (aAck !== bAck) {
+                                      return aAck ? 1 : -1;
+                                    }
+                                    return 0;
+                                  });
 
-                                {cls.students.length === 0 ? (
-                                  <div className="risk-card-cascade" style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
-                                    <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0 }}>
-                                      No high-risk students detected.
-                                    </p>
-                                  </div>
-                                ) : (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                                    {sortedClassStudents.map((row, studentIdx) => (
-                                      <div
-                                        key={`high-${selectedAlertClass}-${cls.key}-${row.student.id}`}
-                                        className="risk-card-cascade rounded-xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#0A0A0A] p-3.5 space-y-2.5 shadow-2xs"
-                                        style={{ animationDelay: `${Math.min(studentIdx * 50, 500)}ms` }}
-                                      >
-                                        <div className="flex items-start justify-between gap-2">
-                                          <Link
-                                            to={`/tutor/students/${row.student.id}`}
-                                            state={{ from: 'dashboard' }}
-                                            onClick={() => setShowRiskList(false)}
-                                            className="group min-w-0 flex-1 no-underline"
-                                          >
-                                            <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-[var(--brand)] transition-colors truncate m-0">
-                                              {row.student.full_name}
-                                            </p>
-                                            <p className="text-[11px] text-slate-400 font-mono m-0 mt-0.5">
-                                              LRN: {row.student.lrn || 'N/A'}
-                                            </p>
-                                          </Link>
-                                          <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
-                                            HIGH RISK
+                                  return (
+                                    <div key={`${selectedAlertClass}-${cls.key}`} className="flex flex-col gap-2">
+                                      {/* Class label shown only in "all" view or when more than one section exists */}
+                                      {(selectedAlertClass === 'all' && tutorClassSections.length > 1) && (
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.125rem' }}>
+                                          <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: 'var(--risk-high-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                            {cls.label}
+                                          </p>
+                                          <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.72rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid var(--risk-high-border)' }}>
+                                            {cls.students.length}
                                           </span>
                                         </div>
+                                      )}
 
-                                        {/* Composite score */}
-                                        <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
-                                          <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Composite Rating:</span>
-                                          <span className="font-extrabold text-rose-600 dark:text-rose-400">{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
+                                      {cls.students.length === 0 ? (
+                                        <div className="risk-card-cascade" style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+                                          <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0 }}>
+                                            No high-risk students detected.
+                                          </p>
                                         </div>
+                                      ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                                          {sortedClassStudents.map((row, studentIdx) => {
+                                            const stIdStr = String(row.student.id);
+                                            const savedStudentNote = studentAlertNotes[stIdStr] || '';
+                                            const hasStudentNote = Boolean(acknowledgedAlerts[stIdStr] || savedStudentNote);
+                                            const isStudentConfirmed = Boolean(studentNoteRecipientAck[stIdStr]);
+                                            const isEditingStudent = editingStudentNoteId === stIdStr;
+                                            const draftStudentNote =
+                                              studentNoteInputByStudent[stIdStr] ?? savedStudentNote;
+                                            const isSubmittingStudent =
+                                              submittingAlertKey === `student_${stIdStr}`;
 
-                                        {/* Recovery targets */}
-                                        <div className="flex flex-col gap-1.5 pt-0.5">
-                                          {row.compositeScore >= RISK_THRESHOLDS.moderateMinComposite && row.attendanceRate <= RISK_THRESHOLDS.highAttendanceGate && (
-                                            <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[10.5px] font-medium text-amber-900 dark:text-amber-200 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 leading-snug">
-                                              Despite current composite rating, student is marked high risk due to the attendance rate being {RISK_THRESHOLDS.highAttendanceGate}% or less.
-                                            </span>
-                                          )}
-                                          {row.neededPresentAttendance > 0 && (
-                                            <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50">
-                                              Need +{row.neededPresentAttendance} more Present records to improve risk level
-                                            </span>
-                                          )}
-                                          {row.neededPassedScores > 0 && (
-                                            <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
-                                              Need +{row.neededPassedScores} more Passed records to improve risk level
-                                            </span>
-                                          )}
-                                          {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
-                                            <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
-                                              Need +1 more Passed record to improve risk level
-                                            </span>
-                                          )}
-                                        </div>
+                                            return (
+                                              <div
+                                                key={`high-${selectedAlertClass}-${cls.key}-${row.student.id}`}
+                                                className="risk-card-cascade rounded-xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#0A0A0A] p-3.5 space-y-2.5 shadow-2xs"
+                                                style={{ animationDelay: `${Math.min(studentIdx * 50, 500)}ms` }}
+                                              >
+                                                <div className="flex items-start justify-between gap-2">
+                                                  <Link
+                                                    to={`/tutor/students/${row.student.id}`}
+                                                    state={{ from: 'dashboard' }}
+                                                    onClick={() => setShowRiskList(false)}
+                                                    className="group min-w-0 flex-1 no-underline"
+                                                  >
+                                                    <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-[var(--brand)] transition-colors truncate m-0">
+                                                      {row.student.full_name}
+                                                    </p>
+                                                    <p className="text-[11px] text-slate-400 font-mono m-0 mt-0.5">
+                                                      LRN: {row.student.lrn || 'N/A'}
+                                                    </p>
+                                                  </Link>
+                                                  <div className="shrink-0 flex items-center gap-1 flex-wrap justify-end">
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
+                                                      HIGH RISK
+                                                    </span>
+                                                    {isStudentConfirmed && (
+                                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60">
+                                                        ACKNOWLEDGED
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                </div>
 
-                                        {/* Direct Acknowledge Alert button */}
-                                        <div className="pt-2 border-t border-slate-100 dark:border-neutral-800">
-                                          {acknowledgedAlerts[row.student.id] ? (
-                                            <div className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-lg">
-                                              <Check size={14} className="stroke-[3]" />
-                                              <span>Alert Addressed</span>
-                                            </div>
-                                          ) : (
-                                            <button
-                                              type="button"
-                                              onClick={() => handleAcknowledgeAlert(row)}
-                                              className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
-                                            >
-                                              <CheckCircle2 size={14} />
-                                              <span>Acknowledge Alert</span>
-                                            </button>
-                                          )}
+                                                {/* Composite score */}
+                                                <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
+                                                  <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Composite Rating:</span>
+                                                  <span className="font-extrabold text-rose-600 dark:text-rose-400">{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
+                                                </div>
+
+                                                {/* Recovery targets */}
+                                                <div className="flex flex-col gap-1.5 pt-0.5">
+                                                  {row.compositeScore >= RISK_THRESHOLDS.moderateMinComposite && row.attendanceRate <= RISK_THRESHOLDS.highAttendanceGate && (
+                                                    <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[10.5px] font-medium text-amber-900 dark:text-amber-200 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 leading-snug">
+                                                      Despite current composite rating, student is marked high risk due to the attendance rate being {RISK_THRESHOLDS.highAttendanceGate}% or less.
+                                                    </span>
+                                                  )}
+                                                  {row.neededPresentAttendance > 0 && (
+                                                    <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50">
+                                                      Need +{row.neededPresentAttendance} more Present records to improve risk level
+                                                    </span>
+                                                  )}
+                                                  {row.neededPassedScores > 0 && (
+                                                    <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
+                                                      Need +{row.neededPassedScores} more Passed records to improve risk level
+                                                    </span>
+                                                  )}
+                                                  {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
+                                                    <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
+                                                      Need +1 more Passed record to improve risk level
+                                                    </span>
+                                                  )}
+                                                </div>
+
+                                                {/* Tutor Note & Acknowledge Section per Student */}
+                                                <div className="pt-2 border-t border-slate-100 dark:border-neutral-800">
+                                                  {isEditingStudent ? (
+                                                    <div className="space-y-2">
+                                                      <textarea
+                                                        rows={2}
+                                                        value={draftStudentNote}
+                                                        onChange={(e) =>
+                                                          setStudentNoteInputByStudent((prev) => ({
+                                                            ...prev,
+                                                            [stIdStr]: e.target.value,
+                                                          }))
+                                                        }
+                                                        placeholder="Add a note"
+                                                        className="w-full rounded-lg border border-slate-200 dark:border-neutral-800 bg-slate-50/70 dark:bg-[#121212] px-2.5 py-2 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none resize-none"
+                                                      />
+                                                      <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                          type="button"
+                                                          disabled={isSubmittingStudent}
+                                                          onClick={() => setEditingStudentNoteId(null)}
+                                                          className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer disabled:opacity-50"
+                                                        >
+                                                          Cancel
+                                                        </button>
+                                                        <button
+                                                          type="button"
+                                                          disabled={!draftStudentNote.trim() || isSubmittingStudent}
+                                                          onClick={() => handleSaveStudentAlertNote(row)}
+                                                          className="py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+                                                        >
+                                                          {isSubmittingStudent
+                                                            ? 'Saving...'
+                                                            : 'Save Note'}
+                                                        </button>
+                                                      </div>
+                                                    </div>
+                                                  ) : hasStudentNote ? (
+                                                    <div
+                                                      className={`rounded-lg border p-2.5 space-y-1 ${
+                                                        isStudentConfirmed
+                                                          ? 'border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/60 dark:bg-emerald-950/25'
+                                                          : 'border-amber-200 dark:border-amber-800/40 bg-amber-50/50 dark:bg-amber-950/20'
+                                                      }`}
+                                                    >
+                                                      <div className="flex items-center justify-between gap-2">
+                                                        <span
+                                                          className={`text-[10.5px] font-extrabold uppercase tracking-wider ${
+                                                            isStudentConfirmed
+                                                              ? 'text-emerald-700 dark:text-emerald-400'
+                                                              : 'text-amber-700 dark:text-amber-400'
+                                                          }`}
+                                                        >
+                                                          {isStudentConfirmed ? 'Acknowledged • Note to Student' : 'Note to Student'}
+                                                        </span>
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => {
+                                                            setStudentNoteInputByStudent((prev) => ({
+                                                              ...prev,
+                                                              [stIdStr]: savedStudentNote,
+                                                            }));
+                                                            setEditingStudentNoteId(stIdStr);
+                                                          }}
+                                                          className="text-[10.5px] font-bold text-[var(--brand)] hover:underline cursor-pointer"
+                                                        >
+                                                          Edit Note
+                                                        </button>
+                                                      </div>
+                                                      {savedStudentNote && (
+                                                        <p className="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap leading-relaxed m-0">
+                                                          {savedStudentNote}
+                                                        </p>
+                                                      )}
+                                                    </div>
+                                                  ) : (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => {
+                                                        setStudentNoteInputByStudent((prev) => ({
+                                                          ...prev,
+                                                          [stIdStr]: prev[stIdStr] ?? '',
+                                                        }));
+                                                        setEditingStudentNoteId(stIdStr);
+                                                      }}
+                                                      className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer flex items-center justify-center shadow-2xs"
+                                                    >
+                                                      Add Note
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
                                         </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </>
                             );
-                          });
-                        })()
-                      )}
+                          })()
+                        )}
                       </div>
                     </div>
                   </>
@@ -2800,23 +3500,21 @@ export const DashboardLayout: React.FC = () => {
                 </button>
 
                 {/* Edit Request Notifications Dropdown Popup */}
-                {showEditRequestsModal && (
-                  <StudentEditRequestsModal
-                    isOpen={showEditRequestsModal}
-                    onClose={() => setShowEditRequestsModal(false)}
-                    onRequestReviewed={() => {
-                      fetchEditRequests();
-                      fetchTickets();
-                      fetchAnnouncements();
-                    }}
-                  />
-                )}
+                <StudentEditRequestsModal
+                  isOpen={showEditRequestsModal}
+                  onClose={() => setShowEditRequestsModal(false)}
+                  onRequestReviewed={() => {
+                    fetchEditRequests();
+                    fetchTickets();
+                    fetchAnnouncements();
+                  }}
+                />
               </div>
             )}
 
             {/* Universal Notification Bell (Tutor, Faculty, Principal) */}
             {(user?.role === 'tutor' || user?.role === 'principal') && (
-              <div style={{ position: 'relative', zIndex: showTutorNotifications ? 80 : 1 }}>
+              <div style={{ position: 'relative', zIndex: shouldRenderTutorNotif ? 80 : 1 }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -2896,18 +3594,22 @@ export const DashboardLayout: React.FC = () => {
                 </button>
 
                 {/* Notifications Dropdown */}
-                {showTutorNotifications && (
+                {shouldRenderTutorNotif && (
                   <>
                     {/* Mobile Backdrop */}
                     <div
-                      className="fixed inset-0 z-[75] bg-transparent sm:hidden"
-                      onClick={() => setShowTutorNotifications(false)}
+                      className={`fixed inset-0 z-[75] bg-transparent sm:hidden ${isTutorNotifClosing ? 'pointer-events-none' : ''
+                        }`}
+                      onClick={() => {
+                        if (!isTutorNotifClosing) setShowTutorNotifications(false);
+                      }}
                       aria-hidden="true"
                     />
 
                     {/* Notification Panel */}
                     <div
-                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[420px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-[80] overflow-hidden"
+                      className={`${isTutorNotifClosing ? 'popover-pop-out' : 'popover-pop-in'
+                        } fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[420px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-[80] overflow-hidden`}
                     >
                       <div
                         style={{
@@ -2974,8 +3676,28 @@ export const DashboardLayout: React.FC = () => {
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          ALL ({myEditRequests.length + myTickets.length + systemAnnouncements.length + SYSTEM_UPDATES.length})
+                          ALL ({(user?.role === 'tutor' ? riskNoteNotifications.length : 0) + myEditRequests.length + myTickets.length + systemAnnouncements.length + SYSTEM_UPDATES.length})
                         </button>
+                        {user?.role === 'tutor' && (
+                          <button
+                            type="button"
+                            onClick={() => setUserNotificationFilter('notes')}
+                            style={{
+                              padding: '3px 7px',
+                              borderRadius: '6px',
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              border: 'none',
+                              cursor: 'pointer',
+                              flexShrink: 0,
+                              background: userNotificationFilter === 'notes' ? '#0052B7' : 'var(--slate-100)',
+                              color: userNotificationFilter === 'notes' ? '#FFFFFF' : 'var(--text-secondary)',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            NOTES ({riskNoteNotifications.length})
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => setUserNotificationFilter('tickets')}
@@ -3047,12 +3769,14 @@ export const DashboardLayout: React.FC = () => {
                       >
                         {(() => {
                           type InboxItem =
+                            | ({ itemKind: 'note' } & RiskNoteNotificationItem)
                             | ({ itemKind: 'system' } & (typeof SYSTEM_UPDATES)[number])
                             | ({ itemKind: 'announcement' } & SystemAnnouncementItem)
                             | ({ itemKind: 'edit' } & StudentEditRequest)
                             | ({ itemKind: 'ticket' } & SupportTicketItem);
 
                           const allInbox: InboxItem[] = [
+                            ...riskNoteNotifications.map((n) => ({ ...n, itemKind: 'note' as const })),
                             ...systemAnnouncements.map((a) => ({ ...a, itemKind: 'announcement' as const })),
                             ...SYSTEM_UPDATES.map((u) => ({ ...u, itemKind: 'system' as const })),
                             ...myEditRequests.map((req) => ({ ...req, itemKind: 'edit' as const })),
@@ -3061,6 +3785,7 @@ export const DashboardLayout: React.FC = () => {
 
                           const compiledInbox = allInbox.filter((item) => {
                             if (userNotificationFilter === 'all') return true;
+                            if (userNotificationFilter === 'notes') return item.itemKind === 'note';
                             if (userNotificationFilter === 'tickets') return item.itemKind === 'ticket';
                             if (userNotificationFilter === 'edits') return item.itemKind === 'edit';
                             if (userNotificationFilter === 'updates') return item.itemKind === 'announcement' || item.itemKind === 'system';
@@ -3076,6 +3801,9 @@ export const DashboardLayout: React.FC = () => {
                           }
 
                           return compiledInbox.map((item) => {
+                            if (item.itemKind === 'note') {
+                              return renderRiskNoteNotificationCard(item, user?.role === 'tutor');
+                            }
                             if (item.itemKind === 'announcement') {
                               return renderSystemAnnouncementCard(item);
                             }
@@ -3238,7 +3966,7 @@ export const DashboardLayout: React.FC = () => {
 
             {/* Student Notifications (Bell Icon) */}
             {user?.role === 'student' && (
-              <div style={{ position: 'relative', zIndex: showStudentEditRequests ? 80 : 1 }}>
+              <div style={{ position: 'relative', zIndex: shouldRenderStudentNotif ? 80 : 1 }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -3317,18 +4045,22 @@ export const DashboardLayout: React.FC = () => {
                 </button>
 
                 {/* Student Notifications Dropdown */}
-                {showStudentEditRequests && (
+                {shouldRenderStudentNotif && (
                   <>
                     {/* Mobile Backdrop */}
                     <div
-                      className="fixed inset-0 z-[75] bg-transparent sm:hidden"
-                      onClick={() => setShowStudentEditRequests(false)}
+                      className={`fixed inset-0 z-[75] bg-transparent sm:hidden ${isStudentNotifClosing ? 'pointer-events-none' : ''
+                        }`}
+                      onClick={() => {
+                        if (!isStudentNotifClosing) setShowStudentEditRequests(false);
+                      }}
                       aria-hidden="true"
                     />
 
                     {/* Notification Panel */}
                     <div
-                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[410px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-[80] overflow-hidden"
+                      className={`${isStudentNotifClosing ? 'popover-pop-out' : 'popover-pop-in'
+                        } fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[410px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-[80] overflow-hidden`}
                     >
                       <div
                         style={{
@@ -3395,7 +4127,25 @@ export const DashboardLayout: React.FC = () => {
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          ALL ({myEditRequests.length + myTickets.length + systemAnnouncements.length + SYSTEM_UPDATES.length})
+                          ALL ({riskNoteNotifications.length + myEditRequests.length + myTickets.length + systemAnnouncements.length + SYSTEM_UPDATES.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUserNotificationFilter('notes')}
+                          style={{
+                            padding: '3px 7px',
+                            borderRadius: '6px',
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            border: 'none',
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                            background: userNotificationFilter === 'notes' ? '#0052B7' : 'var(--slate-100)',
+                            color: userNotificationFilter === 'notes' ? '#FFFFFF' : 'var(--text-secondary)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          NOTES ({riskNoteNotifications.length})
                         </button>
                         <button
                           type="button"
@@ -3468,12 +4218,14 @@ export const DashboardLayout: React.FC = () => {
                       >
                         {(() => {
                           type InboxItem =
+                            | ({ itemKind: 'note' } & RiskNoteNotificationItem)
                             | ({ itemKind: 'system' } & (typeof SYSTEM_UPDATES)[number])
                             | ({ itemKind: 'announcement' } & SystemAnnouncementItem)
                             | ({ itemKind: 'edit' } & StudentEditRequest)
                             | ({ itemKind: 'ticket' } & SupportTicketItem);
 
                           const allInbox: InboxItem[] = [
+                            ...riskNoteNotifications.map((n) => ({ ...n, itemKind: 'note' as const })),
                             ...systemAnnouncements.map((a) => ({ ...a, itemKind: 'announcement' as const })),
                             ...SYSTEM_UPDATES.map((u) => ({ ...u, itemKind: 'system' as const })),
                             ...myEditRequests.map((req) => ({ ...req, itemKind: 'edit' as const })),
@@ -3482,6 +4234,7 @@ export const DashboardLayout: React.FC = () => {
 
                           const compiledInbox = allInbox.filter((item) => {
                             if (userNotificationFilter === 'all') return true;
+                            if (userNotificationFilter === 'notes') return item.itemKind === 'note';
                             if (userNotificationFilter === 'tickets') return item.itemKind === 'ticket';
                             if (userNotificationFilter === 'edits') return item.itemKind === 'edit';
                             if (userNotificationFilter === 'updates') return item.itemKind === 'announcement' || item.itemKind === 'system';
@@ -3497,6 +4250,9 @@ export const DashboardLayout: React.FC = () => {
                           }
 
                           return compiledInbox.map((item) => {
+                            if (item.itemKind === 'note') {
+                              return renderRiskNoteNotificationCard(item, true);
+                            }
                             if (item.itemKind === 'announcement') {
                               return renderSystemAnnouncementCard(item);
                             }
@@ -3676,23 +4432,20 @@ export const DashboardLayout: React.FC = () => {
       {/* Modern Profile Dropdown Menu (Sidebar Triggered) */}
       {/* Mobile backdrop only; hidden on desktop so it never intercepts hover cursor */}
       <div
-        className={`fixed inset-0 z-[75] bg-black/10 dark:bg-black/25 lg:hidden transition-opacity duration-200 ${
-          profileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
+        className={`fixed inset-0 z-[75] bg-black/10 dark:bg-black/25 lg:hidden transition-opacity duration-200 ${profileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          }`}
         onClick={() => setProfileMenuOpen(false)}
         aria-hidden="true"
       />
       <div
         id="profile-dropdown-menu"
-        className={`fixed z-[80] rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-neutral-800 shadow-xl dark:shadow-2xl text-slate-700 dark:text-slate-200 before:content-[''] before:absolute ${
-          isSidebarCollapsed && !isMobileDrawerOpen
-            ? 'before:-left-4 before:top-0 before:bottom-0 before:w-4'
-            : 'before:-bottom-4 before:left-0 before:right-0 before:h-4'
-        } before:pointer-events-auto transition-all duration-200 ease-out origin-center ${
-          profileMenuOpen
+        className={`fixed z-[80] rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-neutral-800 shadow-xl dark:shadow-2xl text-slate-700 dark:text-slate-200 before:content-[''] before:absolute ${isSidebarCollapsed && !isMobileDrawerOpen
+          ? 'before:-left-4 before:top-0 before:bottom-0 before:w-4'
+          : 'before:-bottom-4 before:left-0 before:right-0 before:h-4'
+          } before:pointer-events-auto transition-all duration-200 ease-out origin-center ${profileMenuOpen
             ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto visible'
             : 'opacity-0 translate-y-2 scale-[0.96] pointer-events-none invisible'
-        }`}
+          }`}
         style={{
           bottom: isSidebarCollapsed && !isMobileDrawerOpen ? '16px' : '72px',
           left: isMobileDrawerOpen ? '8px' : isSidebarCollapsed ? '76px' : '8px',
@@ -3707,96 +4460,96 @@ export const DashboardLayout: React.FC = () => {
         role="menu"
         aria-hidden={!profileMenuOpen}
       >
-            {/* User summary header */}
-            <div className="px-4 py-2.5 border-b border-slate-100 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/40">
-              <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
-                {getDisplayName()}
-              </p>
-              <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate mt-0.5">
-                {user?.role === 'student' || user?.email?.endsWith('@aralert.local') ? (
-                  user?.lrn ? (
-                    <span>
-                      <span className="font-semibold text-slate-400 dark:text-zinc-500 mr-1">LRN:</span>
-                      <span className="font-mono">{user.lrn}</span>
-                    </span>
-                  ) : (
-                    getRoleLabel()
-                  )
-                ) : (
-                  user?.email || getRoleLabel()
-                )}
-              </p>
-            </div>
+        {/* User summary header */}
+        <div className="px-4 py-2.5 border-b border-slate-100 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/40">
+          <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+            {getDisplayName()}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate mt-0.5">
+            {user?.role === 'student' || user?.email?.endsWith('@aralert.local') ? (
+              user?.lrn ? (
+                <span>
+                  <span className="font-semibold text-slate-400 dark:text-zinc-500 mr-1">LRN:</span>
+                  <span className="font-mono">{user.lrn}</span>
+                </span>
+              ) : (
+                getRoleLabel()
+              )
+            ) : (
+              user?.email || getRoleLabel()
+            )}
+          </p>
+        </div>
 
-            {/* Menu items */}
-            <div className="flex flex-col">
-              <button
-                type="button"
-                onClick={() => {
-                  setProfileMenuOpen(false);
-                  setIsMobileDrawerOpen(false);
-                  navigate(getProfilePath());
-                }}
-                className={`group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-150 text-left cursor-pointer ${isProfileActive
-                    ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] font-bold'
-                    : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-900 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                role="menuitem"
-              >
-                <UserIcon
-                  size={16}
-                  strokeWidth={isProfileActive ? 2.2 : 2}
-                  className={`transition-colors shrink-0 ${isProfileActive
-                      ? 'text-[var(--sidebar-active-text)]'
-                      : 'text-slate-400 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-white'
-                    }`}
-                />
-                <span>Profile</span>
-              </button>
+        {/* Menu items */}
+        <div className="flex flex-col">
+          <button
+            type="button"
+            onClick={() => {
+              setProfileMenuOpen(false);
+              setIsMobileDrawerOpen(false);
+              navigate(getProfilePath());
+            }}
+            className={`group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-150 text-left cursor-pointer ${isProfileActive
+              ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] font-bold'
+              : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-900 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            role="menuitem"
+          >
+            <UserIcon
+              size={16}
+              strokeWidth={isProfileActive ? 2.2 : 2}
+              className={`transition-colors shrink-0 ${isProfileActive
+                ? 'text-[var(--sidebar-active-text)]'
+                : 'text-slate-400 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-white'
+                }`}
+            />
+            <span>Profile</span>
+          </button>
 
-              {!user?.is_superuser && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setProfileMenuOpen(false);
-                    setIsMobileDrawerOpen(false);
-                    setShowReportProblemModal(true);
-                  }}
-                  className="group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-900 hover:text-slate-900 dark:hover:text-white transition-all duration-150 text-left cursor-pointer"
-                  role="menuitem"
-                >
-                  <HelpCircle
-                    size={16}
-                    strokeWidth={2}
-                    className="text-slate-400 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors shrink-0"
-                  />
-                  <span>Report a Problem</span>
-                </button>
-              )}
-            </div>
+          {!user?.is_superuser && (
+            <button
+              type="button"
+              onClick={() => {
+                setProfileMenuOpen(false);
+                setIsMobileDrawerOpen(false);
+                setShowReportProblemModal(true);
+              }}
+              className="group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-900 hover:text-slate-900 dark:hover:text-white transition-all duration-150 text-left cursor-pointer"
+              role="menuitem"
+            >
+              <HelpCircle
+                size={16}
+                strokeWidth={2}
+                className="text-slate-400 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors shrink-0"
+              />
+              <span>Report a Problem</span>
+            </button>
+          )}
+        </div>
 
-            <div className="border-t border-slate-100 dark:border-neutral-800" />
+        <div className="border-t border-slate-100 dark:border-neutral-800" />
 
-            <div className="flex flex-col">
-              <button
-                type="button"
-                onClick={() => {
-                  setProfileMenuOpen(false);
-                  setIsMobileDrawerOpen(false);
-                  setShowLogoutConfirm(true);
-                }}
-                className="group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 hover:text-red-700 dark:hover:text-red-300 transition-all duration-150 text-left cursor-pointer"
-                role="menuitem"
-              >
-                <LogOut
-                  size={16}
-                  strokeWidth={2}
-                  className="text-red-600 dark:text-red-400 transition-colors shrink-0"
-                />
-                <span>Logout</span>
-              </button>
-            </div>
-          </div>
+        <div className="flex flex-col">
+          <button
+            type="button"
+            onClick={() => {
+              setProfileMenuOpen(false);
+              setIsMobileDrawerOpen(false);
+              setShowLogoutConfirm(true);
+            }}
+            className="group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 hover:text-red-700 dark:hover:text-red-300 transition-all duration-150 text-left cursor-pointer"
+            role="menuitem"
+          >
+            <LogOut
+              size={16}
+              strokeWidth={2}
+              className="text-red-600 dark:text-red-400 transition-colors shrink-0"
+            />
+            <span>Logout</span>
+          </button>
+        </div>
+      </div>
 
 
 
@@ -3861,6 +4614,43 @@ export const DashboardLayout: React.FC = () => {
               </div>
             </div>
           </div>,
+          document.body
+        )}
+
+      {/* Note & Alert Acknowledgment Confirmation Toast */}
+      {alertNoteToast &&
+        createPortal(
+          <aside
+            aria-live="polite"
+            className={`fixed top-5 right-5 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] rounded-lg border bg-white dark:bg-[#111111] p-3.5 shadow-xl animate-in fade-in slide-in-from-top-3 duration-200 ${
+              alertNoteToast.tone === 'error'
+                ? 'border-rose-200 dark:border-rose-800/60'
+                : 'border-emerald-200 dark:border-emerald-800/60'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h3
+                className={`text-xs font-bold m-0 ${
+                  alertNoteToast.tone === 'error'
+                    ? 'text-rose-600 dark:text-rose-400'
+                    : 'text-emerald-600 dark:text-emerald-400'
+                }`}
+              >
+                {alertNoteToast.title}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setAlertNoteToast(null)}
+                aria-label="Close confirmation"
+                className="rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-white/10 transition cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed mb-0">
+              {alertNoteToast.message}
+            </p>
+          </aside>,
           document.body
         )}
 

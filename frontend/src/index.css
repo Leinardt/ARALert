@@ -1016,7 +1016,7 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
   transform: none !important;
 }
 
-/* Modal dialog card pop-in animation (in place without upward translation) */
+/* Modal dialog card pop-in and pop-out animations (matching system spring curve) */
 @keyframes modal-pop-in {
   0% {
     opacity: 0;
@@ -1028,10 +1028,81 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
   }
 }
 
+@keyframes modal-pop-out {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.modal-backdrop-in {
+  animation: fadeIn 0.16s ease-out both;
+}
+
+.modal-backdrop-out {
+  animation: fadeOut 0.16s ease-in both;
+  pointer-events: none;
+}
+
 .modal-pop-in {
   animation: modal-pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
   transform-origin: center center;
   will-change: transform, opacity;
+}
+
+.modal-pop-out {
+  animation: modal-pop-out 0.16s cubic-bezier(0.4, 0, 1, 1) both;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+@keyframes popover-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes popover-pop-out {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+}
+
+.popover-pop-in {
+  animation: popover-pop-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: top right;
+  will-change: transform, opacity;
+}
+
+.popover-pop-out {
+  animation: popover-pop-out 0.16s cubic-bezier(0.4, 0, 1, 1) both;
+  transform-origin: top right;
+  will-change: transform, opacity;
+  pointer-events: none;
 }
 
 /* Smooth tab panel entrance matching User Management role tabs */

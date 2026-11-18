@@ -165,9 +165,11 @@ class UserListCreateView(generics.ListCreateAPIView):
     """
 
     def get_permissions(self):
-        if self.request.method == 'POST':
-            return [IsAdmin()]
         user = getattr(self.request, 'user', None)
+        if self.request.method == 'POST':
+            if user and user.is_authenticated and getattr(user, 'role', None) == 'tutor':
+                return [IsTutor()]
+            return [IsAdmin()]
         if user and user.is_authenticated and getattr(user, 'role', None) == 'tutor':
             return [IsTutor()]
         if user and user.is_authenticated and getattr(user, 'role', None) == 'principal':
@@ -227,7 +229,7 @@ class UserListCreateView(generics.ListCreateAPIView):
 
         aral_level = self.request.query_params.get('aral_level', '').strip()
         if aral_level:
-            queryset = queryset.filter(aral_level__iexact=aral_level)
+            queryset = queryset.filter(aral_level__icontains=aral_level)
         elif (role == 'student' or not role) and not include_graduated:
             # Graduated students are archived and must not appear in active student user management
             queryset = queryset.exclude(aral_level='graduated')
@@ -376,6 +378,13 @@ class UserListCreateView(generics.ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         target_role = request.data.get('role')
         is_creating_superadmin = (target_role == 'superadmin' or request.data.get('is_superuser') is True)
+        is_tutor_actor = (not request.user.is_superuser and getattr(request.user, 'role', None) == 'tutor')
+
+        if is_tutor_actor and (target_role != 'student' or is_creating_superadmin):
+            return Response(
+                {'detail': 'Tutors can only enroll student accounts into their handled classes.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         if is_creating_superadmin:
             if not request.user.is_superuser:
@@ -394,6 +403,10 @@ class UserListCreateView(generics.ListCreateAPIView):
         if is_creating_superadmin:
             data['is_superuser'] = True
             data['role'] = None
+        elif is_tutor_actor:
+            data['is_superuser'] = False
+            data['role'] = 'student'
+            data['assigned_tutor'] = str(request.user.id)
 
         serializer = UserCreateSerializer(data=data)
         serializer.is_valid(raise_exception=True)

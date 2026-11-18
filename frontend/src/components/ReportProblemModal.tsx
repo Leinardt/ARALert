@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ticketService } from '../services/ticketService';
+import { useAnimatedPresence } from '../hooks/useAnimatedPresence';
 
 interface ReportProblemModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface ReportProblemModalProps {
 export const ReportProblemModal: React.FC<ReportProblemModalProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const isStudent = user?.role === 'student' || user?.email?.endsWith('@aralert.local');
+  const { shouldRender, isClosing } = useAnimatedPresence(isOpen, 170);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -51,7 +53,7 @@ export const ReportProblemModal: React.FC<ReportProblemModalProps> = ({ isOpen, 
     }
   }, [isOpen, user, isStudent]);
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,11 +103,17 @@ export const ReportProblemModal: React.FC<ReportProblemModalProps> = ({ isOpen, 
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm animate-in fade-in duration-150"
-      onClick={onClose}
+      className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm ${
+        isClosing ? 'modal-backdrop-out' : 'modal-backdrop-in'
+      }`}
+      onClick={() => {
+        if (!isClosing) onClose();
+      }}
     >
       <div
-        className="w-full max-w-lg bg-white dark:bg-[#0E0E0E] rounded-2xl border border-slate-200 dark:border-neutral-800 shadow-2xl overflow-hidden flex flex-col relative"
+        className={`w-full max-w-lg bg-white dark:bg-[#0E0E0E] rounded-2xl border border-slate-200 dark:border-neutral-800 shadow-2xl overflow-hidden flex flex-col relative ${
+          isClosing ? 'modal-pop-out' : 'modal-pop-in'
+        }`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

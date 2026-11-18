@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { AuthResponse, User } from '../types';
 import { authService } from '../services/authService';
 import { initActivityTracker, resetActivity } from '../utils/activityTracker';
+import { clearCachedTutorClassSections } from '../utils/tutorCohortHelpers';
 
 interface AuthContextValue {
   user: User | null;
@@ -97,7 +98,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const accessToken = sessionStorage.getItem('access_token');
     if (!accessToken) {
       setUser(null);
+      return;
     }
+
+    let isMounted = true;
+    const syncFreshProfile = async () => {
+      if (!sessionStorage.getItem('access_token')) return;
+      try {
+        const freshUser = await authService.getProfile();
+        if (!isMounted || !freshUser) return;
+        sessionStorage.setItem('user', JSON.stringify(freshUser));
+        setUser((prev) => {
+          const prevJson = JSON.stringify(prev);
+          const nextJson = JSON.stringify(freshUser);
+          if (prevJson !== nextJson) {
+            clearCachedTutorClassSections(freshUser.id);
+            return freshUser;
+          }
+          return prev;
+        });
+      } catch {
+        // Keep existing session user on transient network error
+      }
+    };
+
+    syncFreshProfile();
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        syncFreshProfile();
+      }
+    };
+
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+    };
   }, []);
 
   // ── 30-Minute AFK Inactivity Detection ─────────────────────────────────

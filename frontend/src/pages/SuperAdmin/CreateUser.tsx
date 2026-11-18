@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -879,10 +880,11 @@ export const CreateUser: React.FC = () => {
       </div>
 
       {/* ── Saved Changes Floating Notification Toast (Matches EditUser / TutorScores Toast System) ── */}
-      {showSuccessToast && (
+      {showSuccessToast && createPortal(
         <aside
           aria-live="polite"
-          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+          style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+          className="fixed top-5 right-5 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
         >
           <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-white dark:bg-[#111111] dark:border-emerald-800 p-3.5 shadow-xl">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400">
@@ -907,14 +909,16 @@ export const CreateUser: React.FC = () => {
               </p>
             </div>
           </div>
-        </aside>
+        </aside>,
+        document.body
       )}
 
       {/* ── Error / Validation Floating Notification Toast (Matches EditUser / TutorScores Validation Toast) ── */}
-      {errorToast && (
+      {errorToast && createPortal(
         <aside
           aria-live="assertive"
-          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+          style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+          className="fixed top-5 right-5 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
         >
           <div className="flex items-start gap-3 rounded-lg border border-rose-300 dark:border-rose-700/80 bg-white dark:bg-[#111111] p-3.5 shadow-xl">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800">
@@ -939,7 +943,8 @@ export const CreateUser: React.FC = () => {
               </p>
             </div>
           </div>
-        </aside>
+        </aside>,
+        document.body
       )}
       {/* ── Batch Student Enrollment Modal (DepEd BOSY Excel List Import) ── */}
       <BatchStudentEnrollmentModal
