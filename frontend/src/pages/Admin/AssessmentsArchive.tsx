@@ -47,6 +47,31 @@ const getGradeAndSection = (gradeLevel?: string | null, fallbackSection?: string
   };
 };
 
+/* ─── Helper: Map Grade Record to Concluded Semester Tab ───────────── */
+const getArchivePhaseFromGrade = (grade: Grade): 'mosy' | 'eosy' | 'summer' => {
+  const subj = (grade.subject || '').toUpperCase();
+  const rem = (grade.remarks || '').toUpperCase();
+  if (subj.includes('SUMMER') || rem.includes('SUMMER')) return 'summer';
+  if (subj.includes('EOSY') || rem.includes('EOSY')) return 'eosy';
+  if (subj.includes('MOSY') || rem.includes('MOSY')) return 'mosy';
+
+  const q = Number(grade.quarter) || 0;
+  if (q === 1) return 'mosy';
+  if (q === 2 || q === 4) return 'eosy';
+  if (q === 3) return 'summer';
+
+  if (grade.date_logged) {
+    const clean = grade.date_logged.includes('T') ? grade.date_logged : `${grade.date_logged}T00:00:00`;
+    const d = new Date(clean);
+    if (!Number.isNaN(d.getTime())) {
+      const month = d.getMonth() + 1;
+      if (month === 6) return 'summer';
+      if (month >= 1 && month <= 5) return 'eosy';
+    }
+  }
+  return 'mosy';
+};
+
 interface StudentArchiveMetric {
   id: string;
   name: string;
@@ -771,20 +796,7 @@ export const AssessmentsArchive: React.FC = () => {
         const sGrades = grades.filter((g) => {
           const sid = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
           if (String(sid) !== String(st.id)) return false;
-
-          const subj = (g.subject || '').toUpperCase();
-          const q = Number(g.quarter) || 0;
-
-          if (activeTab === 'mosy') {
-            return q === 1 || q === 2 || subj.includes('MOSY') || (!subj.includes('EOSY') && !subj.includes('SUMMER') && q <= 2);
-          }
-          if (activeTab === 'eosy') {
-            return q === 3 || q === 4 || subj.includes('EOSY');
-          }
-          if (activeTab === 'summer') {
-            return subj.includes('SUMMER');
-          }
-          return true;
+          return getArchivePhaseFromGrade(g) === activeTab;
         });
 
         // Filter student attendance strictly to the selected concluded semester

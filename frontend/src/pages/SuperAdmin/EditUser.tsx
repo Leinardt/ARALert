@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { userService } from '../../services/userService';
 import type { User } from '../../types';
-import { ArrowLeft, AlertCircle, ShieldCheck, Plus, Trash2, CheckCircle2, X, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Plus, Trash2, CheckCircle2, X, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import {
   isTutorEligibleForStudent,
@@ -396,9 +396,8 @@ export const EditUser: React.FC = () => {
         payload.assigned_tutor = null;
         payload.parent_guardian_name = '';
         payload.contact_number = '';
-      } else {
-        delete payload.is_active;
       }
+      delete payload.is_active;
       if (data.role !== 'tutor' && data.role !== 'student') {
         payload.subject = null;
         payload.grade_level = null;
@@ -999,29 +998,6 @@ export const EditUser: React.FC = () => {
             </div>
           )}
 
-          {selectedRole !== 'student' && (
-            isRootSuperAdminEmail(watch('email')) ? (
-              <div className="flex items-center pt-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                <ShieldCheck className="w-4 h-4 mr-1.5 shrink-0" />
-                <span>Primary Root SuperAdmin (Account Status Protected)</span>
-              </div>
-            ) : isSelf ? (
-              <div className="flex items-center pt-2 text-xs font-semibold text-blue-600 dark:text-blue-400">
-                <ShieldCheck className="w-4 h-4 mr-1.5 shrink-0" />
-                <span>Your Own Account (Cannot be deactivated)</span>
-              </div>
-            ) : (
-              <div className="flex items-center pt-2">
-                <input id="is_active" type="checkbox" {...register('is_active')}
-                  className="h-4 w-4 text-[var(--brand)] focus:ring-[var(--brand)] border-gray-300 rounded cursor-pointer"
-                />
-                <label htmlFor="is_active" className="ml-2 block text-xs font-semibold text-gray-900 dark:text-slate-200 cursor-pointer">
-                  Account Status (Active)
-                </label>
-              </div>
-            )
-          )}
-
           <div className="flex justify-end pt-4 space-x-3">
             <Link to={currentUser?.is_superuser ? `/superadmin/users?role=${selectedRole}` : '/admin/students'}
               className="bg-white dark:bg-[#111111] border border-gray-300 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 px-4 py-2 rounded-md text-xs font-semibold hover:bg-gray-50 transition-colors"
@@ -1095,10 +1071,11 @@ export const EditUser: React.FC = () => {
         )}
 
       {/* ── Saved Changes Floating Notification Toast (Matches TutorScores Score Success Notification) ── */}
-      {showSuccessToast && (
+      {showSuccessToast && createPortal(
         <aside
           aria-live="polite"
-          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+          style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+          className="fixed top-5 right-5 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
         >
           <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-white dark:bg-[#111111] dark:border-emerald-800 p-3.5 shadow-xl">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400">
@@ -1123,14 +1100,16 @@ export const EditUser: React.FC = () => {
               </p>
             </div>
           </div>
-        </aside>
+        </aside>,
+        document.body
       )}
 
       {/* ── Error / Validation Floating Notification Toast (Matches TutorScores Validation Toast) ── */}
-      {errorToast && (
+      {errorToast && createPortal(
         <aside
           aria-live="assertive"
-          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+          style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+          className="fixed top-5 right-5 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
         >
           <div className="flex items-start gap-3 rounded-lg border border-rose-300 dark:border-rose-700/80 bg-white dark:bg-[#111111] p-3.5 shadow-xl">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800">
@@ -1155,7 +1134,8 @@ export const EditUser: React.FC = () => {
               </p>
             </div>
           </div>
-        </aside>
+        </aside>,
+        document.body
       )}
     </div>
   );

@@ -206,10 +206,33 @@ export const academicService = {
   },
 
   // Academic Risks
-  getAcademicRisks: async (params: { student_id?: string } = {}): Promise<AcademicRisk[]> => {
-    const response = await api.get<AcademicRisk[] | { results: AcademicRisk[] }>('/academics/risks/', { params });
+  getAcademicRisks: async (params: { student_id?: string; page?: number; page_size?: number } = {}): Promise<AcademicRisk[]> => {
+    const response = await api.get<AcademicRisk[] | { results: AcademicRisk[]; next?: string | null }>('/academics/risks/', {
+      params: { ...params, page_size: params.page !== undefined ? undefined : (params.page_size ?? 200) }
+    });
     const data = response.data as any;
-    return Array.isArray(data) ? data : (data?.results ?? []);
+    if (Array.isArray(data)) return data;
+
+    const risks: AcademicRisk[] = [...(data?.results ?? [])];
+    if (params.page !== undefined) return risks;
+
+    let page = 1;
+    let next = data?.next;
+    const MAX_PAGES = 50;
+    while (next && page < MAX_PAGES) {
+      page += 1;
+      const nextResponse = await api.get<AcademicRisk[] | { results: AcademicRisk[]; next?: string | null }>('/academics/risks/', {
+        params: { ...params, page, page_size: params.page_size ?? 200 }
+      });
+      const nextData = nextResponse.data as any;
+      if (Array.isArray(nextData)) {
+        risks.push(...nextData);
+        break;
+      }
+      risks.push(...(nextData?.results ?? []));
+      next = nextData?.next;
+    }
+    return risks;
   },
 
   createAcademicRisk: async (data: Partial<AcademicRisk>): Promise<AcademicRisk> => {

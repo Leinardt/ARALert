@@ -11,6 +11,7 @@ import { SystemUpdateNotification, SYSTEM_UPDATES } from './SystemUpdateNotifica
 import { ticketService, SupportTicketItem } from '../services/ticketService';
 import { announcementService, SystemAnnouncementItem } from '../services/announcementService';
 import { useAuth } from '../hooks/useAuth';
+import { useAnimatedPresence } from '../hooks/useAnimatedPresence';
 
 interface StudentEditRequestsModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
   onRequestReviewed,
 }) => {
   const { user } = useAuth();
+  const { shouldRender, isClosing } = useAnimatedPresence(isOpen, 170);
   const isSuperAdmin = Boolean(user?.is_superuser);
   const [requests, setRequests] = useState<StudentEditRequest[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'tickets' | 'announcements' | 'history'>('all');
@@ -609,20 +611,24 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
     );
   };
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   return (
     <>
       {/* Backdrop for outside click */}
       <div
-        className="fixed inset-0 z-40 bg-transparent"
-        onClick={onClose}
+        className={`fixed inset-0 z-40 bg-transparent ${isClosing ? 'pointer-events-none' : ''}`}
+        onClick={() => {
+          if (!isClosing) onClose();
+        }}
         aria-hidden="true"
       />
 
       {/* Top-Right Notification Panel */}
       <div
-        className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[560px] md:w-[600px] max-w-[calc(100vw-20px)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col"
+        className={`${
+          isClosing ? 'popover-pop-out' : 'popover-pop-in'
+        } fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[560px] md:w-[600px] max-w-[calc(100vw-20px)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col`}
         style={{
           height: 'min(580px, calc(100vh - 90px))',
           maxHeight: 'min(620px, calc(100vh - 90px))',

@@ -1,6 +1,6 @@
 import api from '../api/axios';
 import type { User, UserStats, StudentEditRequest, CreateStudentEditRequestPayload } from '../types';
-import { setCachedTutorStudents } from '../utils/tutorCohortHelpers';
+import { setCachedTutorStudents, clearCachedTutorClassSections } from '../utils/tutorCohortHelpers';
 
 export interface GetUsersParams {
   search?: string;
@@ -151,10 +151,24 @@ export const userService = {
 
   updateUser: async (id: string, data: any): Promise<User> => {
     const response = await api.patch<User>(`/users/${id}/`, data);
-    if (data?.role === 'tutor' || data?.tutor_type || data?.grade_level) {
-      cachedTutors = null;
+    cachedTutors = null;
+    clearCachedTutorClassSections(id);
+    invalidateTutorStudentsCache(id);
+    if (data?.assigned_tutor) {
+      invalidateTutorStudentsCache(data.assigned_tutor);
+      clearCachedTutorClassSections(data.assigned_tutor);
     }
-    invalidateTutorStudentsCache(data?.assigned_tutor);
+    try {
+      const stored = sessionStorage.getItem('user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && String(parsed.id) === String(id)) {
+          sessionStorage.setItem('user', JSON.stringify(response.data));
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
     return response.data;
   },
 

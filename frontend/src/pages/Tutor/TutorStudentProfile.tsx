@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
 import { getCompositeWeights, getRiskThresholds, generateSchoolYearWeeks } from '../../config/academicConfig';
 import { formatChartPeriodRange } from '../../utils/studentFormatters';
+import { formatTutorStudentNote } from '../../utils/academicRiskNotes';
 import type { StudentAcademicProfile, Grade, Attendance, StudentEditRequest, SchoolYear, User as UserType } from '../../types';
 import {
   ArrowLeft,
@@ -129,6 +131,7 @@ const getRiskBadge = (tier?: string | null) => {
 /* ─── Main Component ───────────────────────────────────────────── */
 export const TutorStudentProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { user: currentUser } = useAuth();
   const location = useLocation();
   const isFromDashboard = location.state?.from === 'dashboard';
   const backPath = isFromDashboard ? '/tutor' : '/tutor/students';
@@ -580,11 +583,16 @@ export const TutorStudentProfile: React.FC = () => {
   const handleAddRisk = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id || !riskForm.details) return;
+    const classLabel = `${studentCohortInfo.gradeLevel} - ${studentCohortInfo.section} (${studentCohortInfo.aralLevel} - ${studentCohortInfo.subject})`;
+    const tutorName =
+      currentUser?.full_name ||
+      `${currentUser?.first_name || ''} ${currentUser?.last_name || ''}`.trim() ||
+      'Tutor';
     try {
       await academicService.createAcademicRisk({
         student: id,
         risk_level: riskForm.risk_level,
-        details: riskForm.details,
+        details: formatTutorStudentNote(riskForm.details, classLabel, tutorName),
         resolved: false
       });
       setShowRiskModal(false);

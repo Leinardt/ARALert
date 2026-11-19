@@ -859,7 +859,7 @@ class StudentCompleteHistoryView(APIView):
         # Tutor assignment timeline
         tutor_history = TutorAssignmentHistory.objects.filter(
             student=student
-        ).select_related('tutor', 'school_year').order_by('-start_date')
+        ).select_related('tutor', 'school_year').order_by('-is_active', '-start_date', '-created_at', '-id')
 
         tutor_history_list = []
         for th in tutor_history:

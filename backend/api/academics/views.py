@@ -572,6 +572,33 @@ class AralActivityDetailView(generics.RetrieveUpdateDestroyAPIView):
 # Academic Risks
 # ---------------------------------------------------------------------------
 
+def _get_academic_risk_queryset(user):
+    """Return role-scoped ApiAcademicRisk queryset ordered newest-first."""
+    qs = ApiAcademicRisk.objects.select_related('student').filter(student__is_active=True).order_by('-date_created', '-id')
+    if user.is_superuser or user.role in ('principal', 'admin', 'faculty'):
+        return qs
+    if user.role == 'tutor':
+        from apps.academics.models import StudentEnrollment
+        assigned_ids = user.assigned_students.filter(is_active=True).values_list('id', flat=True)
+        enrolled_ids = StudentEnrollment.objects.filter(
+            assigned_tutor=user,
+            enrollment_status='active',
+        ).values_list('student_id', flat=True)
+        return qs.filter(
+            Q(student_id__in=assigned_ids)
+            | Q(student_id__in=enrolled_ids)
+            | Q(details__startswith=f'[PRINCIPAL_TUTOR_NOTE:{user.id}]')
+            | Q(details__startswith=f'[PRINCIPAL_TUTOR_NOTE:{user.id}|')
+        ).distinct()
+    if user.role == 'student':
+        return (
+            qs.filter(student=user, risk_level=ApiAcademicRisk.RiskLevel.HIGH)
+            .exclude(details__startswith='[PRINCIPAL_TUTOR_NOTE:')
+            .exclude(details__startswith='[PRINCIPAL_STUDENT_NOTE')
+        )
+    return qs.none()
+
+
 class AcademicRiskListCreateView(generics.ListCreateAPIView):
     """
     GET  /api/academics/risks/
@@ -581,25 +608,15 @@ class AcademicRiskListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        user = self.request.user
-        qs   = ApiAcademicRisk.objects.select_related('student').filter(student__is_active=True)
-
+        qs = _get_academic_risk_queryset(self.request.user)
         student_id = self.request.query_params.get('student_id')
         if student_id:
             qs = qs.filter(student_id=student_id)
-
-        if user.is_superuser or user.role in ('principal', 'admin', 'faculty'):
-            return qs
-        if user.role == 'tutor':
-            assigned_ids = user.assigned_students.filter(is_active=True).values_list('id', flat=True)
-            return qs.filter(student_id__in=assigned_ids)
-        if user.role == 'student':
-            return qs.filter(student=user)
-        return qs.none()
+        return qs
 
     def perform_create(self, serializer):
         user = self.request.user
-        if user.role not in ('tutor', 'admin', 'faculty') and not user.is_superuser:
+        if user.role not in ('tutor', 'principal', 'admin', 'faculty') and not user.is_superuser:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('Unauthorized to create risk alerts.')
         from django.utils import timezone as tz
@@ -632,22 +649,12 @@ class AcademicRiskDetailView(generics.RetrieveUpdateDestroyAPIView):
     lookup_field       = 'id'
 
     def get_queryset(self):
-        user = self.request.user
-        qs = ApiAcademicRisk.objects.select_related('student').filter(student__is_active=True)
-        if user.is_superuser or user.role in ('principal', 'admin', 'faculty'):
-            return qs
-        if user.role == 'tutor':
-            return qs.filter(student__assigned_tutor=user)
-        if user.role == 'student':
-            return qs.filter(student=user)
-        return qs.none()
+        return _get_academic_risk_queryset(self.request.user)
 
     def perform_update(self, serializer):
         user = self.request.user
         from rest_framework.exceptions import PermissionDenied
 
-        if user.role == 'principal' and not user.is_superuser:
-            raise PermissionDenied('Principals have read-only access to academic risk alerts.')
         if user.role == 'student' and not user.is_superuser:
             disallowed_fields = [k for k in serializer.validated_data.keys() if k != 'student_acknowledged']
             if disallowed_fields:
@@ -656,19 +663,52 @@ class AcademicRiskDetailView(generics.RetrieveUpdateDestroyAPIView):
         old_risk = self.get_object()
         risk = serializer.save()
 
-        # Check if student acknowledged
+        # Check if student or tutor acknowledged an advisory/intervention note
+        is_principal_tutor_note = (risk.details or '').startswith('[PRINCIPAL_TUTOR_NOTE:')
         if not old_risk.student_acknowledged and risk.student_acknowledged:
+            if user.role == 'tutor' and is_principal_tutor_note:
+                log_audit_event(
+                    'ACADEMIC_RISK_NOTE_RECORDED',
+                    user=user,
+                    request=self.request,
+                    details={
+                        'risk_id': risk.id,
+                        'student_id': str(risk.student.id) if risk.student else '',
+                        'student_name': risk.student.get_full_name() if risk.student else '',
+                        'lrn': risk.student.lrn if risk.student else '',
+                        'risk_level': risk.risk_level,
+                        'details': risk.details,
+                        'resolved': risk.resolved,
+                        'tutor_acknowledged': True,
+                    }
+                )
+            else:
+                log_audit_event(
+                    'STUDENT_INTERVENTION_ACKNOWLEDGED',
+                    user=user,
+                    request=self.request,
+                    details={
+                        'risk_id': risk.id,
+                        'student_id': str(risk.student.id) if risk.student else '',
+                        'student_name': risk.student.get_full_name() if risk.student else user.get_full_name(),
+                        'lrn': risk.student.lrn if risk.student else getattr(user, 'lrn', ''),
+                        'risk_level': risk.risk_level,
+                        'details': risk.details,
+                    }
+                )
+        elif user.role in ('tutor', 'principal', 'admin', 'faculty') or user.is_superuser:
             log_audit_event(
-                'STUDENT_INTERVENTION_ACKNOWLEDGED',
+                'ACADEMIC_RISK_NOTE_RECORDED',
                 user=user,
                 request=self.request,
                 details={
                     'risk_id': risk.id,
                     'student_id': str(risk.student.id) if risk.student else '',
-                    'student_name': risk.student.get_full_name() if risk.student else user.get_full_name(),
-                    'lrn': risk.student.lrn if risk.student else getattr(user, 'lrn', ''),
+                    'student_name': risk.student.get_full_name() if risk.student else '',
+                    'lrn': risk.student.lrn if risk.student else '',
                     'risk_level': risk.risk_level,
                     'details': risk.details,
+                    'resolved': risk.resolved,
                 }
             )
 

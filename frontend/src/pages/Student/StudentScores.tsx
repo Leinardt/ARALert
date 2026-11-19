@@ -76,14 +76,17 @@ export const resolveTutorForPeriod = (
   }
 
   if (studentHistory.tutor_history) {
-    const matchingTutor = studentHistory.tutor_history.find((t) => {
+    const matchesPeriod = (t: StudentCompleteHistory['tutor_history'][number]) => {
       if (t.school_year !== sy) return false;
       const p = t.period?.toLowerCase() || '';
       if (period === '1st' && (p.includes('1st') || p.includes('mosy'))) return true;
       if (period === '2nd' && (p.includes('2nd') || p.includes('eosy'))) return true;
       if (period === 'summer' && p.includes('summer')) return true;
       return p.includes('full');
-    });
+    };
+    const activeTutor = studentHistory.tutor_history.find((t) => t.is_active && matchesPeriod(t));
+    if (activeTutor?.tutor_name) return activeTutor.tutor_name;
+    const matchingTutor = studentHistory.tutor_history.find(matchesPeriod);
     if (matchingTutor?.tutor_name) return matchingTutor.tutor_name;
   }
 
@@ -112,8 +115,14 @@ export const getSchoolYearFromDate = (dateStr: string | null | undefined): strin
 };
 
 export const getSemesterFromGrade = (grade: Grade): '1st' | '2nd' | 'summer' => {
-  if (grade.quarter === 1 || grade.quarter === 2) return '1st';
-  if (grade.quarter === 3 || grade.quarter === 4) return '2nd';
+  const subj = (grade.subject || '').toLowerCase();
+  const rem = (grade.remarks || '').toLowerCase();
+  if (subj.includes('summer') || rem.includes('summer')) return 'summer';
+  if (subj.includes('eosy') || rem.includes('eosy')) return '2nd';
+  if (subj.includes('mosy') || rem.includes('mosy')) return '1st';
+  if (grade.quarter === 1) return '1st';
+  if (grade.quarter === 2 || grade.quarter === 4) return '2nd';
+  if (grade.quarter === 3) return 'summer';
   if (grade.date_logged) {
     const clean = grade.date_logged.includes('T') ? grade.date_logged : `${grade.date_logged}T00:00:00`;
     const d = new Date(clean);
@@ -787,22 +796,44 @@ export const StudentScores: React.FC = () => {
     return set;
   }, [grades]);
 
-  // Dropdown options in SCHOOLYEAR - SEMESTER/SUMMER format (only existing records + active period)
+  // Dropdown options in SCHOOLYEAR - SEMESTER/SUMMER format (only existing records + active period, separated by tutor if reassigned)
   const schoolYearOptions = useMemo(() => {
-    const activeKey = `${activeSystemSy}|${activeSystemSem}`;
+    const activeBaseKey = `${activeSystemSy}|${activeSystemSem}`;
+    const currentTutorClean =
+      studentHistory?.current_tutor && studentHistory.current_tutor !== 'Unassigned'
+        ? studentHistory.current_tutor.trim()
+        : null;
+    const activePeriodTutor =
+      currentTutorClean || resolveTutorForPeriod(activeSystemSy, activeSystemSem, studentHistory);
 
-    const recordedPeriods = new Set<string>();
+    const recordedBasePeriods = new Set<string>();
+    const tutorsByBasePeriod = new Map<string, Set<string>>();
 
-    // Always include current active period
-    recordedPeriods.add(activeKey);
+    const addTutorForBasePeriod = (baseKey: string, tutorName?: string | null) => {
+      recordedBasePeriods.add(baseKey);
+      const cleanTutor = tutorName?.trim();
+      if (!cleanTutor || cleanTutor === 'Unassigned') return;
+      if (!tutorsByBasePeriod.has(baseKey)) {
+        tutorsByBasePeriod.set(baseKey, new Set());
+      }
+      tutorsByBasePeriod.get(baseKey)!.add(cleanTutor);
+    };
 
-    // 1. From student's actual grades
+    // Always include current active period with current active tutor
+    addTutorForBasePeriod(activeBaseKey, activePeriodTutor);
+
+    // 1. From student's actual grades (also captures distinct tutors if student switched tutors mid-semester)
     for (const g of grades) {
       const gDate = g.date_logged || g.created_at;
       const sy = getSchoolYearFromDate(gDate);
       const sem = getSemesterFromGrade(g);
       if (sy && sem) {
-        recordedPeriods.add(`${sy}|${sem}`);
+        const baseKey = `${sy}|${sem}`;
+        const gTutor =
+          g.tutor_name?.trim() ||
+          resolveTutorForPeriod(sy, sem, studentHistory) ||
+          (baseKey === activeBaseKey ? activePeriodTutor : null);
+        addTutorForBasePeriod(baseKey, gTutor);
       }
     }
 
@@ -810,101 +841,139 @@ export const StudentScores: React.FC = () => {
     if (studentHistory?.summer_history) {
       for (const s of studentHistory.summer_history) {
         if (s.school_year) {
-          recordedPeriods.add(`${s.school_year}|summer`);
+          addTutorForBasePeriod(`${s.school_year}|summer`, s.evaluator !== 'Pending' ? s.evaluator : null);
         }
       }
     }
 
-    // 3. From student history (tutor assignments)
+    // 3. From student history (tutor assignments — only active assignments or periods without an active tutor)
     if (studentHistory?.tutor_history) {
       for (const t of studentHistory.tutor_history) {
         if (t.school_year) {
           const p = t.period?.toLowerCase() || '';
+          const targetSems: ('1st' | '2nd' | 'summer')[] = [];
           if (p.includes('1st') || p.includes('mosy')) {
-            recordedPeriods.add(`${t.school_year}|1st`);
+            targetSems.push('1st');
           } else if (p.includes('2nd') || p.includes('eosy')) {
-            recordedPeriods.add(`${t.school_year}|2nd`);
+            targetSems.push('2nd');
           } else if (p.includes('summer')) {
-            recordedPeriods.add(`${t.school_year}|summer`);
+            targetSems.push('summer');
           } else if (p.includes('full')) {
-            recordedPeriods.add(`${t.school_year}|1st`);
-            recordedPeriods.add(`${t.school_year}|2nd`);
+            targetSems.push('1st', '2nd');
+          }
+          for (const sem of targetSems) {
+            const baseKey = `${t.school_year}|${sem}`;
+            // Only add inactive historical tutor if no tutor is already recorded for this period
+            if (t.is_active || !tutorsByBasePeriod.has(baseKey)) {
+              addTutorForBasePeriod(baseKey, t.tutor_name);
+            } else {
+              recordedBasePeriods.add(baseKey);
+            }
           }
         }
       }
     }
 
-    // 4. From student history (enrollment history)
+    // 4. From student history (enrollment history — only completed/taken evaluations)
     if (studentHistory?.enrollment_history) {
       for (const e of studentHistory.enrollment_history) {
-        if (e.school_year) {
-          if (e.mosy_result && e.mosy_result !== '—') {
-            recordedPeriods.add(`${e.school_year}|1st`);
-          }
-          if (e.eosy_result && e.eosy_result !== '—') {
-            recordedPeriods.add(`${e.school_year}|2nd`);
-          }
-          if (e.summer_status && e.summer_status !== 'none') {
-            recordedPeriods.add(`${e.school_year}|summer`);
-          }
-          if (!e.mosy_result && !e.eosy_result && !e.summer_status) {
-            recordedPeriods.add(`${e.school_year}|1st`);
-          }
+        if (!e.school_year) continue;
+        const mosyLower = (e.mosy_result || '').toLowerCase();
+        if (mosyLower === 'passed' || mosyLower === 'failed') {
+          recordedBasePeriods.add(`${e.school_year}|1st`);
+        }
+        const eosyLower = (e.eosy_result || '').toLowerCase();
+        if (eosyLower === 'passed' || eosyLower === 'failed') {
+          recordedBasePeriods.add(`${e.school_year}|2nd`);
+        }
+        const sumLower = (e.summer_status || '').toLowerCase();
+        if (sumLower && sumLower !== 'none') {
+          recordedBasePeriods.add(`${e.school_year}|summer`);
         }
       }
     }
 
-    // Convert to list of { sy, sem }
-    const periodsList = Array.from(recordedPeriods).map((key) => {
-      const [sy, sem] = key.split('|');
-      return { key, sy, sem: sem as '1st' | '2nd' | 'summer' };
+    type PeriodOptionItem = {
+      key: string;
+      baseKey: string;
+      sy: string;
+      sem: '1st' | '2nd' | 'summer';
+      tutor: string | null;
+      isCurrent: boolean;
+    };
+
+    const periodsList: PeriodOptionItem[] = [];
+
+    recordedBasePeriods.forEach((baseKey) => {
+      const [sy, semRaw] = baseKey.split('|');
+      const sem = semRaw as '1st' | '2nd' | 'summer';
+      const tutorsSet = tutorsByBasePeriod.get(baseKey);
+      const tutors = tutorsSet && tutorsSet.size > 0
+        ? Array.from(tutorsSet)
+        : [resolveTutorForPeriod(sy, sem, studentHistory) || (baseKey === activeBaseKey ? activePeriodTutor : null)];
+
+      tutors.forEach((tutor) => {
+        const isCurrent =
+          baseKey === activeBaseKey &&
+          (!activePeriodTutor || !tutor || tutor.toLowerCase() === activePeriodTutor.toLowerCase());
+        const key = tutor ? `${baseKey}|${tutor}` : baseKey;
+        periodsList.push({
+          key,
+          baseKey,
+          sy,
+          sem,
+          tutor: tutor || null,
+          isCurrent,
+        });
+      });
     });
 
-    // Sort descending by starting year, then semester order, placing active period first
+    // Sort descending by starting year, then semester order, placing active period + current tutor first
     const semRank: Record<string, number> = { '1st': 1, '2nd': 2, 'summer': 3 };
     periodsList.sort((a, b) => {
-      if (a.key === activeKey) return -1;
-      if (b.key === activeKey) return 1;
+      if (a.isCurrent && !b.isCurrent) return -1;
+      if (!a.isCurrent && b.isCurrent) return 1;
       const yearA = parseInt(a.sy.split('-')[0], 10) || 0;
       const yearB = parseInt(b.sy.split('-')[0], 10) || 0;
       if (yearA !== yearB) {
         return yearB - yearA;
       }
-      return (semRank[a.sem] || 0) - (semRank[b.sem] || 0);
+      const semDiff = (semRank[a.sem] || 0) - (semRank[b.sem] || 0);
+      if (semDiff !== 0) return semDiff;
+      return (a.tutor || '').localeCompare(b.tutor || '');
     });
 
-    const opts: { key: string; label: string }[] = [];
-
-    periodsList.forEach(({ key, sy, sem }) => {
-      const isCurrent = key === activeKey;
+    return periodsList.map(({ key, sy, sem, tutor, isCurrent }) => {
       const tag = isCurrent ? ' (Active)' : '';
       const syDisplay = `SY ${sy.replace('-', '–')}`;
-      const semDisplay = sem === '1st' ? '1st Semester (Q1 & Q2)' : sem === '2nd' ? '2nd Semester (Q3 & Q4)' : 'Summer (Midyear)';
-
-      const tutor = resolveTutorForPeriod(sy, sem, studentHistory) || (isCurrent ? studentHistory?.current_tutor : null);
+      const semDisplay =
+        sem === '1st' ? '1st Semester (Q1 & Q2)' : sem === '2nd' ? '2nd Semester (Q3 & Q4)' : 'Summer (Midyear)';
       const tutorSuffix = tutor ? ` — ${tutor}` : '';
 
-      opts.push({
+      return {
         key,
         label: `${syDisplay} - ${semDisplay}${tag}${tutorSuffix}`,
-      });
+      };
     });
-
-    return opts;
   }, [activeSystemSy, activeSystemSem, studentHistory, grades]);
 
   const effectiveSelectedPeriod = useMemo(() => {
-    if (schoolYearOptions.some((opt) => opt.key === selectedPeriod)) {
-      return selectedPeriod;
+    const exactMatch = schoolYearOptions.find((opt) => opt.key === selectedPeriod);
+    if (exactMatch) {
+      return exactMatch.key;
     }
-    return activePeriodKey;
+    const prefixMatch = schoolYearOptions.find((opt) => opt.key.startsWith(`${selectedPeriod}|`));
+    if (prefixMatch) {
+      return prefixMatch.key;
+    }
+    return schoolYearOptions[0]?.key || activePeriodKey;
   }, [selectedPeriod, schoolYearOptions, activePeriodKey]);
 
-  // ── Filter by Unified School Year - Semester & jumpDate ──
+  // ── Filter by Unified School Year - Semester - Tutor & jumpDate ──
   const filteredGrades = useMemo(() => {
     let result = [...grades];
     if (effectiveSelectedPeriod && effectiveSelectedPeriod.includes('|')) {
-      const [filterSy, filterSem] = effectiveSelectedPeriod.split('|');
+      const [filterSy, filterSem, filterTutor] = effectiveSelectedPeriod.split('|');
       if (filterSy) {
         result = result.filter((g) => {
           const sy = getSchoolYearFromDate(g.date_logged || g.created_at);
@@ -917,9 +986,27 @@ export const StudentScores: React.FC = () => {
           return sem === filterSem;
         });
       }
+      if (filterTutor) {
+        const targetTutorLower = filterTutor.trim().toLowerCase();
+        const currentTutorClean =
+          studentHistory?.current_tutor && studentHistory.current_tutor !== 'Unassigned'
+            ? studentHistory.current_tutor.trim()
+            : null;
+        result = result.filter((g) => {
+          const sy = getSchoolYearFromDate(g.date_logged || g.created_at);
+          const sem = getSemesterFromGrade(g);
+          const gTutor = (
+            g.tutor_name?.trim() ||
+            resolveTutorForPeriod(sy, sem, studentHistory) ||
+            currentTutorClean ||
+            ''
+          ).toLowerCase();
+          return !gTutor || gTutor === targetTutorLower;
+        });
+      }
     }
     return result;
-  }, [grades, effectiveSelectedPeriod]);
+  }, [grades, effectiveSelectedPeriod, studentHistory]);
 
   // ── Top KPI Stat Calculations (scoped to current filtered view) ──
   const { passedCount, failedCount, calculatedAvgScore } = useMemo(() => {

@@ -181,6 +181,33 @@ export function setCachedTutorClassSections<T = any>(userId: string | number, cl
 }
 
 /**
+ * Clears cached class sections and cohort filter state for a tutor from localStorage.
+ */
+export function clearCachedTutorClassSections(userId?: string | number): void {
+  try {
+    if (userId) {
+      localStorage.removeItem(`${CACHED_TUTOR_CLASSES_KEY_PREFIX}${userId}`);
+      localStorage.removeItem(`${CACHED_TUTOR_STUDENTS_KEY_PREFIX}${userId}`);
+      localStorage.removeItem(`aralert_active_tutor_cohort_${userId}`);
+      localStorage.removeItem(`aralert_active_tutor_overview_cohort_${userId}`);
+    } else {
+      Object.keys(localStorage).forEach((k) => {
+        if (
+          k.startsWith(CACHED_TUTOR_CLASSES_KEY_PREFIX) ||
+          k.startsWith(CACHED_TUTOR_STUDENTS_KEY_PREFIX) ||
+          k.startsWith('aralert_active_tutor_cohort_') ||
+          k.startsWith('aralert_active_tutor_overview_cohort_')
+        ) {
+          localStorage.removeItem(k);
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('Failed to clear cached tutor classes:', err);
+  }
+}
+
+/**
  * Retrieves cached student list for a tutor from localStorage.
  */
 export function getCachedTutorStudents(userId?: string | number): User[] {
@@ -235,35 +262,48 @@ export function parseTutorHandledCohorts(tutor: Partial<User> | null | undefined
     }
   }
 
-  // Also include cohorts from assigned students
-  if (Array.isArray(students) && students.length > 0) {
+  // Also include cohorts from assigned students only when tutor has no explicit cohorts configured
+  const hasExplicitCohorts = cohortSet.size > 0;
+  if (!hasExplicitCohorts && Array.isArray(students) && students.length > 0) {
     students.forEach((st) => {
       const studentObj: any = st?.rawStudent || st?.student || (st?.id ? st : undefined) || {};
-      const rawGrade = (studentObj.grade_level || st?.grade_level || st?.gradeLevel || '').toUpperCase().trim();
+      const rawGradeFull = (studentObj.grade_level || st?.grade_level || st?.gradeLevel || '').toUpperCase().trim();
       const rawSec = (studentObj.section || st?.section || '').toUpperCase().trim();
-      if (rawGrade.includes(' - ')) {
-        cohortSet.add(rawGrade);
-      } else if (rawGrade && rawSec) {
-        cohortSet.add(`${rawGrade} - ${rawSec}`);
-      }
-    });
-  } else if (tutor?.id) {
-    const cachedClasses = getCachedTutorClassSections(tutor.id);
-    if (cachedClasses && cachedClasses.length > 0) {
-      cachedClasses.forEach((c) => {
-        if (c.cohort) cohortSet.add(c.cohort);
-      });
-    } else {
-      const cachedStudents = getCachedTutorStudents(tutor.id);
-      if (cachedStudents && cachedStudents.length > 0) {
-        cachedStudents.forEach((st) => {
-          const rawGrade = (st.grade_level || '').toUpperCase().trim();
-          const rawSec = (st.section || '').toUpperCase().trim();
+      rawGradeFull
+        .split(',')
+        .map((chunk: string) => chunk.trim())
+        .filter(Boolean)
+        .forEach((rawGrade: string) => {
           if (rawGrade.includes(' - ')) {
             cohortSet.add(rawGrade);
           } else if (rawGrade && rawSec) {
             cohortSet.add(`${rawGrade} - ${rawSec}`);
           }
+        });
+    });
+  } else if (!hasExplicitCohorts && tutor?.id) {
+    const cachedClasses = getCachedTutorClassSections(tutor.id);
+    if (cachedClasses && cachedClasses.length > 0) {
+      cachedClasses.forEach((c) => {
+        if (c.cohort && !c.cohort.includes(',')) cohortSet.add(c.cohort);
+      });
+    } else {
+      const cachedStudents = getCachedTutorStudents(tutor.id);
+      if (cachedStudents && cachedStudents.length > 0) {
+        cachedStudents.forEach((st) => {
+          const rawGradeFull = (st.grade_level || '').toUpperCase().trim();
+          const rawSec = (st.section || '').toUpperCase().trim();
+          rawGradeFull
+            .split(',')
+            .map((chunk) => chunk.trim())
+            .filter(Boolean)
+            .forEach((rawGrade) => {
+              if (rawGrade.includes(' - ')) {
+                cohortSet.add(rawGrade);
+              } else if (rawGrade && rawSec) {
+                cohortSet.add(`${rawGrade} - ${rawSec}`);
+              }
+            });
         });
       }
     }
@@ -722,14 +762,21 @@ export function useTutorCohortFilter(
     };
   }, [selectedAralLevel, selectedSubject, selectedCohort]);
 
-  // Re-synchronize when user finishes loading or switches accounts
+  // Re-synchronize when user finishes loading, switches accounts, or has their role details updated
+  const userDetailsSignature = JSON.stringify({
+    id: user?.id,
+    aral_level: user?.aral_level,
+    tutor_type: user?.tutor_type,
+    subject: user?.subject,
+    grade_level: user?.grade_level,
+  });
   useEffect(() => {
     if (!user?.id) return;
     const validated = getInitialState();
     setSelectedAralLevelState(validated.level);
     setSelectedSubjectState(validated.subject);
     setSelectedCohortState(validated.cohort);
-  }, [user?.id, getInitialState]);
+  }, [user?.id, userDetailsSignature, getInitialState]);
 
   // Persist state to storage and notify all listeners
   const eventName = allowAll
@@ -861,14 +908,14 @@ export function parseStudentGradeAndSection(
 ): { grade: string; section: string } {
   if (!student) return { grade: '', section: '' };
   let grade = '';
-  let section = (student.section || '').trim().toUpperCase();
-  const rawGrade = (student.grade_level || '').trim().toUpperCase();
+  let section = (student.section || '').split(',')[0].trim().toUpperCase();
+  const rawGrade = (student.grade_level || '').split(',')[0].trim().toUpperCase();
 
   if (rawGrade.includes(' - ')) {
     const parts = rawGrade.split(' - ');
     grade = parts[0]?.trim() || '';
     if (!section && parts[1]) {
-      section = parts[1].trim();
+      section = parts[1].split(',')[0].trim();
     }
   } else if (rawGrade.startsWith('GRADE')) {
     grade = rawGrade;
@@ -1595,12 +1642,15 @@ export function buildTutorClassSections<T = any>(
 
   const tutorId = tutor.id ? String(tutor.id) : '';
 
-  // Fast-path: If students are still loading/empty, serve cached classes immediately
-  // to avoid flashing outdated single profile sections or buffering delays
+  // Fast-path: If students are still loading/empty, use cached students to populate cohorts,
+  // and only fall back to cached class sections if the tutor object itself lacks class details
+  const hasTutorClassConfig = Boolean(tutor.grade_level && tutor.grade_level.trim());
   if ((!allTutorStudents || allTutorStudents.length === 0) && tutorId) {
-    const cachedClasses = getCachedTutorClassSections<T>(tutorId);
-    if (cachedClasses && cachedClasses.length > 0) {
-      return cachedClasses;
+    if (!hasTutorClassConfig) {
+      const cachedClasses = getCachedTutorClassSections<T>(tutorId);
+      if (cachedClasses && cachedClasses.length > 0) {
+        return cachedClasses;
+      }
     }
     const cachedStudents = getCachedTutorStudents(tutorId);
     if (cachedStudents && cachedStudents.length > 0) {
@@ -1635,8 +1685,11 @@ export function buildTutorClassSections<T = any>(
       }
     }
 
-    let rawGrade = (studentObj.grade_level || st?.grade_level || st?.gradeLevel || '').toUpperCase().trim();
-    let rawSec = (studentObj.section || st?.section || '').toUpperCase().trim();
+    let rawGrade = (studentObj.grade_level || st?.grade_level || st?.gradeLevel || '')
+      .split(',')[0]
+      .toUpperCase()
+      .trim();
+    let rawSec = (studentObj.section || st?.section || '').split(',')[0].toUpperCase().trim();
 
     let cleanGrade = 'GRADE 7';
     let cleanSec = rawSec;
@@ -1644,7 +1697,7 @@ export function buildTutorClassSections<T = any>(
     if (rawGrade.includes(' - ')) {
       const parts = rawGrade.split(' - ');
       cleanGrade = parts[0].trim();
-      if (!cleanSec && parts[1]) cleanSec = parts[1].trim();
+      if (!cleanSec && parts[1]) cleanSec = parts[1].split(',')[0].trim();
     } else if (rawGrade) {
       const gMatch = rawGrade.match(/GRADE\s*(\d+)/i);
       if (gMatch) {
@@ -1702,8 +1755,8 @@ export function buildTutorClassSections<T = any>(
     });
   });
 
-  // 2. Discover any additional distinct cohorts present among the tutor's assigned students
-  if (Array.isArray(allTutorStudents)) {
+  // 2. Discover any additional distinct cohorts present among the tutor's assigned students only when tutor has no explicit class config
+  if (!hasTutorClassConfig && Array.isArray(allTutorStudents)) {
     allTutorStudents.forEach((st) => {
       const info = getStudentInfo(st);
       const existing = classes.find(
@@ -1770,21 +1823,27 @@ export function buildTutorClassSections<T = any>(
     }
   });
 
-  // 5. Update subject label on each class if students in it have a specific subject
-  classes.forEach((cls) => {
-    if (cls.students.length > 0) {
-      const firstStudentInfo = getStudentInfo(cls.students[0]);
-      if (firstStudentInfo.subject && firstStudentInfo.subject.toLowerCase() !== cls.subject.toLowerCase()) {
-        cls.subject = firstStudentInfo.subject;
-        cls.label = `${cls.aralLevel.toUpperCase()} • ${cls.subject.toUpperCase()} • ${cls.cohort}`;
+  // 5. Update subject label on each class only when tutor had no configured subject
+  const hasExplicitTutorSubject = Boolean(tutor.subject && tutor.subject.trim());
+  if (!hasExplicitTutorSubject) {
+    classes.forEach((cls) => {
+      if (cls.students.length > 0) {
+        const firstStudentInfo = getStudentInfo(cls.students[0]);
+        if (firstStudentInfo.subject && firstStudentInfo.subject.toLowerCase() !== cls.subject.toLowerCase()) {
+          cls.subject = firstStudentInfo.subject;
+          cls.label = `${cls.aralLevel.toUpperCase()} • ${cls.subject.toUpperCase()} • ${cls.cohort}`;
+        }
       }
-    }
-  });
+    });
+  }
 
-  // 6. If we have active classes with students, remove any empty placeholder classes that were just default fallbacks
+  // 6. Keep all explicitly configured tutor classes; only prune empty default fallback classes
+  const hasExplicitTutorCohorts =
+    groups.length > 1 ||
+    Boolean(tutor.grade_level && tutor.grade_level.trim());
   const hasActiveClasses = classes.some((cls) => cls.students.length > 0);
   let result = classes;
-  if (hasActiveClasses) {
+  if (hasActiveClasses && !hasExplicitTutorCohorts) {
     result = classes.filter((cls) => cls.students.length > 0);
   }
 
@@ -1797,7 +1856,7 @@ export function buildTutorClassSections<T = any>(
   });
 
   // 8. Cache computed classes so subsequent page views render immediately without network delay
-  if (tutorId && result.length > 0 && Array.isArray(allTutorStudents) && allTutorStudents.length > 0) {
+  if (tutorId && result.length > 0) {
     setCachedTutorClassSections(tutorId, result);
   }
 

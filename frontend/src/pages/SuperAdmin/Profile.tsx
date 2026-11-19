@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import type { User, StudentEditRequest } from '../../types';
 import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
-import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
+import { buildTutorClassSections, parseStudentGradeAndSection } from '../../utils/tutorCohortHelpers';
 import {
   User as UserIcon,
   Mail,
@@ -26,40 +26,6 @@ import {
 const formatAralLevel = (level: string | null | undefined): string => {
   if (!level) return 'Basic';
   return level.charAt(0).toUpperCase() + level.slice(1).toLowerCase();
-};
-
-/**
- * Parse and format Grade Level and Section cleanly.
- * Handles cases where grade_level is stored as 'GRADE 9 - MOLAVE' or '9 - MOLAVE'
- * while section might be blank or empty.
- */
-const formatStudentGradeAndSection = (rawGrade?: string | null, rawSection?: string | null) => {
-  let g = (rawGrade || '').trim();
-  let s = (rawSection || '').trim();
-
-  if (g.includes(' - ')) {
-    const parts = g.split(' - ').map((p) => p.trim());
-    g = parts[0];
-    if (!s) {
-      s = parts.slice(1).join(' - ').trim();
-    }
-  }
-
-  // Format Grade Level (e.g. 'GRADE 9' or '9' -> 'Grade 9')
-  let displayGrade = '—';
-  if (g) {
-    const numMatch = g.match(/\d+/);
-    if (numMatch) {
-      displayGrade = `Grade ${numMatch[0]}`;
-    } else {
-      displayGrade = toTitleCase(g);
-    }
-  }
-
-  // Format Section (e.g. 'MOLAVE' -> 'Molave')
-  let displaySection = s ? toTitleCase(s) : '—';
-
-  return { displayGrade, displaySection };
 };
 
 /**
@@ -178,20 +144,43 @@ export const Profile: React.FC = () => {
     return buildTutorClassSections(localUser, assignedStudents);
   }, [localUser, assignedStudents]);
 
-  // Compute student cohort display (grade, section, tutor)
-  const studentCohort = useMemo(() => {
-    if (localUser?.role !== 'student') return { grade: '—', section: '—', tutor: 'No assigned tutor' };
-    const { displayGrade, displaySection } = formatStudentGradeAndSection(
-      localUser.grade_level,
-      localUser.section
-    );
-    const tutor =
+  // Compute student assigned class (matching Tutor ASSIGNED CLASSES card display)
+  const studentAssignedClasses = useMemo(() => {
+    if (localUser?.role !== 'student') return [];
+    const fallbackTutor =
       resolvedTutorName && resolvedTutorName !== 'TBA' && resolvedTutorName !== 'Unassigned'
-        ? toTitleCase(resolvedTutorName)
-        : localUser.assigned_tutor_name && localUser.assigned_tutor_name !== 'TBA' && localUser.assigned_tutor_name !== 'Unassigned'
-        ? toTitleCase(localUser.assigned_tutor_name)
-        : 'No assigned tutor';
-    return { grade: displayGrade, section: displaySection, tutor };
+        ? resolvedTutorName
+        : localUser.assigned_tutor_name &&
+          localUser.assigned_tutor_name !== 'TBA' &&
+          localUser.assigned_tutor_name !== 'Unassigned'
+        ? localUser.assigned_tutor_name
+        : 'TBA';
+
+    const rawLevel = (localUser.aral_level || 'basic').split(',')[0].trim().toLowerCase();
+    const aralLevelLabel = rawLevel ? rawLevel.toUpperCase() : 'BASIC';
+    const isPlus = rawLevel === 'plus';
+    const rawSub = (localUser.subject || '').split(',')[0].trim();
+    const subjectLabel =
+      !rawSub || rawSub.toLowerCase() === 'reading'
+        ? isPlus
+          ? 'English'
+          : 'Filipino'
+        : isPlus && rawSub.toLowerCase() === 'filipino'
+        ? 'English'
+        : rawSub;
+
+    const { grade, section } = parseStudentGradeAndSection(localUser);
+    const cohortLabel = grade && section ? `${grade} - ${section}` : grade || section || '—';
+
+    return [
+      {
+        key: 'student-cls-1',
+        aralLevel: aralLevelLabel,
+        subject: subjectLabel,
+        cohort: cohortLabel.toUpperCase(),
+        tutorName: fallbackTutor,
+      },
+    ];
   }, [localUser, resolvedTutorName]);
 
   // Staff direct editing state
@@ -685,7 +674,7 @@ export const Profile: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {tutorAssignedClasses.map((cls, idx) => {
                   return (
                     <div
@@ -701,25 +690,25 @@ export const Profile: React.FC = () => {
                         </span>
                       </div>
 
-                      <div className="space-y-1.5 text-xs">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0 pt-0.5">
                             Subject
                           </span>
-                          <span className="font-bold text-gray-900 dark:text-slate-100 text-right truncate text-xs sm:text-[13px]">
+                          <span className="font-bold text-gray-900 dark:text-slate-100 text-right break-words text-xs sm:text-[13px]">
                             {cls.subject}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0 pt-0.5">
                             Grade & Section
                           </span>
-                          <span className="font-bold text-gray-900 dark:text-slate-100 text-right truncate text-xs sm:text-[13px]">
+                          <span className="font-bold text-gray-900 dark:text-slate-100 text-right break-words text-xs sm:text-[13px]">
                             {cls.cohort}
                           </span>
                         </div>
                         {cls.students && cls.students.length > 0 && (
-                          <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-gray-100 dark:border-[#1A1A1A] text-[11px]">
+                          <div className="flex items-center justify-between gap-3 pt-1.5 border-t border-gray-100 dark:border-[#1A1A1A] text-[11px]">
                             <span className="text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
                               Assigned Students
                             </span>
@@ -736,97 +725,68 @@ export const Profile: React.FC = () => {
             </div>
           )}
 
+          {/* Student Enrolled Classes (Matching Tutor Assigned Classes Card Display) */}
+          {localUser.role === 'student' && (
+            <div className="mt-2 pt-3.5 sm:pt-4 border-t border-gray-100 dark:border-[#1A1A1A] space-y-2.5 sm:space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-slate-100 uppercase tracking-wider">
+                    ASSIGNED CLASSES {studentAssignedClasses.length > 0 && `(${studentAssignedClasses.length})`}
+                  </h3>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                {studentAssignedClasses.map((cls, idx) => (
+                  <div
+                    key={cls.key || idx}
+                    className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:p-4 space-y-2.5 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
+                      <span className="text-[11px] font-extrabold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                        Class #{idx + 1}
+                      </span>
+                      <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-slate-200 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-slate-200">
+                        {cls.aralLevel}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 text-xs">
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0 pt-0.5">
+                          Subject
+                        </span>
+                        <span className="font-bold text-gray-900 dark:text-slate-100 text-right break-words text-xs sm:text-[13px]">
+                          {cls.subject}
+                        </span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0 pt-0.5">
+                          Grade & Section
+                        </span>
+                        <span className="font-bold text-gray-900 dark:text-slate-100 text-right break-words text-xs sm:text-[13px]">
+                          {cls.cohort}
+                        </span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3 pt-1.5 border-t border-gray-100 dark:border-[#1A1A1A] text-[11px]">
+                        <span className="text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0 pt-0.5">
+                          Assigned Tutor
+                        </span>
+                        <span
+                          className="font-bold text-gray-900 dark:text-slate-100 text-right break-words text-xs sm:text-[13px]"
+                        >
+                          {cls.tutorName}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
-
-      {/* ── ARAL PROGRAM DETAILS (Student Profile) ── */}
-      {localUser.role === 'student' && (
-        <div className="p-4 sm:p-6 md:p-8" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-sm)' }}>
-          <div className="flex items-center justify-between flex-wrap gap-2.5 mb-5 sm:mb-6">
-            <h2 className="text-sm sm:text-[1.1rem] font-bold m-0" style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>
-              ARAL PROGRAM DETAILS
-            </h2>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {/* Current Tutor / ARAL Level / Subject */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  Current Tutor
-                </label>
-                <input
-                  value={studentCohort.tutor}
-                  readOnly
-                  disabled
-                  style={readonlyStyle}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  ARAL Level
-                </label>
-                <input
-                  value={formatAralLevel(localUser.aral_level)}
-                  readOnly
-                  disabled
-                  style={readonlyStyle}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  Subject
-                </label>
-                <input
-                  value={(() => {
-                    const isPlus = (localUser.aral_level || localUser.tutor_type || '').toLowerCase().includes('plus');
-                    const rawSub = (localUser.subject || '').trim();
-                    if (rawSub === 'Reading' || !rawSub) {
-                      return isPlus ? 'English' : 'Filipino';
-                    }
-                    if (isPlus && rawSub === 'Filipino') {
-                      return 'English';
-                    }
-                    return rawSub;
-                  })()}
-                  readOnly
-                  disabled
-                  style={readonlyStyle}
-                />
-              </div>
-            </div>
-
-            {/* Grade Level / Section */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  Grade Level
-                </label>
-                <input
-                  value={studentCohort.grade}
-                  readOnly
-                  disabled
-                  style={readonlyStyle}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  Section
-                </label>
-                <input
-                  value={studentCohort.section}
-                  readOnly
-                  disabled
-                  style={readonlyStyle}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {localUser.role !== 'student' && (
         <section className="p-3.5 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm">

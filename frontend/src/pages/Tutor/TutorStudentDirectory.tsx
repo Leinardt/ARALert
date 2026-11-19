@@ -1,21 +1,28 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
-import type { User, Grade, Attendance } from '../../types';
+import type { User, Grade, Attendance, TutorCohortHistoryData } from '../../types';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
-import { User as UserIcon, Search, ArrowUpDown, Users, ChevronUp, ChevronDown, AlertCircle, History, Calendar, CheckCircle2, Award, Clock } from 'lucide-react';
-import { StudentProfileHistoryModal } from '../../components/StudentProfileHistoryModal';
+import { User as UserIcon, Search, ArrowUpDown, Users, ChevronUp, ChevronDown, AlertCircle, Plus, Check, X } from 'lucide-react';
 import { TutorCohortFilter } from '../../components/TutorCohortFilter';
 import {
   useTutorCohortFilter,
   isStudentInCohort,
   getCachedTutorStudents,
+  setCachedTutorStudents,
+  buildTutorClassSections,
 } from '../../utils/tutorCohortHelpers';
-import type { TutorCohortHistoryData, TutorHistoricalCohortRecord } from '../../types';
 import { getActiveSystemSemester } from '../../utils/sessionDescriptionHelpers';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
+import { useAnimatedPresence } from '../../hooks/useAnimatedPresence';
+
+const NAME_REGEX = /^[a-zA-Z\s.\-ñÑ']+$/;
+const PHONE_REGEX = /^\d{11}$/;
+const LRN_REGEX = /^\d{12}$/;
+const DANGEROUS_INJECTION_PATTERN = /(--|;|\/\*|\*\/|@@|<script|<\/script>)/i;
 
 /* ─── Badge helpers (Clean typography without pill container) ─── */
 const getAralBadge = (level?: string | null) => {
@@ -82,8 +89,14 @@ export const getSemesterFromDate = (dateStr: string | null | undefined): '1st' |
 };
 
 export const getSemesterFromGrade = (grade: Grade): '1st' | '2nd' | 'summer' => {
-  if (grade.quarter === 1 || grade.quarter === 2) return '1st';
-  if (grade.quarter === 3 || grade.quarter === 4) return '2nd';
+  const subj = (grade.subject || '').toLowerCase();
+  const rem = (grade.remarks || '').toLowerCase();
+  if (subj.includes('summer') || rem.includes('summer')) return 'summer';
+  if (subj.includes('eosy') || rem.includes('eosy')) return '2nd';
+  if (subj.includes('mosy') || rem.includes('mosy')) return '1st';
+  if (grade.quarter === 1) return '1st';
+  if (grade.quarter === 2 || grade.quarter === 4) return '2nd';
+  if (grade.quarter === 3) return 'summer';
   return getSemesterFromDate(grade.date_logged || grade.created_at);
 };
 
@@ -116,6 +129,173 @@ export const TutorStudentDirectory: React.FC = () => {
   const [selectedPastPeriodFilter, setSelectedPastPeriodFilter] = useState<string>('all');
   const [historyStudentId, setHistoryStudentId] = useState<string | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
+
+  // Enroll Student Modal state
+  const handledClasses = useMemo(() => buildTutorClassSections(user, students), [user, students]);
+  const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
+  const { shouldRender: shouldRenderEnrollModal, isClosing: isEnrollModalClosing } =
+    useAnimatedPresence(isEnrollModalOpen, 170);
+  const [enrollClassKey, setEnrollClassKey] = useState('');
+  const [isEnrollClassDropdownOpen, setIsEnrollClassDropdownOpen] = useState(false);
+  const enrollClassDropdownRef = useRef<HTMLDivElement>(null);
+  const [enrollFirstName, setEnrollFirstName] = useState('');
+  const [enrollMiddleName, setEnrollMiddleName] = useState('');
+  const [enrollLastName, setEnrollLastName] = useState('');
+  const [enrollLrn, setEnrollLrn] = useState('');
+  const [enrollParentGuardian, setEnrollParentGuardian] = useState('');
+  const [enrollContactNumber, setEnrollContactNumber] = useState('');
+  const [enrollError, setEnrollError] = useState<string | null>(null);
+  const [isEnrolling, setIsEnrolling] = useState(false);
+  const [enrollToast, setEnrollToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!enrollToast) return;
+    const timer = setTimeout(() => setEnrollToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [enrollToast]);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (enrollClassDropdownRef.current && !enrollClassDropdownRef.current.contains(e.target as Node)) {
+        setIsEnrollClassDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsEnrollClassDropdownOpen(false);
+    };
+
+    if (isEnrollClassDropdownOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isEnrollClassDropdownOpen]);
+
+  const activeEnrollClassLabel = useMemo(() => {
+    const match = handledClasses.find((c) => c.key === enrollClassKey);
+    return match?.label || handledClasses[0]?.label || 'Select class';
+  }, [handledClasses, enrollClassKey]);
+
+  const handleOpenEnrollModal = () => {
+    const matchingClass = handledClasses.find((c) => {
+      const matchesLevel = selectedAralLevel === 'all' || c.aralLevel === selectedAralLevel;
+      const matchesSub =
+        selectedSubject === 'all' ||
+        !selectedSubject ||
+        c.subject.toLowerCase() === selectedSubject.toLowerCase();
+      const matchesCohort =
+        selectedCohort === 'all' ||
+        !selectedCohort ||
+        c.cohort.toUpperCase() === selectedCohort.toUpperCase();
+      return matchesLevel && matchesSub && matchesCohort;
+    });
+    setEnrollClassKey(matchingClass?.key || handledClasses[0]?.key || '');
+    setIsEnrollClassDropdownOpen(false);
+    setEnrollFirstName('');
+    setEnrollMiddleName('');
+    setEnrollLastName('');
+    setEnrollLrn('');
+    setEnrollParentGuardian('');
+    setEnrollContactNumber('');
+    setEnrollError(null);
+    setIsEnrollModalOpen(true);
+  };
+
+  const handleEnrollSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.id) return;
+    setEnrollError(null);
+
+    const fName = enrollFirstName.trim();
+    const mName = enrollMiddleName.trim();
+    const lName = enrollLastName.trim();
+    const lrnClean = enrollLrn.trim();
+    const parentClean = enrollParentGuardian.trim();
+    const contactClean = enrollContactNumber.trim();
+
+    if (!fName) {
+      setEnrollError('First Name is required.');
+      return;
+    }
+    if (!NAME_REGEX.test(fName) || DANGEROUS_INJECTION_PATTERN.test(fName)) {
+      setEnrollError('First Name can only contain letters, spaces, hyphens, and periods.');
+      return;
+    }
+    if (mName && (!NAME_REGEX.test(mName) || DANGEROUS_INJECTION_PATTERN.test(mName))) {
+      setEnrollError('Middle Name can only contain letters, spaces, hyphens, and periods.');
+      return;
+    }
+    if (!lName) {
+      setEnrollError('Last Name is required.');
+      return;
+    }
+    if (!NAME_REGEX.test(lName) || DANGEROUS_INJECTION_PATTERN.test(lName)) {
+      setEnrollError('Last Name can only contain letters, spaces, hyphens, and periods.');
+      return;
+    }
+    if (!LRN_REGEX.test(lrnClean)) {
+      setEnrollError('LRN must be exactly 12 digits (numbers only).');
+      return;
+    }
+    if (parentClean && (!NAME_REGEX.test(parentClean) || DANGEROUS_INJECTION_PATTERN.test(parentClean))) {
+      setEnrollError('Parent / Guardian Name can only contain letters, spaces, hyphens, and periods.');
+      return;
+    }
+    if (contactClean && !PHONE_REGEX.test(contactClean)) {
+      setEnrollError('Contact Number must be exactly 11 digits (e.g. 09123456789).');
+      return;
+    }
+
+    const targetClass = handledClasses.find((c) => c.key === enrollClassKey) || handledClasses[0];
+    const resolvedAralLevel = targetClass?.aralLevel || (selectedAralLevel !== 'all' ? selectedAralLevel : 'basic');
+    const resolvedSubject = targetClass?.subject || (selectedSubject !== 'all' && selectedSubject ? selectedSubject : 'Filipino');
+    const resolvedGradeLevel =
+      targetClass?.cohort ||
+      (selectedCohort !== 'all' && selectedCohort ? selectedCohort : user.grade_level?.split(',')[0]?.trim() || 'GRADE 7 - HYACINTH');
+
+    setIsEnrolling(true);
+    try {
+      const createdStudent = await userService.createUser({
+        role: 'student',
+        first_name: fName.toUpperCase(),
+        middle_name: mName ? mName.toUpperCase() : '',
+        last_name: lName.toUpperCase(),
+        lrn: lrnClean,
+        parent_guardian_name: parentClean ? parentClean.toUpperCase() : '',
+        contact_number: contactClean,
+        assigned_tutor: String(user.id),
+        aral_level: resolvedAralLevel,
+        subject: resolvedSubject,
+        grade_level: resolvedGradeLevel,
+      } as any);
+
+      setStudents((prev) => {
+        const next = [...prev, createdStudent];
+        if (user.id) {
+          setCachedTutorStudents(user.id, next);
+        }
+        return next;
+      });
+      setIsEnrollModalOpen(false);
+      setEnrollToast(`${createdStudent.full_name || `${lName.toUpperCase()}, ${fName.toUpperCase()}`} enrolled into ${resolvedGradeLevel}.`);
+      fetchData();
+    } catch (err: any) {
+      const errData = err?.response?.data;
+      if (typeof errData?.detail === 'string') {
+        setEnrollError(errData.detail);
+      } else if (errData && typeof errData === 'object') {
+        const firstFieldErr = Object.values(errData).flat()[0];
+        setEnrollError(typeof firstFieldErr === 'string' ? firstFieldErr : 'Failed to enroll student.');
+      } else {
+        setEnrollError('Failed to enroll student. Please check the fields and try again.');
+      }
+    } finally {
+      setIsEnrolling(false);
+    }
+  };
 
   const currentSchoolYear = useMemo(() => getDepEdSchoolYear(), []);
   const [activeSystemSy, setActiveSystemSy] = useState<string>(
@@ -292,15 +472,15 @@ export const TutorStudentDirectory: React.FC = () => {
     setIsHistoryModalOpen(true);
   };
 
-const aralLevelRank: Record<string, number> = {
-  basic: 1,
-  plus: 2,
-  summer: 3,
-  'aral summer': 3,
-  intervention: 1,
-  enrichment: 2,
-  advanced: 3,
-};
+  const aralLevelRank: Record<string, number> = {
+    basic: 1,
+    plus: 2,
+    summer: 3,
+    'aral summer': 3,
+    intervention: 1,
+    enrichment: 2,
+    advanced: 3,
+  };
 
   const hasMultipleAralLevels = useMemo(() => {
     const distinct = new Set(studentRows.map((r) => (r.student.aral_level || '').trim().toLowerCase()).filter(Boolean));
@@ -456,7 +636,17 @@ const aralLevelRank: Record<string, number> = {
             <Users className="w-7 h-7 text-gray-300 dark:text-slate-600" />
           </div>
           <p className="text-base font-extrabold text-gray-900 dark:text-slate-100 tracking-tight">No students assigned yet</p>
-          <p className="text-xs font-medium text-gray-500 dark:text-slate-400 max-w-sm mx-auto">Ask your administrator to assign student accounts so you can track performance and attendance.</p>
+          <p className="text-xs font-medium text-gray-500 dark:text-slate-400 max-w-sm mx-auto">Enroll a student into your handled class or ask your administrator to assign student accounts.</p>
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={handleOpenEnrollModal}
+              className="h-8.5 px-4 rounded-md bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 shrink-0" />
+              <span>Enroll Student</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm relative">
@@ -471,7 +661,7 @@ const aralLevelRank: Record<string, number> = {
 
             {/* Controls */}
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <label className="relative w-full sm:w-56 md:w-64">
+              <label className="relative flex-1 sm:flex-initial sm:w-56 md:w-64">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <input
                   type="search"
@@ -482,6 +672,14 @@ const aralLevelRank: Record<string, number> = {
                   className="h-8 sm:h-8.5 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-8 pr-2.5 text-xs font-semibold text-gray-900 dark:text-slate-100 outline-none transition placeholder:text-gray-400 placeholder:font-normal focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
                 />
               </label>
+              <button
+                type="button"
+                onClick={handleOpenEnrollModal}
+                className="h-8 sm:h-8.5 px-3 rounded-md bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white text-xs font-bold whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 shrink-0" />
+                <span>Enroll Student</span>
+              </button>
             </div>
           </div>
 
@@ -530,13 +728,12 @@ const aralLevelRank: Record<string, number> = {
                               <span className="text-[10px] text-gray-400 dark:text-slate-500 font-mono font-bold shrink-0 w-4 text-right">
                                 {index + 1}.
                               </span>
-                              <Link
-                                to={`/tutor/students/${row.student.id}`}
-                                className="block truncate max-w-[115px] text-xs font-bold text-gray-900 dark:text-slate-100 hover:text-[var(--brand)] transition-colors tracking-tight"
+                              <span
+                                className="block truncate max-w-[115px] text-xs font-bold text-gray-900 dark:text-slate-100 tracking-tight"
                                 title={row.student.full_name}
                               >
                                 {row.student.full_name}
-                              </Link>
+                              </span>
                             </div>
                           </td>
                           <td className="px-2 py-2 text-center text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-mono font-bold border-b border-r border-gray-100 dark:border-[#1A1A1A]">
@@ -604,13 +801,12 @@ const aralLevelRank: Record<string, number> = {
                             {index + 1}
                           </td>
                           <td className="px-3 sm:px-4 py-2 sm:py-2.5">
-                            <Link
-                              to={`/tutor/students/${row.student.id}`}
-                              className="block truncate font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-[13px] tracking-tight hover:text-[var(--brand)] transition-colors"
+                            <span
+                              className="block truncate font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-[13px] tracking-tight"
                               title={row.student.full_name}
                             >
                               {row.student.full_name}
-                            </Link>
+                            </span>
                           </td>
                           <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-mono font-bold">
                             {row.student.lrn || 'N/A'}
@@ -644,6 +840,303 @@ const aralLevelRank: Record<string, number> = {
           </div>
         </div>
       )}
+
+      {/* ── Enroll Student Modal ───────────────────────────────────── */}
+      {shouldRenderEnrollModal &&
+        createPortal(
+          <div
+            className={`fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black/50 backdrop-blur-[2px] ${isEnrollModalClosing ? 'modal-backdrop-out' : 'modal-backdrop-in'
+              }`}
+            style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !isEnrolling && !isEnrollModalClosing) {
+                setIsEnrollClassDropdownOpen(false);
+                setIsEnrollModalOpen(false);
+              }
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="tutor-enroll-student-title"
+              className={`w-full max-w-lg rounded-xl border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] shadow-2xl my-auto ${isEnrollModalClosing ? 'modal-pop-out' : 'modal-pop-in'
+                }`}
+            >
+              <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-gray-100 dark:border-[#1E1E1E]">
+                <h2
+                  id="tutor-enroll-student-title"
+                  className="text-sm sm:text-base font-extrabold text-gray-900 dark:text-slate-100 tracking-tight"
+                >
+                  Enroll a student for current selected class
+                </h2>
+                <button
+                  type="button"
+                  disabled={isEnrolling}
+                  onClick={() => {
+                    setIsEnrollClassDropdownOpen(false);
+                    setIsEnrollModalOpen(false);
+                  }}
+                  aria-label="Close modal"
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#1C1C1C] transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleEnrollSubmit} className="p-4 sm:p-5 space-y-3.5">
+                {enrollError && (
+                  <div className="rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 px-3 py-2 text-xs font-semibold text-rose-700 dark:text-rose-300">
+                    {enrollError}
+                  </div>
+                )}
+
+                {handledClasses.length > 0 && (
+                  <div className={`space-y-1 relative ${isEnrollClassDropdownOpen ? 'z-30' : 'z-10'}`}>
+                    <label
+                      htmlFor="enroll-class-select"
+                      className="block text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"
+                    >
+                      Handled Class *
+                    </label>
+                    <div ref={enrollClassDropdownRef} className="relative w-full max-w-full">
+                      <button
+                        type="button"
+                        id="enroll-class-select"
+                        disabled={isEnrolling}
+                        onClick={() => setIsEnrollClassDropdownOpen((prev) => !prev)}
+                        aria-haspopup="listbox"
+                        aria-expanded={isEnrollClassDropdownOpen}
+                        aria-label="Select handled class to enroll student into"
+                        className="w-full min-h-[40px] flex items-center justify-between rounded-lg border border-gray-200 dark:border-[#222222] bg-gray-50/70 dark:bg-[#141414] px-3.5 py-2 text-xs font-bold text-gray-800 dark:text-slate-100 shadow-2xs focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 focus:outline-none transition-all cursor-pointer text-left disabled:opacity-50"
+                      >
+                        <span className="truncate pr-2">{activeEnrollClassLabel}</span>
+                        <ChevronDown
+                          className={`shrink-0 w-4 h-4 text-gray-400 dark:text-slate-500 transition-transform duration-150 ${isEnrollClassDropdownOpen ? 'rotate-180' : ''
+                            }`}
+                        />
+                      </button>
+
+                      {isEnrollClassDropdownOpen && (
+                        <div
+                          className="absolute left-0 right-0 top-full mt-1.5 z-40 w-full max-w-full rounded-xl border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+                        >
+                          <div
+                            role="listbox"
+                            aria-label="Handled Classes"
+                            className="max-h-56 overflow-y-auto dropdown-scroll p-1.5 flex flex-col gap-0.5"
+                          >
+                            {handledClasses.map((cls) => {
+                              const isSelected = enrollClassKey === cls.key;
+                              return (
+                                <button
+                                  key={cls.key}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={isSelected}
+                                  onClick={() => {
+                                    setEnrollClassKey(cls.key);
+                                    setIsEnrollClassDropdownOpen(false);
+                                  }}
+                                  className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-3 py-2.5 text-xs font-bold transition-colors cursor-pointer ${isSelected
+                                    ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
+                                    : 'text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                                    }`}
+                                  title={cls.label}
+                                >
+                                  <span className="truncate">{cls.label}</span>
+                                  {isSelected && (
+                                    <Check className="w-4 h-4 shrink-0 text-[var(--brand)] dark:text-blue-400 ml-2" />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div className="space-y-1">
+                    <label
+                      htmlFor="enroll-first-name"
+                      className="block text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"
+                    >
+                      First Name *
+                    </label>
+                    <input
+                      id="enroll-first-name"
+                      type="text"
+                      required
+                      disabled={isEnrolling}
+                      value={enrollFirstName}
+                      onChange={(e) => setEnrollFirstName(e.target.value)}
+                      placeholder="e.g. JUAN"
+                      className="w-full h-9 rounded-lg border border-gray-200 dark:border-[#262626] bg-gray-50 dark:bg-[#161616] px-3 text-xs font-semibold uppercase text-gray-900 dark:text-slate-100 placeholder:normal-case placeholder:font-normal placeholder:text-gray-400 outline-none focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label
+                      htmlFor="enroll-middle-name"
+                      className="block text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"
+                    >
+                      Middle Name{' '}
+                      <span className="font-normal normal-case tracking-normal text-gray-400 dark:text-slate-500">
+                        (optional)
+                      </span>
+                    </label>
+                    <input
+                      id="enroll-middle-name"
+                      type="text"
+                      disabled={isEnrolling}
+                      value={enrollMiddleName}
+                      onChange={(e) => setEnrollMiddleName(e.target.value)}
+                      placeholder="e.g. SANTOS"
+                      className="w-full h-9 rounded-lg border border-gray-200 dark:border-[#262626] bg-gray-50 dark:bg-[#161616] px-3 text-xs font-semibold uppercase text-gray-900 dark:text-slate-100 placeholder:normal-case placeholder:font-normal placeholder:text-gray-400 outline-none focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label
+                      htmlFor="enroll-last-name"
+                      className="block text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"
+                    >
+                      Last Name *
+                    </label>
+                    <input
+                      id="enroll-last-name"
+                      type="text"
+                      required
+                      disabled={isEnrolling}
+                      value={enrollLastName}
+                      onChange={(e) => setEnrollLastName(e.target.value)}
+                      placeholder="e.g. DELA CRUZ"
+                      className="w-full h-9 rounded-lg border border-gray-200 dark:border-[#262626] bg-gray-50 dark:bg-[#161616] px-3 text-xs font-semibold uppercase text-gray-900 dark:text-slate-100 placeholder:normal-case placeholder:font-normal placeholder:text-gray-400 outline-none focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label
+                    htmlFor="enroll-lrn"
+                    className="block text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"
+                  >
+                    12-Digit LRN *
+                  </label>
+                  <input
+                    id="enroll-lrn"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={12}
+                    required
+                    disabled={isEnrolling}
+                    value={enrollLrn}
+                    onChange={(e) => setEnrollLrn(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                    placeholder="Enter 12-digit Learner Reference Number"
+                    className="w-full h-9 rounded-lg border border-gray-200 dark:border-[#262626] bg-gray-50 dark:bg-[#161616] px-3 text-xs font-mono font-bold text-gray-900 dark:text-slate-100 placeholder:font-sans placeholder:font-normal placeholder:text-gray-400 outline-none focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="space-y-1">
+                    <label
+                      htmlFor="enroll-guardian"
+                      className="block text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"
+                    >
+                      Parent / Guardian{' '}
+                      <span className="font-normal normal-case tracking-normal text-gray-400 dark:text-slate-500">
+                        (optional)
+                      </span>
+                    </label>
+                    <input
+                      id="enroll-guardian"
+                      type="text"
+                      disabled={isEnrolling}
+                      value={enrollParentGuardian}
+                      onChange={(e) => setEnrollParentGuardian(e.target.value)}
+                      placeholder="e.g. MARIA DELA CRUZ"
+                      className="w-full h-9 rounded-lg border border-gray-200 dark:border-[#262626] bg-gray-50 dark:bg-[#161616] px-3 text-xs font-semibold uppercase text-gray-900 dark:text-slate-100 placeholder:normal-case placeholder:font-normal placeholder:text-gray-400 outline-none focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label
+                      htmlFor="enroll-contact"
+                      className="block text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"
+                    >
+                      Contact No.{' '}
+                      <span className="font-normal normal-case tracking-normal text-gray-400 dark:text-slate-500">
+                        (optional)
+                      </span>
+                    </label>
+                    <input
+                      id="enroll-contact"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={11}
+                      disabled={isEnrolling}
+                      value={enrollContactNumber}
+                      onChange={(e) => setEnrollContactNumber(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                      placeholder="e.g. 09123456789"
+                      className="w-full h-9 rounded-lg border border-gray-200 dark:border-[#262626] bg-gray-50 dark:bg-[#161616] px-3 text-xs font-mono font-bold text-gray-900 dark:text-slate-100 placeholder:font-sans placeholder:font-normal placeholder:text-gray-400 outline-none focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-[#1E1E1E]">
+                  <button
+                    type="button"
+                    disabled={isEnrolling}
+                    onClick={() => {
+                      setIsEnrollClassDropdownOpen(false);
+                      setIsEnrollModalOpen(false);
+                    }}
+                    className="h-9 px-3.5 rounded-lg border border-gray-200 dark:border-[#262626] text-xs font-semibold text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1C1C1C] transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isEnrolling}
+                    className="h-9 px-4 rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {isEnrolling ? 'Enrolling...' : 'Enroll Student'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* ── Enrollment Toast ───────────────────────────────────────── */}
+      {enrollToast &&
+        createPortal(
+          <aside
+            aria-live="polite"
+            className="fixed top-5 right-5 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] rounded-lg border border-emerald-200 dark:border-emerald-800/60 bg-white dark:bg-[#111111] p-3.5 shadow-xl animate-in fade-in slide-in-from-top-3 duration-200"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                Student Enrolled
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEnrollToast(null)}
+                aria-label="Close notification"
+                className="rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-white/10 transition cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+              {enrollToast}
+            </p>
+          </aside>,
+          document.body
+        )}
     </div>
   );
 };
