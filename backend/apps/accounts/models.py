@@ -18,7 +18,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     """
     Custom User model for ARALert.
 
-    Application roles: Admin, Principal, Faculty, Tutor, Student.
+    Application roles: Admin, Principal, Tutor, Student.
     SuperAdmin is identified by is_superuser=True and role=None.
 
     All staff authenticate via Google OAuth — no passwords are stored.
@@ -28,7 +28,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Role(models.TextChoices):
         ADMIN     = 'admin',     'Admin'
         PRINCIPAL = 'principal', 'Principal'
-        FACULTY   = 'faculty',   'Faculty'
         TUTOR     = 'tutor',     'Tutor'
         STUDENT   = 'student',   'Student'
 
@@ -318,35 +317,6 @@ class AllowedEmail(models.Model):
         return self.email
 
 
-class EmailOTP(models.Model):
-    """One-time password records sent to user email for MFA (retained for compatibility)."""
-    user       = models.ForeignKey('User', on_delete=models.CASCADE, related_name='email_otps')
-    code       = models.CharField(max_length=16)
-    created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField()
-    used       = models.BooleanField(default=False)
-
-    class Meta:
-        indexes = [models.Index(fields=['user', 'code'])]
-
-    def __str__(self):
-        return f'OTP for {self.user_id} (used={self.used})'
-
-
-class TrustedDevice(models.Model):
-    """Trusted devices that skip MFA verification for 30 days."""
-    user      = models.ForeignKey('User', on_delete=models.CASCADE, related_name='trusted_devices')
-    device_id = models.CharField(max_length=255, unique=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField()
-
-    class Meta:
-        indexes = [models.Index(fields=['user', 'device_id'])]
-
-    def __str__(self):
-        return f'Trusted device for {self.user_id}'
-
-
 class AuditLog(models.Model):
     """
     Audit Log model for accountability, security auditing, and non-repudiation.
@@ -458,7 +428,7 @@ class StudentEditRequest(models.Model):
     reviewed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = 'student_edit_requests'
+        db_table = 'profile_edit_requests'
         ordering = ['-created_at']
         verbose_name = 'Profile Edit Request'
         verbose_name_plural = 'Profile Edit Requests'

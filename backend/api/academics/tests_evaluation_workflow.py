@@ -51,7 +51,7 @@ class EvaluationWorkflowTests(TestCase):
         super().setUpClass()
         with connection.cursor() as cursor:
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS "api_grade" (
+                CREATE TABLE IF NOT EXISTS "student_grades" (
                     "id" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
                     "subject" varchar(100) NOT NULL,
                     "quarter" integer NOT NULL,
@@ -70,7 +70,7 @@ class EvaluationWorkflowTests(TestCase):
     @classmethod
     def tearDownClass(cls):
         with connection.cursor() as cursor:
-            cursor.execute('DROP TABLE IF EXISTS "api_grade"')
+            cursor.execute('DROP TABLE IF EXISTS "student_grades"')
         super().tearDownClass()
 
     def setUp(self):

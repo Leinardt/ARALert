@@ -2,17 +2,10 @@ import uuid
 from django.test import TestCase
 from rest_framework.test import APIClient
 from apps.accounts.models import User, StudentEditRequest
-from apps.academics.models import School, TutorProfile, Student
 
 class StudentEditRequestWorkflowTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.school = School.objects.create(
-            depedsch_id='108923',
-            sch_name='Polangui General Comprehensive High School',
-            sch_division='Albay',
-            sch_region='Region V'
-        )
         self.tutor = User.objects.create_user(
             username='testtutor@aralert.com',
             email='testtutor@aralert.com',
@@ -20,12 +13,6 @@ class StudentEditRequestWorkflowTests(TestCase):
             first_name='Maria',
             last_name='Santos',
             role='tutor'
-        )
-        self.tutor_profile = TutorProfile.objects.create(
-            user=self.tutor,
-            school=self.school,
-            tut_aral_level='basic',
-            subject='Reading'
         )
         self.admin = User.objects.create_user(
             username='testadmin@aralert.com',
@@ -46,15 +33,6 @@ class StudentEditRequestWorkflowTests(TestCase):
             lrn='123456789012',
             aral_level='basic',
             assigned_tutor=self.tutor
-        )
-        self.academic_student = Student.objects.create(
-            user=self.student_user,
-            tutor=self.tutor_profile,
-            stu_fname='Juan',
-            stu_mname='Dela',
-            stu_lname='Cruz',
-            lrn='123456789012',
-            aral_level='basic'
         )
 
     def test_direct_tutor_patch_is_forbidden(self):
@@ -124,13 +102,6 @@ class StudentEditRequestWorkflowTests(TestCase):
         self.assertEqual(self.student_user.middle_name, 'SILANG')
         self.assertEqual(self.student_user.lrn, '123456789099')
         self.assertEqual(self.student_user.aral_level, 'plus')
-
-        # Verify Academic Student was updated
-        self.academic_student.refresh_from_db()
-        self.assertEqual(self.academic_student.stu_fname, 'JUANITO')
-        self.assertEqual(self.academic_student.stu_mname, 'SILANG')
-        self.assertEqual(self.academic_student.lrn, '123456789099')
-        self.assertEqual(self.academic_student.aral_level, 'plus')
 
     def test_admin_reject_edit_request(self):
         """Admin rejecting the request records rejection reason and keeps records unchanged"""

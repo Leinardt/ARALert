@@ -16,7 +16,7 @@ class AttendanceScanTimezoneTests(TestCase):
         super().setUpClass()
         with connection.cursor() as cursor:
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS "api_attendance_session" (
+                CREATE TABLE IF NOT EXISTS "attendance_sessions" (
                     "id" char(32) NOT NULL PRIMARY KEY,
                     "session_type" varchar(10) NOT NULL,
                     "action" varchar(20) NULL,
@@ -27,7 +27,7 @@ class AttendanceScanTimezoneTests(TestCase):
                 )
             """)
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS "api_attendance" (
+                CREATE TABLE IF NOT EXISTS "attendance_records" (
                     "id" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
                     "role" varchar(20) NOT NULL,
                     "date" date NOT NULL,
@@ -40,16 +40,17 @@ class AttendanceScanTimezoneTests(TestCase):
                     "status" varchar(10) NOT NULL,
                     "user_id" char(32) NOT NULL REFERENCES "users" ("id"),
                     "tutor_id" char(32) NULL REFERENCES "users" ("id"),
-                    "session_id" char(32) NULL REFERENCES "api_attendance_session" ("id"),
-                    "aral_activity_id" bigint NULL
+                    "session_id" char(32) NULL REFERENCES "attendance_sessions" ("id"),
+                    "aral_activity_id" bigint NULL,
+                    "school_year_id" integer NULL
                 )
             """)
 
     @classmethod
     def tearDownClass(cls):
         with connection.cursor() as cursor:
-            cursor.execute('DROP TABLE IF EXISTS "api_attendance"')
-            cursor.execute('DROP TABLE IF EXISTS "api_attendance_session"')
+            cursor.execute('DROP TABLE IF EXISTS "attendance_records"')
+            cursor.execute('DROP TABLE IF EXISTS "attendance_sessions"')
         super().tearDownClass()
 
     def setUp(self):

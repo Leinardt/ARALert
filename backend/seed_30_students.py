@@ -147,12 +147,12 @@ def seed_fresh_data():
             s_hex = s.id.hex
             cursor.execute("DELETE FROM token_blacklist_blacklistedtoken WHERE token_id IN (SELECT id FROM token_blacklist_outstandingtoken WHERE user_id = %s)", [s_hex])
             cursor.execute("DELETE FROM token_blacklist_outstandingtoken WHERE user_id = %s", [s_hex])
-            cursor.execute("DELETE FROM api_grade WHERE student_id = %s", [s_hex])
-            cursor.execute("DELETE FROM api_attendance WHERE user_id = %s", [s_hex])
-            cursor.execute("DELETE FROM api_academic_risk WHERE student_id = %s", [s_hex])
-            cursor.execute("DELETE FROM api_aral_activity WHERE student_id = %s", [s_hex])
-            cursor.execute("DELETE FROM student_enrollment WHERE student_id = %s", [s_hex])
-            cursor.execute("DELETE FROM tutor_assignment_history WHERE student_id = %s", [s_hex])
+            cursor.execute("DELETE FROM student_grades WHERE student_id = %s", [s_hex])
+            cursor.execute("DELETE FROM attendance_records WHERE user_id = %s", [s_hex])
+            cursor.execute("DELETE FROM academic_risks WHERE student_id = %s", [s_hex])
+            cursor.execute("DELETE FROM aral_activities WHERE student_id = %s", [s_hex])
+            cursor.execute("DELETE FROM student_enrollments WHERE student_id = %s", [s_hex])
+            cursor.execute("DELETE FROM tutor_assignment_histories WHERE student_id = %s", [s_hex])
             cursor.execute("DELETE FROM audit_logs WHERE user_id = %s", [s_hex])
             cursor.execute("DELETE FROM users WHERE id = %s", [s_hex])
 
