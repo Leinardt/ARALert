@@ -110,47 +110,29 @@ class Command(BaseCommand):
                             tbl
                         )
 
-                # 5. Student profile table
-                if 'student' in existing_tables:
-                    safe_delete(
-                        cursor,
-                        "DELETE FROM student WHERE user_id IN (SELECT id FROM users WHERE role = 'student')",
-                        "student profile"
-                    )
-
                 # 6. Academic records directly linked to User model
-                if 'summer_record' in existing_tables:
-                    safe_delete(cursor, "DELETE FROM summer_record WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "summer_record")
-                if 'tutor_assignment_history' in existing_tables:
-                    safe_delete(cursor, "DELETE FROM tutor_assignment_history WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "tutor_assignment_history")
-                if 'student_enrollment' in existing_tables:
-                    safe_delete(cursor, "DELETE FROM student_enrollment WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "student_enrollment")
-                if 'api_grade' in existing_tables:
-                    safe_delete(cursor, "DELETE FROM api_grade WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "api_grade")
-                if 'legacy_grade' in existing_tables:
-                    safe_delete(cursor, "DELETE FROM legacy_grade WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "legacy_grade")
-                if 'api_academic_risk' in existing_tables:
-                    safe_delete(cursor, "DELETE FROM api_academic_risk WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "api_academic_risk")
-                if 'legacy_academic_risk' in existing_tables:
-                    safe_delete(cursor, "DELETE FROM legacy_academic_risk WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "legacy_academic_risk")
-                if 'api_attendance' in existing_tables:
-                    safe_delete(cursor, "DELETE FROM api_attendance WHERE user_id IN (SELECT id FROM users WHERE role = 'student')", "api_attendance")
-                if 'legacy_attendance' in existing_tables:
-                    safe_delete(cursor, "DELETE FROM legacy_attendance WHERE user_id IN (SELECT id FROM users WHERE role = 'student')", "legacy_attendance")
-                if 'api_aral_activity' in existing_tables:
-                    safe_delete(cursor, "DELETE FROM api_aral_activity WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "api_aral_activity")
+                if 'summer_records' in existing_tables:
+                    safe_delete(cursor, "DELETE FROM summer_records WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "summer_records")
+                if 'tutor_assignment_histories' in existing_tables:
+                    safe_delete(cursor, "DELETE FROM tutor_assignment_histories WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "tutor_assignment_histories")
+                if 'student_enrollments' in existing_tables:
+                    safe_delete(cursor, "DELETE FROM student_enrollments WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "student_enrollments")
+                if 'student_grades' in existing_tables:
+                    safe_delete(cursor, "DELETE FROM student_grades WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "student_grades")
+                if 'academic_risks' in existing_tables:
+                    safe_delete(cursor, "DELETE FROM academic_risks WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "academic_risks")
+                if 'attendance_records' in existing_tables:
+                    safe_delete(cursor, "DELETE FROM attendance_records WHERE user_id IN (SELECT id FROM users WHERE role = 'student')", "attendance_records")
+                if 'aral_activities' in existing_tables:
+                    safe_delete(cursor, "DELETE FROM aral_activities WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "aral_activities")
 
                 # 7. Edit requests and user logs
-                if 'student_edit_requests' in existing_tables:
-                    safe_delete(cursor, "DELETE FROM student_edit_requests WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "student_edit_requests")
+                if 'profile_edit_requests' in existing_tables:
+                    safe_delete(cursor, "DELETE FROM profile_edit_requests WHERE student_id IN (SELECT id FROM users WHERE role = 'student')", "profile_edit_requests")
                 if 'audit_logs' in existing_tables:
                     safe_delete(cursor, "DELETE FROM audit_logs WHERE user_id IN (SELECT id FROM users WHERE role = 'student')", "audit_logs (student)")
                 if 'django_admin_log' in existing_tables:
                     safe_delete(cursor, "DELETE FROM django_admin_log WHERE user_id IN (SELECT id FROM users WHERE role = 'student')", "django_admin_log")
-                if 'accounts_emailotp' in existing_tables:
-                    safe_delete(cursor, "DELETE FROM accounts_emailotp WHERE user_id IN (SELECT id FROM users WHERE role = 'student')", "accounts_emailotp")
-                if 'accounts_trusteddevice' in existing_tables:
-                    safe_delete(cursor, "DELETE FROM accounts_trusteddevice WHERE user_id IN (SELECT id FROM users WHERE role = 'student')", "accounts_trusteddevice")
 
                 # 8. Token blacklist
                 if 'token_blacklist_blacklistedtoken' in existing_tables and 'token_blacklist_outstandingtoken' in existing_tables:

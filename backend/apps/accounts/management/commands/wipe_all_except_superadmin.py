@@ -70,25 +70,18 @@ class Command(BaseCommand):
                 cur.execute("UPDATE users SET assigned_tutor_id = NULL;")
 
                 tables_to_clear = [
-                    "api_academic_risk",
-                    "api_attendance",
-                    "api_attendance_session",
-                    "api_grade",
-                    "api_aral_activity",
-                    "student_enrollment",
-                    "tutor_assignment_history",
-                    "summer_record",
-                    "student_edit_requests",
+                    "academic_risks",
+                    "attendance_records",
+                    "attendance_sessions",
+                    "student_grades",
+                    "aral_activities",
+                    "student_enrollments",
+                    "tutor_assignment_histories",
+                    "summer_records",
+                    "profile_edit_requests",
                     "audit_logs",
                     "token_blacklist_blacklistedtoken",
                     "token_blacklist_outstandingtoken",
-                    "student",
-                    "tutor",
-                    "faculty",
-                    "principal",
-                    "admin",
-                    "accounts_emailotp",
-                    "accounts_trusteddevice",
                 ]
 
                 for table in tables_to_clear:

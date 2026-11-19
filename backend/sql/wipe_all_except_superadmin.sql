@@ -9,7 +9,7 @@
 --
 -- PRESERVED:
 --   - All SuperAdmins (is_superuser = TRUE OR role = 'superadmin')
---   - Active School Year record (school_year)
+--   - Active School Year record (school_years)
 --   - Allowed Emails (allowed_emails)
 --   - Core permissions and schema
 -- =============================================================================
@@ -54,25 +54,18 @@ DO $$
 DECLARE
     tbl text;
     tables_to_clear text[] := ARRAY[
-        'api_academic_risk',
-        'api_attendance',
-        'api_attendance_session',
-        'api_grade',
-        'api_aral_activity',
-        'student_enrollment',
-        'tutor_assignment_history',
-        'summer_record',
-        'student_edit_requests',
+        'academic_risks',
+        'attendance_records',
+        'attendance_sessions',
+        'student_grades',
+        'aral_activities',
+        'student_enrollments',
+        'tutor_assignment_histories',
+        'summer_records',
+        'profile_edit_requests',
         'audit_logs',
-        'accounts_emailotp',
-        'accounts_trusteddevice',
         'token_blacklist_blacklistedtoken',
-        'token_blacklist_outstandingtoken',
-        'student',
-        'tutor',
-        'faculty',
-        'principal',
-        'admin'
+        'token_blacklist_outstandingtoken'
     ];
     superadmin_count int;
     deleted_user_count int;
@@ -108,9 +101,9 @@ BEGIN
     RAISE NOTICE 'Successfully deleted % non-superadmin user account(s).', deleted_user_count;
 
     -- 5. Ensure School Year 2026-2027 is ACTIVE for client testing
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'school_year') THEN
-        UPDATE public.school_year SET is_active = FALSE;
-        INSERT INTO public.school_year (school_year, status, is_active, created_at)
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'school_years') THEN
+        UPDATE public.school_years SET is_active = FALSE;
+        INSERT INTO public.school_years (school_year, status, is_active, created_at)
         VALUES ('2026-2027', 'ACTIVE', TRUE, NOW())
         ON CONFLICT (school_year) DO UPDATE SET is_active = TRUE, status = 'ACTIVE';
         RAISE NOTICE 'Ensured School Year 2026-2027 is ACTIVE.';
@@ -137,14 +130,14 @@ FROM users;
 -- 2. Verify table row counts
 SELECT 'users (SuperAdmins)' AS table_name, COUNT(*) AS row_count FROM users
 UNION ALL
-SELECT 'school_year', COUNT(*) FROM school_year
+SELECT 'school_years', COUNT(*) FROM school_years
 UNION ALL
 SELECT 'allowed_emails', COUNT(*) FROM allowed_emails
 UNION ALL
-SELECT 'student_enrollment', COUNT(*) FROM student_enrollment
+SELECT 'student_enrollments', COUNT(*) FROM student_enrollments
 UNION ALL
-SELECT 'tutor_assignment_history', COUNT(*) FROM tutor_assignment_history
+SELECT 'tutor_assignment_histories', COUNT(*) FROM tutor_assignment_histories
 UNION ALL
-SELECT 'api_grade', COUNT(*) FROM api_grade
+SELECT 'student_grades', COUNT(*) FROM student_grades
 UNION ALL
-SELECT 'api_attendance', COUNT(*) FROM api_attendance;
+SELECT 'attendance_records', COUNT(*) FROM attendance_records;

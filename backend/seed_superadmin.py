@@ -6,7 +6,6 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
 from apps.accounts.models import User, AllowedEmail
-from apps.academics.models import SuperAdminProfile
 
 # Seed / Ensure SuperAdmin Accounts exist idempotently WITHOUT deleting existing users
 superadmin_accounts = [
@@ -71,10 +70,6 @@ for admin in superadmin_accounts:
         else:
             print(f"SuperAdmin account already exists and is active: {fn} {ln} ({email})")
 
-    SuperAdminProfile.objects.get_or_create(
-        user=superadmin_user,
-        defaults={"account_status": "ACTIVE"}
-    )
     AllowedEmail.objects.get_or_create(
         email=email,
         defaults={"note": f"SuperAdmin Account - {fn} {ln}"}
@@ -82,11 +77,13 @@ for admin in superadmin_accounts:
 
 from django.db import connection
 
-# Ensure unmanaged api_* tables exist in PostgreSQL (e.g. fresh Supabase instance)
+# Ensure unmanaged academic record tables exist in PostgreSQL (e.g. fresh Supabase instance)
 if connection.vendor == 'postgresql':
     try:
         with connection.cursor() as cursor:
-            cursor.execute("SELECT to_regclass('public.api_attendance')")
+            cursor.execute(
+                "SELECT COALESCE(to_regclass('public.attendance_records'), to_regclass('public.api_attendance'))"
+            )
             res = cursor.fetchone()
             if not res or not res[0]:
                 sql_path = os.path.join(os.path.dirname(__file__), 'sql', 'supabase_api_tables.sql')
@@ -95,11 +92,11 @@ if connection.vendor == 'postgresql':
                         sql_content = f.read()
                     ddl_block = sql_content.split('COMMIT;')[0] + 'COMMIT;'
                     cursor.execute(ddl_block)
-                    print("Unmanaged api_* tables created successfully in PostgreSQL.")
+                    print("Unmanaged academic record tables created successfully in PostgreSQL.")
             else:
-                print("Unmanaged api_* tables already exist in PostgreSQL.")
+                print("Unmanaged academic record tables already exist in PostgreSQL.")
     except Exception as e:
-        print(f"Notice on unmanaged api_* tables: {e}")
+        print(f"Notice on unmanaged academic record tables: {e}")
 
 print("SuperAdmin seeding completed successfully without modifying other accounts.")
 

@@ -90,9 +90,8 @@ class UserStatsView(APIView):
         total_assessments = 0
 
         try:
-            from apps.academics.models import ApiAttendance, ApiGrade, StudentAttendance, AssessmentScore
+            from apps.academics.models import ApiAttendance, ApiGrade
 
-            # Check active API tables first
             att_aggregates = ApiAttendance.objects.exclude(role='student', user__is_active=False).aggregate(
                 total_logs=Count('id'),
                 present=Count('id', filter=Q(status__iexact='present')),
@@ -102,31 +101,12 @@ class UserStatsView(APIView):
             present_att = att_aggregates['present'] or 0
             absent_att = att_aggregates['absent'] or 0
 
-            # Fallback to historical table if api table has no logs
-            if total_att == 0:
-                h_att = StudentAttendance.objects.filter(student__is_active=True).aggregate(
-                    total_logs=Count('id'),
-                    present=Count('id', filter=Q(status__iexact='PRESENT')),
-                    absent=Count('id', filter=Q(status__iexact='ABSENT')),
-                )
-                total_att = h_att['total_logs'] or 0
-                present_att = h_att['present'] or 0
-                absent_att = h_att['absent'] or 0
-
             score_aggregates = ApiGrade.objects.filter(score__isnull=False, student__is_active=True).aggregate(
                 avg_score=Avg('score'),
                 total_assessments=Count('id'),
             )
             total_assessments = score_aggregates['total_assessments'] or 0
-            if total_assessments == 0:
-                h_score = AssessmentScore.objects.filter(score__isnull=False, student__is_active=True).aggregate(
-                    avg_score=Avg('score'),
-                    total_assessments=Count('id'),
-                )
-                avg_score = round(float(h_score['avg_score']), 1) if h_score['avg_score'] is not None else 0
-                total_assessments = h_score['total_assessments'] or 0
-            else:
-                avg_score = round(float(score_aggregates['avg_score']), 1) if score_aggregates['avg_score'] is not None else 0
+            avg_score = round(float(score_aggregates['avg_score']), 1) if score_aggregates['avg_score'] is not None else 0
 
             att_rate = round((present_att / total_att * 100.0), 1) if total_att > 0 else 0
         except Exception:
@@ -1456,23 +1436,6 @@ class StudentEditRequestReviewView(APIView):
             if edit_req.proposed_aral_level and target_user.role == 'student':
                 target_user.aral_level = edit_req.proposed_aral_level
             target_user.save()
-
-            # Synchronize linked academic Student record if target is a student
-            if target_user.role == 'student':
-                try:
-                    from apps.academics.models import Student as AcademicStudent
-                    academic_student = AcademicStudent.objects.filter(user=target_user).first()
-                    if academic_student:
-                        academic_student.stu_fname = edit_req.proposed_first_name
-                        academic_student.stu_mname = edit_req.proposed_middle_name
-                        academic_student.stu_lname = edit_req.proposed_last_name
-                        if edit_req.proposed_lrn:
-                            academic_student.lrn = edit_req.proposed_lrn
-                        if edit_req.proposed_aral_level:
-                            academic_student.aral_level = edit_req.proposed_aral_level
-                        academic_student.save()
-                except Exception:
-                    pass
 
             edit_req.status = 'approved'
             edit_req.reviewed_by = request.user
