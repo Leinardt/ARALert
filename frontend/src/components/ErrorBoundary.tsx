@@ -1,5 +1,4 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
-import { AlertCircle, RefreshCw, Home, ShieldAlert } from 'lucide-react';
 import aralertLogo from '../assets/ARALert_Logo_LIGHT.png';
 
 interface Props {
@@ -73,7 +72,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="min-h-screen min-h-[100dvh] w-full flex items-center justify-center p-4 bg-slate-50 dark:bg-[#0c0d0e] text-slate-900 dark:text-slate-100 font-sans selection:bg-[#003E8B] selection:text-white">
           <div className="w-full max-w-md bg-white dark:bg-[#141619] border border-slate-200 dark:border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
             {/* Header Brand */}
-            <div className="flex justify-center items-center gap-2 mb-2">
+            <div className="flex justify-center items-center gap-2">
               <img
                 src={aralertLogo}
                 alt="ARALert"
@@ -84,47 +83,36 @@ export class ErrorBoundary extends Component<Props, State> {
               </span>
             </div>
 
-            {/* Error Icon Badge */}
-            <div className="mx-auto w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
-              {isChunkError ? <RefreshCw className="w-8 h-8 animate-spin-reverse" /> : <ShieldAlert className="w-8 h-8" />}
-            </div>
-
-            {/* Title & Description */}
-            <div className="space-y-2">
+            {/* Formal Title & Description */}
+            <div className="space-y-2.5 pt-1">
+              <p className="m-0 text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                {isChunkError ? 'System Notice' : 'System Error'}
+              </p>
               <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-                {this.props.fallbackTitle || (isChunkError ? 'Updating Application...' : 'Something went wrong')}
+                {this.props.fallbackTitle || (isChunkError ? 'System Update in Progress' : 'Unable to Display Page')}
               </h1>
               <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                 {isChunkError
-                  ? 'A new system update was detected or network was interrupted. Refreshing ensures you get the latest version.'
-                  : (this.props.fallbackMessage || 'The page encountered an unexpected issue while rendering. Please try refreshing.')}
+                  ? 'A newer version of ARALert is available, or your connection was briefly interrupted. Please refresh the page to load the latest update.'
+                  : (this.props.fallbackMessage || 'An unexpected system error prevented this page from loading properly. Please refresh the page or return to the home page. If this issue persists, kindly report it to your School Administrator.')}
               </p>
             </div>
 
-            {/* Technical Detail (Subtle toggle or preview) */}
-            {!isChunkError && (
-              <div className="p-3 rounded-xl bg-slate-100 dark:bg-neutral-900/60 border border-slate-200 dark:border-neutral-800 text-left text-xs font-mono text-slate-600 dark:text-slate-400 break-words max-h-24 overflow-y-auto">
-                {errorMsg}
-              </div>
-            )}
-
-            {/* Action Buttons */}
+            {/* Action Buttons (Text Only, No Icons) */}
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
                 type="button"
                 onClick={this.handleReload}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm bg-[#0052B7] hover:bg-[#003e8b] text-white shadow-lg shadow-blue-500/20 transition-all cursor-pointer"
+                className="flex-1 inline-flex items-center justify-center px-5 py-3 rounded-xl font-bold text-sm bg-[#0052B7] hover:bg-[#003e8b] text-white shadow-lg shadow-blue-500/20 transition-all cursor-pointer"
               >
-                <RefreshCw size={16} />
-                <span>Refresh Page</span>
+                Refresh Page
               </button>
               <button
                 type="button"
                 onClick={this.handleGoHome}
-                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm border border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800 transition-all cursor-pointer"
+                className="inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold text-sm border border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800 transition-all cursor-pointer"
               >
-                <Home size={16} />
-                <span>Home</span>
+                Return to Home
               </button>
             </div>
           </div>

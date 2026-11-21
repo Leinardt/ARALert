@@ -16,7 +16,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from apps.accounts.models import AllowedEmail, User
+from apps.accounts.models import AllowedEmail, AuditLog, User
 from utilities.audit import log_audit_event
 from utilities.helpers import get_client_ip
 from utilities.rate_limit import (
@@ -343,6 +343,57 @@ class AllowedEmailDestroyView(GenericAPIView):
         log_audit_event('ALLOWED_EMAIL_REMOVED', user=request.user, request=request,
                         details={'email': email})
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# Self-Scoped Login & Logout History (All Authenticated Roles)
+# ---------------------------------------------------------------------------
+
+LOGIN_HISTORY_ACTIONS = (
+    'GOOGLE_LOGIN_SUCCESS',
+    'STUDENT_LOGIN_SUCCESS',
+    'LOGIN_SUCCESS',
+    'MFA_VERIFIED',
+    'LOGOUT_SUCCESS',
+)
+
+LOGIN_HISTORY_LABELS = {
+    'GOOGLE_LOGIN_SUCCESS':  'Google Sign-In',
+    'STUDENT_LOGIN_SUCCESS': 'Student LRN Sign-In',
+    'LOGIN_SUCCESS':         'Account Sign-In',
+    'MFA_VERIFIED':          'MFA Verified Sign-In',
+    'LOGOUT_SUCCESS':        'Signed Out',
+}
+
+
+class LoginHistoryView(GenericAPIView):
+    """
+    GET /api/auth/login-history/
+    Returns the authenticated user's own recent sign-in and sign-out events
+    from audit_logs (read-only, strictly scoped to request.user; omits IP, browser, OS, and device).
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        logs = (
+            AuditLog.objects
+            .filter(user=request.user, action__in=LOGIN_HISTORY_ACTIONS)
+            .only('id', 'action', 'timestamp')
+            .order_by('-timestamp')[:50]
+        )
+
+        results = []
+        for log in logs:
+            results.append({
+                'id': str(log.id),
+                'event_type': 'logout' if log.action == 'LOGOUT_SUCCESS' else 'login',
+                'action': log.action,
+                'action_label': LOGIN_HISTORY_LABELS.get(log.action, log.action),
+                'timestamp': log.timestamp.isoformat(),
+            })
+
+        return Response({'results': results, 'count': len(results)}, status=status.HTTP_200_OK)
 
 
 # ---------------------------------------------------------------------------

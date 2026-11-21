@@ -73,6 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     const refreshToken = sessionStorage.getItem('refresh_token') || localStorage.getItem('refresh_token');
+    const accessToken = sessionStorage.getItem('access_token') || localStorage.getItem('access_token');
 
     // Immediately clear all session & local storage to eliminate UI lag
     sessionStorage.removeItem('aralert_login_greeting_pending');
@@ -87,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
 
     try {
-      await authService.logout(refreshToken);
+      await authService.logout(refreshToken, accessToken);
     } catch (error) {
       console.warn('Logout request failed', error);
     }

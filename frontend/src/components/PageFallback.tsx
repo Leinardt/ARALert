@@ -1,31 +1,34 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
+import aralertLogo from '../assets/ARALert_Logo_LIGHT.png';
 
 /**
- * 1:1 Landing Page Hero Skeleton
- * Matches the public landing page hero with logo on the left and hero copy on the right.
+ * Landing Page Branded Skeleton
+ * Renders a large centered ARALert logo silhouette with the system shimmer animation.
  */
 export const LandingFallback: React.FC = () => (
-  <div className="min-h-[85vh] w-full flex flex-col justify-center items-center px-4 sm:px-8 lg:px-12 pt-28 pb-20 box-border overflow-hidden skeleton-container animate-pulse">
-    <div className="max-w-6xl mx-auto w-full px-2 sm:px-6">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
-        {/* Left: Brand Logo Placeholder */}
-        <div className="lg:col-span-5 flex flex-col items-center justify-center">
-          <div className="w-40 sm:w-52 md:w-64 lg:w-72 h-44 sm:h-56 md:h-64 rounded-2xl bg-gray-200 dark:bg-gray-800" />
-          <div className="mt-6 w-28 sm:w-36 lg:w-44 h-3 rounded-full bg-gray-100 dark:bg-gray-800/60" />
-        </div>
-
-        {/* Right: Hero Title, Subtitle, and CTA Button Placeholder */}
-        <div className="lg:col-span-7 space-y-5 text-center lg:text-left flex flex-col items-center lg:items-start">
-          <div className="h-12 sm:h-16 lg:h-20 w-52 sm:w-72 rounded-lg bg-gray-200 dark:bg-gray-800" />
-          <div className="space-y-2.5 w-full max-w-xl">
-            <div className="h-4 w-full rounded bg-gray-100 dark:bg-gray-800" />
-            <div className="h-4 w-11/12 rounded bg-gray-100 dark:bg-gray-800" />
-            <div className="h-4 w-4/5 rounded bg-gray-100 dark:bg-gray-800" />
-          </div>
-          <div className="h-11 sm:h-12 w-48 rounded-xl bg-gray-200 dark:bg-gray-800 mt-3" />
-        </div>
-      </div>
+  <div
+    className="min-h-screen w-full flex items-center justify-center px-6 py-12 box-border overflow-hidden bg-white dark:bg-black"
+    role="status"
+    aria-label="Loading ARALert"
+  >
+    <div
+      className="relative overflow-hidden w-48 h-48 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-80 lg:h-80 bg-slate-200 dark:bg-neutral-800"
+      style={{
+        WebkitMaskImage: `url(${aralertLogo})`,
+        maskImage: `url(${aralertLogo})`,
+        WebkitMaskSize: 'contain',
+        maskSize: 'contain',
+        WebkitMaskRepeat: 'no-repeat',
+        maskRepeat: 'no-repeat',
+        WebkitMaskPosition: 'center',
+        maskPosition: 'center',
+      }}
+    >
+      <div
+        aria-hidden="true"
+        className="landing-logo-shimmer-bar absolute inset-0 pointer-events-none"
+      />
     </div>
   </div>
 );

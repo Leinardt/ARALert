@@ -1137,6 +1137,36 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
   }
 }
 
+@keyframes landing-logo-shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+.landing-logo-shimmer-bar {
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.85) 50%,
+    transparent 80%
+  );
+  animation: landing-logo-shimmer 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform;
+}
+
+.dark .landing-logo-shimmer-bar,
+:root.dark .landing-logo-shimmer-bar {
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 80%
+  );
+}
+
 /* Eliminate harsh whole-page blinking/flickering opacity */
 .animate-pulse {
   animation: none !important;

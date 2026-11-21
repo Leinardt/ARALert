@@ -91,9 +91,9 @@ class AcademicRiskSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'student', 'student_name',
             'risk_level', 'risk_level_display',
-            'details', 'date_created', 'resolved', 'student_acknowledged',
+            'details', 'date_created', 'resolved', 'student_acknowledged', 'acknowledged_at',
         ]
-        read_only_fields = ['id', 'student_name', 'risk_level_display', 'date_created']
+        read_only_fields = ['id', 'student_name', 'risk_level_display', 'date_created', 'acknowledged_at']
 
     def get_student_name(self, obj):
         return obj.student.get_full_name() if obj.student_id else ''

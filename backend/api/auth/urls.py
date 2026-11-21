@@ -11,6 +11,7 @@ from .views import (
     AllowedEmailListCreateView,
     CustomTokenRefreshView,
     GoogleLoginView,
+    LoginHistoryView,
     LogoutView,
     StudentLoginView,
     ConsentAcceptView,
@@ -29,6 +30,7 @@ urlpatterns = [
     # Common endpoints
     path('logout/', LogoutView.as_view(), name='auth-logout'),
     path('refresh/', CustomTokenRefreshView.as_view(), name='auth-refresh'),
+    path('login-history/', LoginHistoryView.as_view(), name='auth-login-history'),
 
     # SuperAdmin — Allowed Email whitelist management
     path('allowed-emails/', AllowedEmailListCreateView.as_view(), name='allowed-email-list'),

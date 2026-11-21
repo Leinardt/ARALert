@@ -360,6 +360,7 @@ class ApiAcademicRisk(models.Model):
     date_created          = models.DateTimeField()
     resolved              = models.BooleanField(default=False)
     student_acknowledged  = models.BooleanField(default=False)
+    acknowledged_at       = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'academic_risks'

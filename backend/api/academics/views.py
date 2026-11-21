@@ -661,7 +661,13 @@ class AcademicRiskDetailView(generics.RetrieveUpdateDestroyAPIView):
                 raise PermissionDenied('Students may only acknowledge academic risk alerts.')
 
         old_risk = self.get_object()
-        risk = serializer.save()
+        new_ack = serializer.validated_data.get('student_acknowledged', old_risk.student_acknowledged)
+        if not old_risk.student_acknowledged and new_ack:
+            risk = serializer.save(acknowledged_at=timezone.now())
+        elif old_risk.student_acknowledged and not new_ack:
+            risk = serializer.save(acknowledged_at=None)
+        else:
+            risk = serializer.save()
 
         # Check if student or tutor acknowledged an advisory/intervention note
         is_principal_tutor_note = (risk.details or '').startswith('[PRINCIPAL_TUTOR_NOTE:')
@@ -714,7 +720,7 @@ class AcademicRiskDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_destroy(self, instance):
         user = self.request.user
-        if not user.is_superuser and user.role not in ('tutor', 'admin', 'faculty'):
+        if not user.is_superuser and user.role not in ('tutor', 'principal', 'admin', 'faculty'):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('Unauthorized to delete academic risk alerts.')
         instance.delete()
