@@ -11,6 +11,7 @@ export interface ParsedAcademicRiskNote {
   kind: AcademicRiskNoteKind;
   tutorId?: string;
   tutorName?: string;
+  principalName?: string;
   classLabel?: string;
   authorLabel: string;
   note: string;
@@ -68,16 +69,17 @@ export const formatStudentSectionOnly = (student: Partial<User> | null | undefin
  */
 export const parsePrincipalTutorNote = (
   details?: string | null
-): { tutorId: string; classLabel?: string; note: string } | null => {
+): { tutorId: string; classLabel?: string; principalName?: string; note: string } | null => {
   if (!details || !details.startsWith(PRINCIPAL_TUTOR_NOTE_PREFIX)) return null;
   const closeIdx = details.indexOf(']');
   if (closeIdx === -1) return null;
   const header = details.slice(PRINCIPAL_TUTOR_NOTE_PREFIX.length, closeIdx);
-  const [rawTutorId, ...rest] = header.split('|');
+  const [rawTutorId, rawClass, ...restPrincipal] = header.split('|');
   const tutorId = (rawTutorId || '').trim();
-  const classLabel = rest.join('|').trim() || undefined;
+  const classLabel = (rawClass || '').trim() || undefined;
+  const principalName = restPrincipal.join('|').trim() || undefined;
   const note = details.slice(closeIdx + 1).trim();
-  return tutorId ? { tutorId, classLabel, note } : null;
+  return tutorId ? { tutorId, classLabel, principalName, note } : null;
 };
 
 /**
@@ -86,12 +88,19 @@ export const parsePrincipalTutorNote = (
 export const formatPrincipalTutorNote = (
   tutorId: string,
   note: string,
-  classLabel?: string | null
+  classLabel?: string | null,
+  principalName?: string | null
 ): string => {
   const safeClass = sanitizeTagSegment(classLabel);
-  const header = safeClass
-    ? `${PRINCIPAL_TUTOR_NOTE_PREFIX}${tutorId}|${safeClass}]`
-    : `${PRINCIPAL_TUTOR_NOTE_PREFIX}${tutorId}]`;
+  const safePrincipal = sanitizeTagSegment(principalName);
+  let header: string;
+  if (safePrincipal) {
+    header = `${PRINCIPAL_TUTOR_NOTE_PREFIX}${tutorId}|${safeClass}|${safePrincipal}]`;
+  } else if (safeClass) {
+    header = `${PRINCIPAL_TUTOR_NOTE_PREFIX}${tutorId}|${safeClass}]`;
+  } else {
+    header = `${PRINCIPAL_TUTOR_NOTE_PREFIX}${tutorId}]`;
+  }
   return `${header} ${note.trim()}`;
 };
 
@@ -175,6 +184,7 @@ export const parseAcademicRiskNote = (risk: AcademicRisk): ParsedAcademicRiskNot
       kind: 'principal_tutor',
       tutorId: principalTutor.tutorId,
       classLabel: principalTutor.classLabel,
+      principalName: principalTutor.principalName,
       authorLabel: 'Principal Note (Tutor Advisory)',
       note: principalTutor.note,
       risk,

@@ -10,6 +10,14 @@ export interface AllowedEmail {
   date_added: string;
 }
 
+export interface LoginHistoryItem {
+  id: string;
+  event_type: 'login' | 'logout';
+  action: string;
+  action_label: string;
+  timestamp: string;
+}
+
 export const authService = {
   getDeviceId: (): string => {
     let deviceId = localStorage.getItem('device_id');
@@ -34,7 +42,12 @@ export const authService = {
     return response.data;
   },
 
-  logout: async (refreshToken: string | null): Promise<void> => {
+  logout: async (refreshToken: string | null, accessToken?: string | null): Promise<void> => {
+    // Capture access token before wiping storage so backend logout endpoint
+    // can authenticate, blacklist the refresh token, and record LOGOUT_SUCCESS.
+    const tokenToUse =
+      accessToken || sessionStorage.getItem('access_token') || localStorage.getItem('access_token');
+
     // 1. Immediately wipe local auth credentials and activity
     clearActivity();
     sessionStorage.clear();
@@ -42,13 +55,23 @@ export const authService = {
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
 
-    // 2. Asynchronously notify backend to blacklist refresh token and record audit event
-    // Non-blocking so the user experiences an instant, zero-delay logout
+    // 2. Notify backend to blacklist refresh token and record LOGOUT_SUCCESS audit event
     if (refreshToken) {
-      api.post('/auth/logout/', { refresh: refreshToken }).catch((err) => {
-        console.warn('Background logout notification completed with error:', err);
-      });
+      try {
+        await api.post(
+          '/auth/logout/',
+          { refresh: refreshToken },
+          tokenToUse ? { headers: { Authorization: `Bearer ${tokenToUse}` } } : undefined
+        );
+      } catch (err) {
+        console.warn('Logout notification completed with error:', err);
+      }
     }
+  },
+
+  getLoginHistory: async (): Promise<LoginHistoryItem[]> => {
+    const response = await api.get<{ results: LoginHistoryItem[]; count: number }>('/auth/login-history/');
+    return Array.isArray(response.data?.results) ? response.data.results : [];
   },
 
   getProfile: async (): Promise<User> => {

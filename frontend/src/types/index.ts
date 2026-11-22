@@ -140,6 +140,7 @@ export interface AcademicRisk {
   date_created: string;
   resolved: boolean;
   student_acknowledged: boolean;
+  acknowledged_at?: string | null;
 }
 
 export interface PrincipalDashboardTrendPoint {
